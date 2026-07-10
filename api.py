@@ -10,6 +10,9 @@ import time
 
 from database import SessionLocal, init_db, User, UserInteraction, Event
 from recommender import HybridRecommender
+from fastapi import FastAPI
+
+app = FastAPI(title="Afisha SPB API")
 
 # ─── ИНИЦИАЛИЗАЦИЯ ────────────────────────────────────────
 app = FastAPI(title="Афиша SPB — API", version="1.0")
