@@ -1,5 +1,7 @@
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime
@@ -13,7 +15,22 @@ from recommender import HybridRecommender
 
 # ─── ИНИЦИАЛИЗАЦИЯ ────────────────────────────────────────
 app = FastAPI(title="Афиша SPB — API", version="1.0")
+# Подключаем папку со статическими файлами
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
+# Главная страница открывается по корневому адресу
+@app.get("/")
+def root():
+    return FileResponse("static/index.html")
+
+# Любой HTML файл открывается по имени
+@app.get("/{page}.html")
+def get_page(page: str):
+    file_path = f"static/{page}.html"
+    import os
+    if os.path.exists(file_path):
+        return FileResponse(file_path)
+    return FileResponse("static/index.html")
 # Разрешаем запросы с любых сайтов (для фронтенда)
 app.add_middleware(
     CORSMiddleware,
