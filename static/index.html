@@ -177,6 +177,14 @@ footer{border-top:1px solid var(--border);padding:28px 48px;display:flex;justify
 .footer-links a{font-size:11px;font-family:'IBM Plex Mono',monospace;color:var(--muted);transition:color 0.2s}
 .footer-links a:hover{color:var(--text)}
 .footer-copy{font-size:10px;font-family:'IBM Plex Mono',monospace;color:rgba(136,133,128,0.5)}
+
+/* ── LOADING ── */
+.loading-spinner{display:flex;justify-content:center;align-items:center;padding:60px 0;grid-column:1/-1}
+.spinner{width:40px;height:40px;border:2px solid var(--border);border-top:2px solid var(--accent);border-radius:50%;animation:spin 0.8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.error-message{grid-column:1/-1;text-align:center;padding:60px 0;color:var(--muted)}
+.error-message .retry-btn{margin-top:16px;background:none;border:1px solid var(--border);color:var(--text);padding:10px 24px;cursor:pointer;font-family:'IBM Plex Mono',monospace;transition:all 0.2s}
+.error-message .retry-btn:hover{border-color:var(--accent);color:var(--accent)}
 </style>
 </head>
 <body>
@@ -205,16 +213,16 @@ footer{border-top:1px solid var(--border);padding:28px 48px;display:flex;justify
     <p class="hero-sub">Концерты, театр, спорт, выставки, вечеринки, мастер-классы — находите интересное рядом с вами каждый день.</p>
     <div class="hero-stats">
       <div class="stat">
-        <div class="stat-num">1 240</div>
-        <div class="stat-label">Событий в мае</div>
+        <div class="stat-num" id="stat-events">—</div>
+        <div class="stat-label">Событий в базе</div>
       </div>
       <div class="stat">
-        <div class="stat-num">340+</div>
+        <div class="stat-num" id="stat-places">—</div>
         <div class="stat-label">Площадок</div>
       </div>
       <div class="stat">
-        <div class="stat-num">18</div>
-        <div class="stat-label">Районов</div>
+        <div class="stat-num" id="stat-free">—</div>
+        <div class="stat-label">Бесплатных</div>
       </div>
     </div>
 
@@ -348,7 +356,7 @@ footer{border-top:1px solid var(--border);padding:28px 48px;display:flex;justify
 <main class="content">
   <div class="section-header">
     <h2 class="section-title">Ближайшие события</h2>
-    <span class="section-count" id="events-count">— мероприятий</span>
+    <span class="section-count" id="events-count">Загрузка...</span>
   </div>
 
   <div class="cat-strip">
@@ -366,11 +374,13 @@ footer{border-top:1px solid var(--border);padding:28px 48px;display:flex;justify
     <button class="cat-chip" data-cat="Частное">Частные</button>
   </div>
 
-  <div class="cards-grid" id="cards-grid"></div>
+  <div class="cards-grid" id="cards-grid">
+    <div class="loading-spinner"><div class="spinner"></div></div>
+  </div>
 </main>
 
 <div class="load-more-section">
-  <button class="btn-load">Загрузить ещё</button>
+  <button class="btn-load" id="load-more-btn" style="display:none">Загрузить ещё</button>
 </div>
 
 <footer>
@@ -385,241 +395,408 @@ footer{border-top:1px solid var(--border);padding:28px 48px;display:flex;justify
 </footer>
 
 <script>
-const events = [
-  {id:1,title:"Чайка. Режиссёрская версия",cat:"Театр",venue:"БДТ им. Товстоногова",date:"3 мая, 19:00",price:1200,age:"16+",tags:["Драма","Классика"],benefits:["Пушкинская карта"],img:"https://images.unsplash.com/photo-1507676184212-d03ab07a01bf?w=600&q=70",private:false},
-  {id:2,title:"Николай Рерих. Симфония гор",cat:"Выставка",venue:"Русский музей",date:"до 25 мая",price:600,age:"0+",tags:["Живопись","XX век"],benefits:["Студентам","Пенсионерам"],img:"https://images.unsplash.com/photo-1518998053901-5348d3961a04?w=600&q=70",private:false},
-  {id:3,title:"Оркестр Мариинского театра",cat:"Концерт",venue:"Мариинский театр",date:"5 мая, 20:00",price:2500,age:"6+",tags:["Классика","Симфония"],benefits:["Пушкинская карта"],img:"https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=600&q=70",private:false},
-  {id:4,title:"Достоевский и Петербург",cat:"Лекция",venue:"Библиотека Маяковского",date:"7 мая, 18:30",price:0,age:"12+",tags:["Литература","История"],benefits:["Студентам"],img:"",private:false},
-  {id:5,title:"Джазовый вечер у Аркадия",cat:"Концерт",venue:"Петроградский р-н",date:"17 мая, 20:00",price:1500,age:"18+",tags:["Джаз","Камерный"],benefits:[],img:"",private:true,spots:"7 мест"},
-  {id:6,title:"Сплин — 30 лет",cat:"Концерт",venue:"А2 Green Concert",date:"10 мая, 20:00",price:3500,age:"16+",tags:["Рок","Живой звук"],benefits:[],img:"https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?w=600&q=70",private:false},
-  {id:7,title:"Шерлок Холмс. Мюзикл",cat:"Театр",venue:"Театр Музкомедии",date:"12 мая, 19:00",price:1800,age:"6+",tags:["Мюзикл","Детектив"],benefits:["Пушкинская карта"],img:"https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&q=70",private:false},
-  {id:8,title:"Архитектура Петербурга",cat:"Экскурсия",venue:"Старт у Зимнего дворца",date:"8 мая, 11:00",price:500,age:"0+",tags:["Архитектура","Прогулка"],benefits:["Пенсионерам"],img:"",private:false},
-  {id:9,title:"Илья Новиков. Стендап",cat:"Стендап",venue:"Козлёнок в молоке",date:"9 мая, 21:00",price:1000,age:"18+",tags:["Юмор"],benefits:[],img:"https://images.unsplash.com/photo-1585699324551-f6c309eedeca?w=600&q=70",private:false},
-  {id:10,title:"Кроссфит-марафон «Белые ночи»",cat:"Спорт",venue:"Парк 300-летия Петербурга",date:"11 мая, 9:00",price:800,age:"16+",tags:["Спорт","Марафон"],benefits:[],img:"https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=600&q=70",private:false},
-  {id:11,title:"Гончарная мастерская: лепка для взрослых",cat:"Мастер-класс",venue:"Студия «Глина»",date:"14 мая, 18:00",price:2200,age:"14+",tags:["Керамика","Творчество"],benefits:["Студентам"],img:"",private:false},
-  {id:12,title:"Фестиваль уличной еды «Питерский стол»",cat:"Фестиваль",venue:"Новая Голландия",date:"17–18 мая",price:0,age:"0+",tags:["Еда","Уличный"],benefits:[],img:"https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=600&q=70",private:false},
-];
+// === КОНФИГУРАЦИЯ ===
+// Для Railway используем тот же домен, где лежит index.html
+const API_BASE_URL = window.location.origin;
 
+// === ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ===
+let events = [];
+let allEvents = [];
 let activeFilter = 'all';
 let selectedAge = null;
 let maxPrice = 10000;
 let selectedDate = null;
+let isLoading = false;
+let currentLimit = 20;
+const LOAD_STEP = 20;
 
+// === ЗАГРУЗКА ДАННЫХ С СЕРВЕРА ===
+async function loadEventsFromAPI() {
+    const grid = document.getElementById('cards-grid');
+    grid.innerHTML = '<div class="loading-spinner"><div class="spinner"></div></div>';
+    document.getElementById('events-count').textContent = 'Загрузка...';
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/events?limit=1000`);
+        if (response.ok) {
+            const data = await response.json();
+            allEvents = data.events.map(e => ({
+                id: e.id || 0,
+                title: e.title || 'Без названия',
+                cat: e.category || 'Другое',
+                venue: e.venue || e.venue_title || 'Не указано',
+                date: e.datetime || e.start_datetime || 'Дата не указана',
+                price: e.price || e.price_min || 0,
+                age: e.age_restriction || '0+',
+                tags: e.tags ? (Array.isArray(e.tags) ? e.tags : e.tags.split(', ')) : [],
+                benefits: [],
+                img: e.image_url || '',
+                private: false,
+                is_free: e.is_free || e.price === 0 || false,
+                venue_address: e.venue_address || ''
+            }));
+            events = allEvents.slice(0, currentLimit);
+            
+            // Обновляем статистику в hero
+            updateStats(allEvents);
+            
+            renderCards();
+            document.getElementById('load-more-btn').style.display = 
+                allEvents.length > currentLimit ? 'block' : 'none';
+        } else {
+            showError(`Ошибка сервера: ${response.status}`);
+        }
+    } catch (error) {
+        console.error('Ошибка загрузки:', error);
+        showError('Не удалось загрузить данные с сервера. Проверьте интернет-соединение.');
+    }
+}
+
+function updateStats(eventsData) {
+    const total = eventsData.length;
+    const places = new Set(eventsData.map(e => e.venue)).size;
+    const free = eventsData.filter(e => e.is_free || e.price === 0).length;
+    
+    document.getElementById('stat-events').textContent = total;
+    document.getElementById('stat-places').textContent = places;
+    document.getElementById('stat-free').textContent = free;
+}
+
+function showError(message) {
+    const grid = document.getElementById('cards-grid');
+    grid.innerHTML = `
+        <div class="error-message">
+            <div>⚠️ ${message}</div>
+            <button class="retry-btn" onclick="loadEventsFromAPI()">Повторить попытку</button>
+        </div>
+    `;
+    document.getElementById('events-count').textContent = 'Ошибка загрузки';
+}
+
+// === ФИЛЬТРАЦИЯ ===
 function getAgeNumber(ageStr) {
-  if(!ageStr) return 0;
-  const match = ageStr.match(/(\d+)/);
-  return match ? parseInt(match[0]) : 0;
+    if (!ageStr) return 0;
+    const match = ageStr.match(/(\d+)/);
+    return match ? parseInt(match[0]) : 0;
 }
 
 function filterByAge(eventAge, selectedAgeFilter) {
-  if(!selectedAgeFilter) return true;
-  const eventAgeNum = getAgeNumber(eventAge);
-  const filterAgeNum = getAgeNumber(selectedAgeFilter);
-  return eventAgeNum >= filterAgeNum;
+    if (!selectedAgeFilter) return true;
+    const eventAgeNum = getAgeNumber(eventAge);
+    const filterAgeNum = getAgeNumber(selectedAgeFilter);
+    return eventAgeNum >= filterAgeNum;
 }
 
 function filterEvents() {
-  let filtered = activeFilter === 'all' ? events : events.filter(e => e.cat === activeFilter || (activeFilter === 'Частное' && e.private));
-  filtered = filtered.filter(e => e.price <= maxPrice);
-  if(selectedAge) filtered = filtered.filter(e => filterByAge(e.age, selectedAge));
-  if(selectedDate) {
-    filtered = filtered.filter(e => {
-      const eventDay = e.date.split(',')[0].split(' ')[0];
-      return parseInt(eventDay) === selectedDate.getDate();
+    let filtered = allEvents;
+    
+    // Фильтр по категории
+    if (activeFilter !== 'all') {
+        filtered = filtered.filter(e => {
+            if (activeFilter === 'Частное') return e.private === true;
+            return e.cat === activeFilter || e.cat?.includes(activeFilter);
+        });
+    }
+    
+    // Фильтр по цене
+    filtered = filtered.filter(e => e.price <= maxPrice);
+    
+    // Фильтр по возрасту
+    if (selectedAge) {
+        filtered = filtered.filter(e => filterByAge(e.age, selectedAge));
+    }
+    
+    // Фильтр по дате
+    if (selectedDate) {
+        filtered = filtered.filter(e => {
+            if (!e.date) return false;
+            const eventDay = e.date.match(/(\d+)/);
+            if (eventDay) {
+                return parseInt(eventDay[0]) === selectedDate.getDate();
+            }
+            return false;
+        });
+    }
+    
+    return filtered;
+}
+
+// === ОТОБРАЖЕНИЕ КАРТОЧЕК ===
+function renderCards() {
+    const filtered = filterEvents();
+    const totalFiltered = filtered.length;
+    
+    document.getElementById('events-count').textContent = 
+        `${totalFiltered} мероприятий${totalFiltered < allEvents.length ? ` (из ${allEvents.length})` : ''}`;
+    
+    const grid = document.getElementById('cards-grid');
+    
+    if (totalFiltered === 0) {
+        grid.innerHTML = `
+            <div class="error-message" style="grid-column:1/-1">
+                <div>🔍 По вашему запросу ничего не найдено</div>
+                <button class="retry-btn" onclick="resetFilters()">Сбросить фильтры</button>
+            </div>
+        `;
+        return;
+    }
+    
+    // Показываем только первые currentLimit записей
+    const displayEvents = filtered.slice(0, currentLimit);
+    
+    grid.innerHTML = displayEvents.map(e => {
+        const hasImage = e.img && e.img.length > 0;
+        const firstLetter = e.cat ? e.cat.charAt(0) : '?';
+        const priceDisplay = (e.is_free || e.price === 0) ? 'Бесплатно' : 
+            `<em>от</em> ${e.price.toLocaleString('ru')} ₽`;
+        const priceClass = (e.is_free || e.price === 0) ? 'free' : '';
+        
+        return `
+        <div class="event-card" onclick="window.open('event.html?id=${e.id}','_blank')">
+            <div class="card-img-wrap">
+                ${hasImage ? 
+                    `<img src="${e.img}" alt="${e.title}" loading="lazy">` : 
+                    `<div class="card-img-placeholder" data-letter="${firstLetter}"></div>`
+                }
+                <div class="card-badges">
+                    <div class="badges-left">
+                        <span class="badge-cat">${e.cat || 'Другое'}</span>
+                        ${e.private ? '<span class="badge-private">Частное</span>' : ''}
+                    </div>
+                    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px">
+                        <span class="badge-age">${e.age || '0+'}</span>
+                        <button class="btn-fav-card" onclick="toggleFav(event,${e.id})" id="fav-${e.id}" title="В избранное">⚑</button>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="card-date">${e.date || 'Дата не указана'}</div>
+                <div class="card-title">${e.title}</div>
+                <div class="card-venue">${e.venue}</div>
+                ${e.venue_address ? `<div style="font-size:10px;color:var(--muted);margin-bottom:8px">${e.venue_address}</div>` : ''}
+                ${e.benefits && e.benefits.length ? 
+                    `<div class="benefit-tags">${e.benefits.map(b => `<span class="benefit-tag">${b}</span>`).join('')}</div>` : ''}
+                <div class="card-footer">
+                    <div class="card-price ${priceClass}">${priceDisplay}</div>
+                    <div class="card-tags">${e.tags && e.tags.length ? e.tags.slice(0, 2).map(t => `<span class="tag">${t}</span>`).join('') : ''}</div>
+                </div>
+            </div>
+        </div>
+    `}).join('');
+    
+    // Показываем/скрываем кнопку "Загрузить ещё"
+    const loadMoreBtn = document.getElementById('load-more-btn');
+    const filteredCount = filtered.length;
+    if (filteredCount > currentLimit) {
+        loadMoreBtn.style.display = 'block';
+        loadMoreBtn.textContent = `Загрузить ещё (${currentLimit}/${filteredCount})`;
+    } else {
+        loadMoreBtn.style.display = 'none';
+    }
+    
+    // Обновляем плейсхолдеры
+    document.querySelectorAll('.card-img-placeholder').forEach(el => {
+        const parentCard = el.closest('.event-card');
+        const catBadge = parentCard?.querySelector('.badge-cat')?.innerText || '?';
+        const letter = catBadge.charAt(0);
+        el.setAttribute('data-letter', letter);
     });
-  }
-  return filtered;
 }
 
-function renderCards(){
-  const filtered = filterEvents();
-  document.getElementById('events-count').textContent = filtered.length + ' мероприятий';
-  const grid = document.getElementById('cards-grid');
-  grid.innerHTML = filtered.map(e => {
-    const hasImage = e.img && e.img.length > 0;
-    const firstLetter = e.cat.charAt(0);
-    return `
-    <div class="event-card" onclick="window.open('${e.private ? 'private-event.html' : 'event.html'}','_blank')">
-      <div class="card-img-wrap">
-        ${hasImage ? 
-          `<img src="${e.img}" alt="${e.title}" loading="lazy">` : 
-          `<div class="card-img-placeholder" data-letter="${firstLetter}"></div>`
-        }
-        <div class="card-badges">
-          <div class="badges-left">
-            <span class="badge-cat">${e.cat}</span>
-            ${e.private ? '<span class="badge-private">Частное</span>' : ''}
-          </div>
-          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px">
-            <span class="badge-age">${e.age}</span>
-            <button class="btn-fav-card" onclick="toggleFav(event,${e.id})" id="fav-${e.id}" title="В избранное">⚑</button>
-          </div>
-        </div>
-      </div>
-      <div class="card-body">
-        <div class="card-date">${e.date}</div>
-        <div class="card-title">${e.title}</div>
-        <div class="card-venue">${e.venue}</div>
-        ${e.private && e.spots ? `<div class="card-participants">Осталось мест: ${e.spots}</div>` : ''}
-        ${e.benefits.length ? `<div class="benefit-tags">${e.benefits.map(b=>`<span class="benefit-tag">${b}</span>`).join('')}</div>` : ''}
-        <div class="card-footer">
-          <div class="card-price ${e.price===0?'free':''}">
-            ${e.price===0 ? 'Бесплатно' : `<em>от</em>${e.price.toLocaleString('ru')} ₽`}
-          </div>
-          <div class="card-tags">${e.tags.slice(0,2).map(t=>`<span class="tag">${t}</span>`).join('')}</div>
-        </div>
-      </div>
-    </div>
-  `}).join('');
-  
-  // Добавляем буквы в плейсхолдеры после рендера
-  document.querySelectorAll('.card-img-placeholder').forEach(el => {
-    const parentCard = el.closest('.event-card');
-    const catBadge = parentCard?.querySelector('.badge-cat')?.innerText || '?';
-    const letter = catBadge.charAt(0);
-    el.setAttribute('data-letter', letter);
-  });
+// === ЗАГРУЗКА ЕЩЁ ===
+document.getElementById('load-more-btn').addEventListener('click', function() {
+    const filtered = filterEvents();
+    if (currentLimit < filtered.length) {
+        currentLimit += LOAD_STEP;
+        renderCards();
+    }
+});
+
+// === TOGGLE FAV ===
+function toggleFav(e, id) {
+    e.stopPropagation();
+    const btn = document.getElementById('fav-' + id);
+    if (btn) btn.classList.toggle('active');
 }
 
-function toggleFav(e,id){
-  e.stopPropagation();
-  const btn = document.getElementById('fav-'+id);
-  if(btn) btn.classList.toggle('active');
-}
-
-// Возрастной фильтр
+// === ВОЗРАСТНОЙ ФИЛЬТР ===
 function toggleAgePopup() {
-  const popup = document.getElementById('age-popup');
-  popup.classList.toggle('open');
-  document.getElementById('cal-popup').classList.remove('open');
-  document.getElementById('price-popup').classList.remove('open');
-  document.getElementById('benefit-popup').classList.remove('open');
+    const popup = document.getElementById('age-popup');
+    if (!popup) return;
+    popup.classList.toggle('open');
+    document.getElementById('cal-popup')?.classList.remove('open');
+    document.getElementById('price-popup')?.classList.remove('open');
+    document.getElementById('benefit-popup')?.classList.remove('open');
 }
 
 document.querySelectorAll('.age-option').forEach(opt => {
-  opt.addEventListener('click', () => {
-    const age = opt.dataset.age;
-    if(selectedAge === age) {
-      selectedAge = null;
-      opt.classList.remove('selected');
-      document.getElementById('age-filter-btn').innerHTML = 'Возраст ▾';
-    } else {
-      document.querySelectorAll('.age-option').forEach(o => o.classList.remove('selected'));
-      selectedAge = age;
-      opt.classList.add('selected');
-      document.getElementById('age-filter-btn').innerHTML = `${age} ▾`;
+    opt.addEventListener('click', () => {
+        const age = opt.dataset.age;
+        if (selectedAge === age) {
+            selectedAge = null;
+            opt.classList.remove('selected');
+            document.getElementById('age-filter-btn').innerHTML = 'Возраст ▾';
+        } else {
+            document.querySelectorAll('.age-option').forEach(o => o.classList.remove('selected'));
+            selectedAge = age;
+            opt.classList.add('selected');
+            document.getElementById('age-filter-btn').innerHTML = `${age} ▾`;
+        }
+        document.getElementById('age-popup')?.classList.remove('open');
+        currentLimit = LOAD_STEP;
+        renderCards();
+    });
+});
+
+// === КАЛЕНДАРЬ ===
+let calDate = new Date();
+calDate.setDate(1);
+
+function renderCal() {
+    const months = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+    const monthLabel = document.getElementById('cal-month-label');
+    if (!monthLabel) return;
+    monthLabel.textContent = months[calDate.getMonth()] + ' ' + calDate.getFullYear();
+    
+    const grid = document.getElementById('cal-grid');
+    if (!grid) return;
+    
+    const days = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+    let html = days.map(d => `<div class="cal-day-name">${d}</div>`).join('');
+    
+    let start = new Date(calDate.getFullYear(), calDate.getMonth(), 1).getDay();
+    if (start === 0) start = 7;
+    for (let i = 1; i < start; i++) html += `<div class="cal-day empty"></div>`;
+    
+    const dim = new Date(calDate.getFullYear(), calDate.getMonth() + 1, 0).getDate();
+    const today = new Date();
+    
+    for (let d = 1; d <= dim; d++) {
+        const isToday = today.getDate() === d && today.getMonth() === calDate.getMonth() && today.getFullYear() === calDate.getFullYear();
+        const isSelected = selectedDate && selectedDate.getDate() === d && selectedDate.getMonth() === calDate.getMonth();
+        html += `<div class="cal-day${isToday ? ' today' : ''}${isSelected ? ' selected' : ''}" onclick="selectDate(${d})">${d}</div>`;
     }
-    document.getElementById('age-popup').classList.remove('open');
+    grid.innerHTML = html;
+}
+
+function selectDate(d) {
+    selectedDate = new Date(calDate.getFullYear(), calDate.getMonth(), d);
+    const m = ['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
+    document.getElementById('cal-display').textContent = d + ' ' + m[calDate.getMonth()];
+    document.getElementById('cal-popup')?.classList.remove('open');
+    renderCal();
+    currentLimit = LOAD_STEP;
     renderCards();
-  });
+}
+
+function prevMonth() {
+    calDate = new Date(calDate.getFullYear(), calDate.getMonth() - 1, 1);
+    renderCal();
+}
+function nextMonth() {
+    calDate = new Date(calDate.getFullYear(), calDate.getMonth() + 1, 1);
+    renderCal();
+}
+
+function toggleCal() {
+    document.getElementById('cal-popup')?.classList.toggle('open');
+    document.getElementById('price-popup')?.classList.remove('open');
+    document.getElementById('benefit-popup')?.classList.remove('open');
+    document.getElementById('age-popup')?.classList.remove('open');
+    renderCal();
+}
+
+// === ЦЕНА ===
+function togglePrice() {
+    document.getElementById('price-popup')?.classList.toggle('open');
+    document.getElementById('cal-popup')?.classList.remove('open');
+    document.getElementById('benefit-popup')?.classList.remove('open');
+    document.getElementById('age-popup')?.classList.remove('open');
+}
+
+function updatePrice(v) {
+    const val = parseInt(v);
+    document.getElementById('price-val').textContent = 'до ' + val.toLocaleString('ru') + ' ₽';
+    document.getElementById('price-display').textContent = 'до ' + val.toLocaleString('ru') + ' ₽';
+    maxPrice = val;
+    currentLimit = LOAD_STEP;
+    renderCards();
+}
+
+// === ЛЬГОТЫ ===
+function toggleBenefit() {
+    document.getElementById('benefit-popup')?.classList.toggle('open');
+    document.getElementById('cal-popup')?.classList.remove('open');
+    document.getElementById('price-popup')?.classList.remove('open');
+    document.getElementById('age-popup')?.classList.remove('open');
+}
+
+// === СБРОС ФИЛЬТРОВ ===
+function resetFilters() {
+    selectedAge = null;
+    selectedDate = null;
+    maxPrice = 10000;
+    currentLimit = LOAD_STEP;
+    
+    document.getElementById('age-filter-btn').innerHTML = 'Возраст ▾';
+    document.getElementById('price-slider').value = 10000;
+    document.getElementById('price-val').textContent = 'до 10 000 ₽';
+    document.getElementById('price-display').textContent = 'Цена';
+    document.getElementById('cal-display').textContent = 'Выберите дату';
+    document.querySelectorAll('.age-option').forEach(o => o.classList.remove('selected'));
+    document.getElementById('cat-filter').value = '';
+    document.getElementById('district-filter').value = '';
+    
+    // Сбрасываем активную категорию
+    document.querySelectorAll('.cat-chip').forEach(c => c.classList.remove('active'));
+    document.querySelector('.cat-chip[data-cat="all"]')?.classList.add('active');
+    activeFilter = 'all';
+    
+    renderCards();
+}
+
+// === КЛИК ВНЕ ПОПАПОВ ===
+document.addEventListener('click', e => {
+    if (!e.target.closest('#cal-wrapper')) document.getElementById('cal-popup')?.classList.remove('open');
+    if (!e.target.closest('#price-wrapper')) document.getElementById('price-popup')?.classList.remove('open');
+    if (!e.target.closest('#benefit-wrapper')) document.getElementById('benefit-popup')?.classList.remove('open');
+    if (!e.target.closest('#age-wrapper')) document.getElementById('age-popup')?.classList.remove('open');
 });
 
-// Calendar
-let calDate = new Date(2025,4,1);
-
-function renderCal(){
-  const months=['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
-  document.getElementById('cal-month-label').textContent=months[calDate.getMonth()]+' '+calDate.getFullYear();
-  const grid=document.getElementById('cal-grid');
-  const days=['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
-  let html=days.map(d=>`<div class="cal-day-name">${d}</div>`).join('');
-  let start=new Date(calDate.getFullYear(),calDate.getMonth(),1).getDay();
-  if(start===0)start=7;
-  for(let i=1;i<start;i++)html+=`<div class="cal-day empty"></div>`;
-  const dim=new Date(calDate.getFullYear(),calDate.getMonth()+1,0).getDate();
-  const today=new Date();
-  for(let d=1;d<=dim;d++){
-    const iT=today.getDate()===d&&today.getMonth()===calDate.getMonth()&&today.getFullYear()===calDate.getFullYear();
-    const iS=selectedDate&&selectedDate.getDate()===d&&selectedDate.getMonth()===calDate.getMonth();
-    html+=`<div class="cal-day${iT?' today':''}${iS?' selected':''}" onclick="selectDate(${d})">${d}</div>`;
-  }
-  grid.innerHTML=html;
-}
-
-function selectDate(d){
-  selectedDate=new Date(calDate.getFullYear(),calDate.getMonth(),d);
-  const m=['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
-  document.getElementById('cal-display').textContent=d+' '+m[calDate.getMonth()];
-  document.getElementById('cal-popup').classList.remove('open');
-  renderCal();
-  renderCards();
-}
-
-function prevMonth(){calDate=new Date(calDate.getFullYear(),calDate.getMonth()-1,1);renderCal();}
-function nextMonth(){calDate=new Date(calDate.getFullYear(),calDate.getMonth()+1,1);renderCal();}
-function toggleCal(){
-  document.getElementById('cal-popup').classList.toggle('open');
-  document.getElementById('price-popup').classList.remove('open');
-  document.getElementById('benefit-popup').classList.remove('open');
-  document.getElementById('age-popup').classList.remove('open');
-  renderCal();
-}
-function togglePrice(){
-  document.getElementById('price-popup').classList.toggle('open');
-  document.getElementById('cal-popup').classList.remove('open');
-  document.getElementById('benefit-popup').classList.remove('open');
-  document.getElementById('age-popup').classList.remove('open');
-}
-function updatePrice(v){
-  const val=parseInt(v);
-  document.getElementById('price-val').textContent='до '+val.toLocaleString('ru')+' ₽';
-  document.getElementById('price-display').textContent='до '+val.toLocaleString('ru')+' ₽';
-  maxPrice = val;
-  renderCards();
-}
-function toggleBenefit(){
-  document.getElementById('benefit-popup').classList.toggle('open');
-  document.getElementById('cal-popup').classList.remove('open');
-  document.getElementById('price-popup').classList.remove('open');
-  document.getElementById('age-popup').classList.remove('open');
-}
-function resetFilters(){
-  selectedAge = null;
-  selectedDate = null;
-  maxPrice = 10000;
-  document.getElementById('age-filter-btn').innerHTML = 'Возраст ▾';
-  document.getElementById('price-slider').value = 10000;
-  document.getElementById('price-val').textContent = 'до 10 000 ₽';
-  document.getElementById('price-display').textContent = 'Цена';
-  document.getElementById('cal-display').textContent = 'Выберите дату';
-  document.querySelectorAll('.age-option').forEach(o => o.classList.remove('selected'));
-  document.getElementById('cat-filter').value = '';
-  document.getElementById('district-filter').value = '';
-  renderCards();
-}
-
-document.addEventListener('click',e=>{
-  if(!e.target.closest('#cal-wrapper'))document.getElementById('cal-popup').classList.remove('open');
-  if(!e.target.closest('#price-wrapper'))document.getElementById('price-popup').classList.remove('open');
-  if(!e.target.closest('#benefit-wrapper'))document.getElementById('benefit-popup').classList.remove('open');
-  if(!e.target.closest('#age-wrapper'))document.getElementById('age-popup').classList.remove('open');
-});
-
-document.querySelectorAll('.cat-chip').forEach(chip=>{
-  chip.addEventListener('click',()=>{
-    document.querySelectorAll('.cat-chip').forEach(c=>c.classList.remove('active'));
-    chip.classList.add('active');
-    activeFilter = chip.dataset.cat;
-    renderCards();
-  });
+// === КАТЕГОРИИ ===
+document.querySelectorAll('.cat-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+        document.querySelectorAll('.cat-chip').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        activeFilter = chip.dataset.cat;
+        currentLimit = LOAD_STEP;
+        renderCards();
+    });
 });
 
 document.getElementById('cat-filter').addEventListener('change', function() {
-  if(this.value) activeFilter = this.value;
-  else activeFilter = 'all';
-  renderCards();
+    if (this.value) {
+        activeFilter = this.value;
+        document.querySelectorAll('.cat-chip').forEach(c => c.classList.remove('active'));
+    } else {
+        activeFilter = 'all';
+        document.querySelector('.cat-chip[data-cat="all"]')?.classList.add('active');
+    }
+    currentLimit = LOAD_STEP;
+    renderCards();
 });
 
-// Инициализация плейсхолдеров для hero-визуала
-document.querySelectorAll('.hero-card-preview .card-img-placeholder').forEach(el => {
-  const parent = el.closest('.hero-card-preview');
-  const catText = parent?.querySelector('.hcp-cat')?.innerText || '?';
-  const letter = catText.charAt(0);
-  el.setAttribute('data-letter', letter);
-});
-
-renderCards();
+// === ИНИЦИАЛИЗАЦИЯ ===
 renderCal();
+loadEventsFromAPI();
+
+// Обновляем плейсхолдеры для hero-визуала
+document.querySelectorAll('.hero-card-preview .card-img-placeholder').forEach(el => {
+    const parent = el.closest('.hero-card-preview');
+    const catText = parent?.querySelector('.hcp-cat')?.innerText || '?';
+    const letter = catText.charAt(0);
+    el.setAttribute('data-letter', letter);
+});
 </script>
 </body>
 </html>
