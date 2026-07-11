@@ -93,24 +93,21 @@ async def startup():
     """При запуске сервера: создаём БД и обучаем модель"""
     init_db()
 
-    # Загружаем данные из CSV если база пустая
     import os
     from load_data import load_events_from_csv, seed_test_users
 
-    db = SessionLocal()
-    event_count = db.query(Event).count()
-    db.close()
+    # Загружаем ВСЕ CSV файлы всегда — дубли пропускаются автоматически
+    csv_files = sorted([f for f in os.listdir(".") if f.startswith("events_") and f.endswith(".csv")])
 
-    if event_count == 0:
-        print("База пустая — загружаю данные из CSV...")
-        for filename in sorted(os.listdir(".")):
-            if filename.startswith("events_") and filename.endswith(".csv"):
-                print("Загружаю: " + filename)
-                load_events_from_csv(filename)
-        seed_test_users()
+    if csv_files:
+        print("Загружаю CSV файлы: " + str(csv_files))
+        for filename in csv_files:
+            print("Загружаю: " + filename)
+            load_events_from_csv(filename)
     else:
-        print("В базе уже " + str(event_count) + " мероприятий")
+        print("CSV файлы не найдены")
 
+    seed_test_users()
     retrain_model()
     thread = threading.Thread(target=run_scheduler, daemon=True)
     thread.start()
