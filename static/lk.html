@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Личный кабинет — АФИША SPB</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0C0C0E;
+  --surface:#141416;
+  --surface2:#1C1C1F;
+  --border:#2A2A2E;
+  --accent:#C8A96E;
+  --accent2:#E8C88E;
+  --text:#F0EDE8;
+  --muted:#888580;
+  --muted2:#6A6660;
+  --red:#D64040;
+  --star:#FFB84C;
+}
+body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',sans-serif;min-height:100vh}
+
+/* HEADER */
+header{border-bottom:1px solid var(--border);padding:0 48px;display:flex;align-items:center;justify-content:space-between;height:64px;position:sticky;top:0;z-index:100;background:rgba(12,12,14,0.95);backdrop-filter:blur(12px)}
+.logo{font-family:'Playfair Display',serif;font-size:22px;font-weight:900;letter-spacing:0.08em;color:var(--accent);text-decoration:none}
+.logo span{color:var(--text);font-weight:400;font-size:14px;font-family:'IBM Plex Mono',monospace;margin-left:12px;opacity:0.5;letter-spacing:0.15em}
+.header-actions{display:flex;align-items:center;gap:16px}
+.edit-profile-btn{background:rgba(200,169,110,0.12);border:1px solid var(--accent);color:var(--accent);padding:8px 16px;font-size:11px;font-family:'IBM Plex Mono',monospace;letter-spacing:0.1em;cursor:pointer;transition:all 0.2s}
+.edit-profile-btn:hover{background:var(--accent);color:#000}
+.logout-btn{background:none;border:1px solid var(--border);color:var(--muted);padding:8px 16px;font-size:11px;font-family:'IBM Plex Mono',monospace;letter-spacing:0.1em;cursor:pointer;transition:all 0.2s}
+.logout-btn:hover{border-color:var(--red);color:var(--red)}
+.back-btn{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:12px;font-family:'IBM Plex Mono',monospace;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;transition:color 0.2s;text-decoration:none}
+.back-btn:hover{color:var(--accent)}
+.back-btn::before{content:'←';font-size:16px}
+
+/* PROFILE HERO */
+.profile-hero{background:var(--surface);border-bottom:1px solid var(--border);padding:48px 48px 32px;position:relative}
+.profile-hero::before{content:'';position:absolute;top:0;left:0;right:0;height:200px;background:repeating-linear-gradient(-45deg,transparent,transparent 40px,rgba(200,169,110,0.03) 40px,rgba(200,169,110,0.03) 80px);pointer-events:none}
+.profile-row{display:flex;align-items:flex-start;gap:32px;flex-wrap:wrap;position:relative;z-index:2}
+.profile-avatar{width:96px;height:96px;background:linear-gradient(135deg,var(--accent),var(--accent2));border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-size:36px;font-weight:900;color:#000;cursor:pointer;transition:transform 0.2s}
+.profile-avatar:hover{transform:scale(1.05)}
+.profile-info{flex:1}
+.profile-name{font-family:'Playfair Display',serif;font-size:32px;font-weight:900;margin-bottom:8px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.profile-email{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--muted);margin-bottom:16px}
+.profile-stats{display:flex;gap:32px;flex-wrap:wrap}
+.stat-item{display:flex;flex-direction:column}
+.stat-num{font-family:'Playfair Display',serif;font-size:28px;font-weight:700;color:var(--accent)}
+.stat-label{font-size:10px;font-family:'IBM Plex Mono',monospace;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted)}
+
+/* TABS */
+.tabs-container{background:var(--surface);border-bottom:1px solid var(--border);padding:0 48px}
+.tabs{display:flex;gap:32px;flex-wrap:wrap}
+.tab-btn{background:none;border:none;padding:16px 0;font-size:12px;font-family:'IBM Plex Mono',monospace;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);cursor:pointer;transition:all 0.2s;position:relative}
+.tab-btn:hover{color:var(--accent)}
+.tab-btn.active{color:var(--accent)}
+.tab-btn.active::after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:2px;background:var(--accent)}
+
+/* CONTENT PANELS */
+.panel{padding:48px;display:none;background:var(--bg)}
+.panel.active{display:block}
+.section-title{font-family:'Playfair Display',serif;font-size:20px;font-weight:700;margin-bottom:24px;display:flex;align-items:center;gap:12px}
+.section-title span{font-size:12px;font-family:'IBM Plex Mono',monospace;color:var(--muted);font-weight:400}
+.section-title .count{background:var(--surface2);padding:2px 8px;border-radius:20px;font-size:11px}
+
+/* CARDS GRID */
+.cards-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);margin-top:16px}
+.event-card{background:var(--surface);padding:20px;transition:background 0.2s;cursor:pointer}
+.event-card:hover{background:var(--surface2)}
+.card-cat{font-size:9px;font-family:'IBM Plex Mono',monospace;letter-spacing:0.15em;text-transform:uppercase;color:var(--accent);margin-bottom:8px}
+.card-title{font-family:'Playfair Display',serif;font-size:16px;font-weight:700;margin-bottom:8px;color:var(--text);line-height:1.3}
+.card-venue{font-size:11px;color:var(--muted);margin-bottom:6px}
+.card-date{font-size:10px;font-family:'IBM Plex Mono',monospace;color:var(--muted2);margin-bottom:10px}
+.card-price{font-size:12px;font-family:'IBM Plex Mono',monospace;color:var(--text)}
+.card-price em{font-style:normal;color:var(--muted);font-size:9px;margin-right:3px}
+.card-bottom{display:flex;justify-content:space-between;align-items:center;margin-top:10px;gap:8px;flex-wrap:wrap}
+.card-status{font-size:8px;font-family:'IBM Plex Mono',monospace;padding:3px 8px;background:var(--surface2);color:var(--muted2);border-radius:0}
+.card-status.used{background:rgba(200,169,110,0.15);color:var(--accent)}
+.card-status.upcoming{background:rgba(200,169,110,0.25);color:var(--accent2)}
+.remove-fav{background:none;border:1px solid var(--border);color:var(--muted);font-size:9px;padding:4px 8px;cursor:pointer;font-family:'IBM Plex Mono',monospace;transition:all 0.2s}
+.remove-fav:hover{border-color:var(--red);color:var(--red)}
+.btn-show-more{background:none;border:1px solid var(--accent);color:var(--accent);padding:10px 24px;font-size:11px;font-family:'IBM Plex Mono',monospace;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;transition:all 0.2s;margin-top:24px;width:auto;display:inline-block}
+.btn-show-more:hover{background:var(--accent);color:#000}
+.show-more-wrapper{text-align:center;margin-top:24px}
+
+/* ЗВЕЗДЫ И ОТЗЫВЫ */
+.rating-stars{display:flex;gap:4px;margin:8px 0}
+.star{font-size:16px;cursor:pointer;color:var(--muted2);transition:color 0.2s}
+.star:hover,.star.active{color:var(--star)}
+.review-btn{background:none;border:1px solid var(--border);color:var(--muted);font-size:9px;padding:4px 10px;cursor:pointer;font-family:'IBM Plex Mono',monospace;transition:all 0.2s;margin-top:8px}
+.review-btn:hover{border-color:var(--accent);color:var(--accent)}
+.review-form{display:none;margin-top:10px;gap:8px;flex-wrap:wrap}
+.review-input{background:var(--surface);border:1px solid var(--border);padding:6px 10px;font-size:11px;font-family:'IBM Plex Sans',sans-serif;color:var(--text);flex:1;min-width:120px}
+.review-input:focus{outline:none;border-color:var(--accent)}
+.review-submit{background:var(--accent);border:none;color:#000;padding:5px 10px;font-size:9px;font-family:'IBM Plex Mono',monospace;cursor:pointer}
+.review-text{font-size:10px;color:var(--muted2);margin-top:6px;padding:6px;background:var(--surface);border-left:2px solid var(--accent)}
+
+/* ОТЗЫВЫ ПОЛЬЗОВАТЕЛЯ */
+.review-card{background:var(--surface);border:1px solid var(--border);padding:16px;margin-bottom:12px}
+.review-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:8px}
+.review-event-title{font-family:'Playfair Display',serif;font-size:15px;font-weight:700}
+.review-event-date{font-size:8px;font-family:'IBM Plex Mono',monospace;color:var(--muted2)}
+.review-stars{display:flex;gap:3px;margin-bottom:8px}
+.review-stars .star-static{color:var(--star);font-size:13px}
+.review-content{font-size:12px;color:var(--muted);line-height:1.5;margin-bottom:8px}
+.review-actions{display:flex;gap:8px;margin-top:8px}
+.review-edit{background:none;border:1px solid var(--accent);color:var(--accent);font-size:8px;padding:3px 8px;cursor:pointer;font-family:'IBM Plex Mono',monospace}
+.review-edit:hover{background:var(--accent);color:#000}
+.review-delete{background:none;border:1px solid var(--border);color:var(--muted);font-size:8px;padding:3px 8px;cursor:pointer;font-family:'IBM Plex Mono',monospace}
+.review-delete:hover{border-color:var(--red);color:var(--red)}
+
+/* RECENT ROW */
+.recent-row{display:flex;flex-direction:column;gap:12px}
+.recent-item{display:flex;align-items:center;gap:16px;padding:16px;background:var(--surface);border:1px solid var(--border);transition:all 0.2s;cursor:pointer}
+.recent-item:hover{background:var(--surface2);border-color:var(--accent)}
+.recent-icon{width:48px;height:48px;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.recent-info{flex:1}
+.recent-title{font-family:'Playfair Display',serif;font-size:16px;font-weight:700;margin-bottom:4px}
+.recent-meta{font-size:11px;color:var(--muted);display:flex;gap:16px;flex-wrap:wrap}
+.recent-date{font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--muted2)}
+.recent-action{color:var(--accent);font-size:11px;font-family:'IBM Plex Mono',monospace}
+
+/* RECOMMENDATIONS */
+.recommend-section{margin-top:48px}
+.recommend-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);margin-top:16px}
+.recommend-card{background:var(--surface);padding:20px;cursor:pointer;transition:background 0.2s}
+.recommend-card:hover{background:var(--surface2)}
+.btn-outline{background:none;border:1px solid var(--accent);color:var(--accent);padding:10px 24px;font-size:11px;font-family:'IBM Plex Mono',monospace;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;transition:all 0.2s;margin-top:20px}
+.btn-outline:hover{background:var(--accent);color:#000}
+
+/* MODAL */
+.modal-overlay{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.95);z-index:1000;justify-content:center;align-items:center}
+.modal-content{background:var(--surface);border:1px solid var(--border);max-width:480px;width:90%;padding:32px;position:relative}
+.modal-close{position:absolute;top:16px;right:16px;background:none;border:none;color:var(--muted);font-size:20px;cursor:pointer}
+.modal-close:hover{color:var(--accent)}
+.modal-title{font-family:'Playfair Display',serif;font-size:24px;font-weight:700;margin-bottom:20px}
+.modal-field{margin-bottom:16px}
+.modal-field label{display:block;font-size:10px;font-family:'IBM Plex Mono',monospace;letter-spacing:0.1em;color:var(--muted);margin-bottom:6px}
+.modal-field input{width:100%;background:var(--bg);border:1px solid var(--border);padding:12px;color:var(--text);font-size:14px}
+.modal-field input:focus{outline:none;border-color:var(--accent)}
+.modal-buttons{display:flex;gap:12px;margin-top:24px}
+.modal-cancel{flex:1;background:none;border:1px solid var(--border);color:var(--muted);padding:12px;font-family:'IBM Plex Mono',monospace;font-size:11px;cursor:pointer}
+.modal-save{flex:1;background:var(--accent);border:none;color:#000;padding:12px;font-family:'IBM Plex Mono',monospace;font-size:11px;cursor:pointer}
+.toast-message{position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:var(--accent);color:#000;padding:10px 20px;font-family:'IBM Plex Mono',monospace;font-size:11px;z-index:1001;animation:fadeOut 3s forwards}
+@keyframes fadeOut{0%{opacity:1}70%{opacity:1}100%{opacity:0;visibility:hidden}}
+.empty-state{text-align:center;padding:60px 20px;color:var(--muted)}
+.empty-icon{font-size:48px;margin-bottom:16px;opacity:0.5}
+.empty-text{font-size:14px;margin-bottom:8px}
+.empty-sub{font-size:12px;font-family:'IBM Plex Mono',monospace;color:var(--muted2)}
+footer{border-top:1px solid var(--border);padding:32px 48px;display:flex;justify-content:space-between;align-items:center;background:var(--bg)}
+.footer-logo{font-family:'Playfair Display',serif;font-size:18px;font-weight:900;color:var(--accent);letter-spacing:0.08em}
+.footer-logo span{color:var(--text);font-weight:400;font-size:12px;font-family:'IBM Plex Mono',monospace}
+.footer-copy{font-size:10px;font-family:'IBM Plex Mono',monospace;color:var(--muted);letter-spacing:0.08em}
+a{color:inherit;text-decoration:none}
+button{cursor:pointer}
+</style>
+</head>
+<body>
+
+<header>
+  <a href="#" class="logo">АФИША <span>SPB</span></a>
+  <div class="header-actions">
+    <button class="edit-profile-btn" onclick="openEditProfileModal()">✎ Редактировать профиль</button>
+    <button class="logout-btn" onclick="logout()">Выйти</button>
+    <a href="#" class="back-btn">На главную</a>
+  </div>
+</header>
+
+<div class="profile-hero">
+  <div class="profile-row">
+    <div class="profile-avatar" onclick="openEditProfileModal()">АК</div>
+    <div class="profile-info">
+      <div class="profile-name">
+        <span id="profile-name-display">Мария Васнецова</span>
+      </div>
+      <div class="profile-email" id="profile-email-display">masha@example.com</div>
+      <div class="profile-stats">
+        <div class="stat-item"><span class="stat-num" id="stat-tickets">3</span><span class="stat-label">Билетов</span></div>
+        <div class="stat-item"><span class="stat-num" id="stat-history-count">4</span><span class="stat-label">Посещено</span></div>
+        <div class="stat-item"><span class="stat-num" id="stat-fav-count">4</span><span class="stat-label">В избранном</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="tabs-container">
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="favorites">Избранное</button>
+    <button class="tab-btn" data-tab="tickets">Билеты</button>
+    <button class="tab-btn" data-tab="history">Посещённые</button>
+    <button class="tab-btn" data-tab="reviews">Мои отзывы</button>
+    <button class="tab-btn" data-tab="recent">Недавние</button>
+  </div>
+</div>
+
+<!-- ИЗБРАННОЕ (4 видимых + кнопка показать ещё) -->
+<div id="favorites" class="panel active">
+  <div class="section-title">Избранное <span class="count" id="fav-count-display">4</span></div>
+  <div class="cards-grid" id="fav-grid"></div>
+  <div class="show-more-wrapper" id="fav-show-more-wrapper">
+    <button class="btn-show-more" onclick="showMoreFavorites()">Показать ещё →</button>
+  </div>
+  <div class="recommend-section">
+    <div class="section-title">Может быть интересно <span>на основе избранного</span></div>
+    <div class="recommend-grid">
+      <div class="recommend-card"><div class="card-cat">Театр</div><div class="card-title">Три сестры. Новая редакция</div><div class="card-venue">Театр Ленсовета</div><div class="card-price"><em>от</em>600 ₽</div></div>
+      <div class="recommend-card"><div class="card-cat">Джаз</div><div class="card-title">Jazz Philharmonic Orchestra</div><div class="card-venue">Филармония джаза</div><div class="card-price"><em>от</em>1 500 ₽</div></div>
+      <div class="recommend-card"><div class="card-cat">Спектакль</div><div class="card-title">Дядя Ваня</div><div class="card-venue">МДТ</div><div class="card-price"><em>от</em>800 ₽</div></div>
+      <div class="recommend-card"><div class="card-cat">Выставка</div><div class="card-title">Айвазовский. Морская стихия</div><div class="card-venue">Русский музей</div><div class="card-price"><em>от</em>500 ₽</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- БИЛЕТЫ -->
+<div id="tickets" class="panel">
+  <div class="section-title">Скоро начнётся</div>
+  <div class="recent-row">
+    <div class="recent-item" onclick="alert('Чайка — сегодня 19:00. Не забудьте билет!')">
+      <div class="recent-icon">🎭</div>
+      <div class="recent-info">
+        <div class="recent-title">Чайка. Режиссёрская версия</div>
+        <div class="recent-meta">БДТ · сегодня, 19:00 <span class="recent-date">осталось 8 часов</span></div>
+      </div>
+      <div class="recent-action">Напомнить →</div>
+    </div>
+  </div>
+  <div class="section-title" style="margin-top:32px">Активные билеты <span class="count" id="active-tickets-count">3</span></div>
+  <div class="cards-grid" id="active-tickets-grid">
+    <div class="event-card"><div class="card-cat">Театр · Ряд 5, место 12</div><div class="card-title">Чайка. Режиссёрская версия</div><div class="card-venue">БДТ им. Товстоногова</div><div class="card-date">3 мая 2025, 19:00</div><div class="card-bottom"><span class="card-status upcoming">Предстоит</span><button class="btn-outline" style="padding:4px 12px;margin:0" onclick="alert('Билет BDT-2304-8912')">Открыть</button></div></div>
+    <div class="event-card"><div class="card-cat">Джаз</div><div class="card-title">Джазовый вечер у Аркадия</div><div class="card-venue">Частная квартира</div><div class="card-date">17 мая 2025, 20:00</div><div class="card-bottom"><span class="card-status upcoming">Предстоит</span><button class="btn-outline" style="padding:4px 12px;margin:0" onclick="alert('Регистрация JZ-1742')">Открыть</button></div></div>
+    <div class="event-card"><div class="card-cat">Концерт</div><div class="card-title">Квартет Мансурова</div><div class="card-venue">Коломна</div><div class="card-date">24 мая 2025, 20:00</div><div class="card-bottom"><span class="card-status upcoming">Предстоит</span><button class="btn-outline" style="padding:4px 12px;margin:0" onclick="alert('Билет CL-5601')">Открыть</button></div></div>
+  </div>
+</div>
+
+<!-- ПОСЕЩЁННЫЕ (4 видимых + кнопка показать ещё) -->
+<div id="history" class="panel">
+  <div class="section-title">Посещенные мероприятия <span class="count" id="history-count-display">4</span></div>
+  <div class="cards-grid" id="history-grid"></div>
+  <div class="show-more-wrapper" id="history-show-more-wrapper">
+    <button class="btn-show-more" onclick="showMoreHistory()">Показать ещё →</button>
+  </div>
+  <div style="margin-top:32px;padding:24px;background:var(--surface);border:1px solid var(--border);text-align:center">
+    <div class="section-title" style="justify-content:center;margin-bottom:16px">Ваш театральный рейтинг</div>
+    <div style="font-family:'Playfair Display',serif;font-size:48px;color:var(--accent);margin:16px 0">ТОП-3 жанров</div>
+    <div style="display:flex;gap:24px;justify-content:center;flex-wrap:wrap">
+      <span style="background:var(--surface2);padding:6px 16px;font-size:13px">🎭 Драма · 5 посещений</span>
+      <span style="background:var(--surface2);padding:6px 16px;font-size:13px">🎷 Джаз · 4 посещения</span>
+      <span style="background:var(--surface2);padding:6px 16px;font-size:13px">🎨 Выставки · 3 посещения</span>
+    </div>
+  </div>
+</div>
+
+<!-- МОИ ОТЗЫВЫ -->
+<div id="reviews" class="panel">
+  <div class="section-title">Мои отзывы <span class="count" id="reviews-count">0</span></div>
+  <div id="user-reviews-list"></div>
+  <div id="empty-reviews" class="empty-state" style="display:none">
+    <div class="empty-icon">✎</div>
+    <div class="empty-text">У вас пока нет отзывов</div>
+    <div class="empty-sub">Оцените посещённые мероприятия и напишите впечатления</div>
+  </div>
+</div>
+
+<!-- НЕДАВНИЕ -->
+<div id="recent" class="panel">
+  <div class="section-title">Недавно просмотренные</div>
+  <div class="recent-row">
+    <div class="recent-item"><div class="recent-icon">🎭</div><div class="recent-info"><div class="recent-title">Чайка. Режиссёрская версия</div><div class="recent-meta">БДТ им. Товстоногова <span class="recent-date">просмотрено сегодня, 14:23</span></div></div><div class="recent-action">Открыть →</div></div>
+    <div class="recent-item"><div class="recent-icon">🎷</div><div class="recent-info"><div class="recent-title">Джазовый вечер у Аркадия</div><div class="recent-meta">Частная квартира <span class="recent-date">вчера, 21:15</span></div></div><div class="recent-action">Открыть →</div></div>
+    <div class="recent-item"><div class="recent-icon">🎪</div><div class="recent-info"><div class="recent-title">Вишнёвый сад</div><div class="recent-meta">Александринский театр <span class="recent-date">2 дня назад</span></div></div><div class="recent-action">Открыть →</div></div>
+  </div>
+  <div style="margin-top:24px;text-align:right"><button class="btn-outline" style="border-color:var(--border);color:var(--muted)" onclick="alert('История очищена')">Очистить историю</button></div>
+</div>
+
+<footer>
+  <div class="footer-logo">АФИША <span>SPB</span></div>
+  <div class="footer-copy">© 2025 · Санкт-Петербург</div>
+</footer>
+
+<!-- МОДАЛЬНЫЕ ОКНА -->
+<div id="editProfileModal" class="modal-overlay"><div class="modal-content"><button class="modal-close" onclick="closeEditProfileModal()">✕</button><div class="modal-title">Редактировать профиль</div><div class="modal-field"><label>Имя и фамилия</label><input type="text" id="edit-name" value="Алексей Ковалёв"></div><div class="modal-field"><label>Email</label><input type="email" id="edit-email" value="alexey@example.com"></div><div class="modal-buttons"><button class="modal-cancel" onclick="closeEditProfileModal()">Отмена</button><button class="modal-save" onclick="saveProfileChanges()">Сохранить</button></div></div></div>
+
+<script>
+// ДАННЫЕ
+let allFavorites = [
+  {id:1,cat:"Театр",title:"Чайка. Режиссёрская версия",venue:"БДТ им. Товстоногова",date:"3 мая 2025, 19:00",price:"от 1 200 ₽",age:"16+"},
+  {id:2,cat:"Джаз",title:"Джазовый вечер у Аркадия",venue:"Частная квартира, Петроградский",date:"17 мая 2025, 20:00",price:"взнос 1 500 ₽",age:"18+"},
+  {id:3,cat:"Классика",title:"Вишнёвый сад",venue:"Александринский театр",date:"8 мая 2025, 19:00",price:"от 900 ₽",age:"12+"},
+  {id:4,cat:"Концерт",title:"Квартет Мансурова в гостях",venue:"Коломна",date:"24 мая 2025, 20:00",price:"от 1 200 ₽",age:"18+"},
+  {id:5,cat:"Лекция",title:"История джаза",venue:"Новая Голландия",date:"15 мая 2025, 19:00",price:"Бесплатно",age:"16+"},
+  {id:6,cat:"Мюзикл",title:"Шерлок Холмс",venue:"Театр Музкомедии",date:"12 мая 2025, 19:00",price:"от 1 800 ₽",age:"6+"}
+];
+
+let allHistory = [
+  {id:1,cat:"Театр",title:"Гамлет. Современная версия",venue:"Театр имени Ленсовета",date:"12 апреля 2025",age:"16+"},
+  {id:2,cat:"Концерт",title:"Зимний джазовый марафон",venue:"Джаз-филармония",date:"5 апреля 2025",age:"12+"},
+  {id:3,cat:"Опера",title:"Евгений Онегин",venue:"Мариинский театр",date:"22 марта 2025",age:"12+"},
+  {id:4,cat:"Выставка",title:"Импрессионизм в Эрмитаже",venue:"Главный штаб",date:"15 марта 2025",age:"0+"},
+  {id:5,cat:"Балет",title:"Щелкунчик",venue:"Мариинский театр",date:"5 января 2025",age:"6+"},
+  {id:6,cat:"Стендап",title:"Илья Новиков",venue:"Козлёнок в молоке",date:"20 февраля 2025",age:"18+"}
+];
+
+let visibleFavCount = 4;
+let visibleHistoryCount = 4;
+
+// Рендер избранного
+function renderFavorites() {
+  const grid = document.getElementById('fav-grid');
+  const visible = allFavorites.slice(0, visibleFavCount);
+  grid.innerHTML = visible.map(fav => `
+    <div class="event-card" data-fav-id="${fav.id}">
+      <div class="card-cat">${fav.cat}</div>
+      <div class="card-title">${fav.title}</div>
+      <div class="card-venue">${fav.venue}</div>
+      <div class="card-date">${fav.date}</div>
+      <div class="card-price">${fav.price}</div>
+      <div class="card-bottom"><span class="card-status">${fav.age}</span><button class="remove-fav" onclick="removeFavorite(event, ${fav.id})">✕ Удалить</button></div>
+    </div>
+  `).join('');
+  
+  const wrapper = document.getElementById('fav-show-more-wrapper');
+  if(visibleFavCount >= allFavorites.length) wrapper.style.display = 'none';
+  else wrapper.style.display = 'block';
+  document.getElementById('fav-count-display').textContent = allFavorites.length;
+  document.getElementById('stat-fav-count').textContent = allFavorites.length;
+}
+
+function showMoreFavorites() {
+  visibleFavCount = allFavorites.length;
+  renderFavorites();
+  showToast('Все избранные мероприятия загружены');
+}
+
+function removeFavorite(event, id) {
+  event.stopPropagation();
+  allFavorites = allFavorites.filter(f => f.id !== id);
+  if(visibleFavCount > allFavorites.length) visibleFavCount = allFavorites.length;
+  renderFavorites();
+  showToast('Удалено из избранного');
+}
+
+// Рендер истории
+function renderHistory() {
+  const grid = document.getElementById('history-grid');
+  const visible = allHistory.slice(0, visibleHistoryCount);
+  grid.innerHTML = visible.map(hist => `
+    <div class="event-card" data-history-id="${hist.id}">
+      <div class="card-cat">${hist.cat} · ${hist.date}</div>
+      <div class="card-title">${hist.title}</div>
+      <div class="card-venue">${hist.venue}</div>
+      <div class="card-date">Посещено: ${hist.date}</div>
+      <div class="rating-stars" data-event="${hist.title}">
+        <span class="star" data-rating="1">☆</span><span class="star" data-rating="2">☆</span><span class="star" data-rating="3">☆</span><span class="star" data-rating="4">☆</span><span class="star" data-rating="5">☆</span>
+      </div>
+      <div class="review-section">
+        <button class="review-btn" onclick="toggleReviewFormHist(this)">✎ Написать отзыв</button>
+        <div class="review-form" style="display:none">
+          <input type="text" class="review-input" placeholder="Поделитесь впечатлениями..." maxlength="200">
+          <button class="review-submit" onclick="submitReviewHist(this)">Отправить</button>
+        </div>
+        <div class="review-display"></div>
+      </div>
+      <div class="card-bottom"><span class="card-status used">Посещено</span></div>
+    </div>
+  `).join('');
+  
+  const wrapper = document.getElementById('history-show-more-wrapper');
+  if(visibleHistoryCount >= allHistory.length) wrapper.style.display = 'none';
+  else wrapper.style.display = 'block';
+  document.getElementById('history-count-display').textContent = allHistory.length;
+  document.getElementById('stat-history-count').textContent = allHistory.length;
+  
+  // Звезды
+  document.querySelectorAll('#history-grid .rating-stars').forEach(starContainer => {
+    const stars = starContainer.querySelectorAll('.star');
+    stars.forEach(star => {
+      star.addEventListener('click', function(e) {
+        e.stopPropagation();
+        const rating = parseInt(this.dataset.rating);
+        stars.forEach((s, idx) => {
+          if(idx < rating) { s.textContent = '★'; s.classList.add('active'); }
+          else { s.textContent = '☆'; s.classList.remove('active'); }
+        });
+        showToast(`Оценка ${rating} ★ сохранена`);
+      });
+    });
+  });
+}
+
+function showMoreHistory() {
+  visibleHistoryCount = allHistory.length;
+  renderHistory();
+  showToast('Все посещённые мероприятия загружены');
+}
+
+// Отзывы для истории
+function toggleReviewFormHist(btn) {
+  const form = btn.parentElement.querySelector('.review-form');
+  if(form) form.style.display = form.style.display === 'none' ? 'flex' : 'none';
+}
+
+function submitReviewHist(btn) {
+  const formDiv = btn.parentElement;
+  const input = formDiv.querySelector('.review-input');
+  const reviewText = input.value.trim();
+  if(!reviewText) { showToast('Напишите отзыв'); return; }
+  
+  const card = formDiv.closest('.event-card');
+  const title = card.querySelector('.card-title').innerText;
+  
+  const starsContainer = card.querySelector('.rating-stars');
+  let rating = 0;
+  starsContainer.querySelectorAll('.star').forEach((s, idx) => {
+    if(s.textContent === '★') rating = idx + 1;
+  });
+  
+  const reviewData = { id: Date.now(), title: title, date: new Date().toLocaleDateString('ru-RU'), rating: rating, text: reviewText };
+  let reviews = JSON.parse(localStorage.getItem('user_reviews') || '[]');
+  reviews.push(reviewData);
+  localStorage.setItem('user_reviews', JSON.stringify(reviews));
+  
+  const displayDiv = card.querySelector('.review-display');
+  displayDiv.innerHTML = `<div class="review-text">📝 "${reviewText.substring(0, 60)}${reviewText.length>60?'...':''}"</div>`;
+  formDiv.style.display = 'none';
+  input.value = '';
+  
+  const reviewBtn = card.querySelector('.review-btn');
+  reviewBtn.textContent = '✎ Редактировать отзыв';
+  reviewBtn.style.borderColor = 'var(--accent)';
+  reviewBtn.style.color = 'var(--accent)';
+  
+  showToast('Отзыв сохранён!');
+  if(document.getElementById('reviews').classList.contains('active')) renderUserReviews();
+}
+
+// Мои отзывы
+// Мои отзывы с редактированием
+let currentEditReviewId = null;
+
+function renderUserReviews() {
+  const reviews = JSON.parse(localStorage.getItem('user_reviews') || '[]');
+  const container = document.getElementById('user-reviews-list');
+  const countSpan = document.getElementById('reviews-count');
+  const emptyDiv = document.getElementById('empty-reviews');
+  
+  if(reviews.length === 0) {
+    container.innerHTML = '';
+    emptyDiv.style.display = 'block';
+    countSpan.textContent = '0';
+    return;
+  }
+  
+  emptyDiv.style.display = 'none';
+  countSpan.textContent = reviews.length;
+  
+  container.innerHTML = reviews.map(rev => `
+    <div class="review-card" data-id="${rev.id}">
+      <div class="review-header">
+        <div class="review-event-title">${escapeHtml(rev.title)}</div>
+        <div class="review-event-date">${escapeHtml(rev.date)}</div>
+      </div>
+      <div class="review-stars">
+        ${Array(5).fill().map((_, i) => `<span class="star-static">${i < rev.rating ? '★' : '☆'}</span>`).join('')}
+      </div>
+      <div class="review-content">${escapeHtml(rev.text)}</div>
+      <div class="review-actions">
+        <button class="review-edit" onclick="openEditReviewModal(${rev.id}, '${escapeHtml(rev.text).replace(/'/g, "\\'")}')">✎ Редактировать</button>
+        <button class="review-delete" onclick="deleteReview(${rev.id})">🗑 Удалить</button>
+      </div>
+    </div>
+  `).join('');
+}
+function openEditReviewModal(id, text) {
+  currentEditReviewId = id;
+  document.getElementById('edit-review-text').value = text;
+  document.getElementById('editReviewModal').style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+
+function closeEditReviewModal() {
+  document.getElementById('editReviewModal').style.display = 'none';
+  document.body.style.overflow = 'auto';
+  currentEditReviewId = null;
+}
+
+function saveReviewChanges() {
+  const newText = document.getElementById('edit-review-text').value.trim();
+  if(!newText) {
+    showToast('Текст отзыва не может быть пустым');
+    return;
+  }
+  
+  let reviews = JSON.parse(localStorage.getItem('user_reviews') || '[]');
+  const reviewIndex = reviews.findIndex(r => r.id === currentEditReviewId);
+  
+  if(reviewIndex !== -1) {
+    reviews[reviewIndex].text = newText;
+    localStorage.setItem('user_reviews', JSON.stringify(reviews));
+    renderUserReviews();
+    
+    // Обновляем отображение на карточке в посещённых
+    const cards = document.querySelectorAll('#history-grid .event-card');
+    for(let card of cards) {
+      const title = card.querySelector('.card-title')?.innerText;
+      if(title === reviews[reviewIndex].title) {
+        const displayDiv = card.querySelector('.review-display');
+        if(displayDiv) {
+          displayDiv.innerHTML = `<div class="review-text">📝 "${escapeHtml(newText.substring(0, 60))}${newText.length>60?'...':''}"</div>`;
+        }
+        break;
+      }
+    }
+    showToast('Отзыв обновлён');
+  }
+  closeEditReviewModal();
+}
+
+function escapeHtml(str) {
+  if(!str) return '';
+  return str.replace(/[&<>]/g, function(m) {
+    if(m === '&') return '&amp;';
+    if(m === '<') return '&lt;';
+    if(m === '>') return '&gt;';
+    return m;
+  });
+}
+
+function deleteReview(id) {
+  if(confirm('Удалить этот отзыв?')) {
+    let reviews = JSON.parse(localStorage.getItem('user_reviews') || '[]');
+    reviews = reviews.filter(r => r.id !== id);
+    localStorage.setItem('user_reviews', JSON.stringify(reviews));
+    renderUserReviews();
+    
+    // Обновляем отображение на карточках в посещённых (удаляем отзыв)
+    const cards = document.querySelectorAll('#history-grid .event-card');
+    for(let card of cards) {
+      const title = card.querySelector('.card-title')?.innerText;
+      const review = reviews.find(r => r.title === title);
+      const displayDiv = card.querySelector('.review-display');
+      if(displayDiv) {
+        if(review) {
+          displayDiv.innerHTML = `<div class="review-text">📝 "${escapeHtml(review.text.substring(0, 60))}${review.text.length>60?'...':''}"</div>`;
+        } else {
+          displayDiv.innerHTML = '';
+        }
+      }
+      const reviewBtn = card.querySelector('.review-btn');
+      if(reviewBtn) {
+        if(review) {
+          reviewBtn.textContent = '✎ Редактировать отзыв';
+          reviewBtn.style.borderColor = 'var(--accent)';
+          reviewBtn.style.color = 'var(--accent)';
+        } else {
+          reviewBtn.textContent = '✎ Написать отзыв';
+          reviewBtn.style.borderColor = 'var(--border)';
+          reviewBtn.style.color = 'var(--muted)';
+        }
+      }
+    }
+    showToast('Отзыв удалён');
+  }
+}
+
+// Профиль
+function openEditProfileModal() {
+  document.getElementById('editProfileModal').style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+function closeEditProfileModal() {
+  document.getElementById('editProfileModal').style.display = 'none';
+  document.body.style.overflow = 'auto';
+}
+function saveProfileChanges() {
+  const newName = document.getElementById('edit-name').value;
+  const newEmail = document.getElementById('edit-email').value;
+  document.getElementById('profile-name-display').textContent = newName;
+  document.getElementById('profile-email-display').textContent = newEmail;
+  closeEditProfileModal();
+  showToast('Профиль обновлён');
+}
+function logout() { if(confirm('Вы уверены, что хотите выйти?')) showToast('До свидания!'); }
+function showToast(message) {
+  const existing = document.querySelector('.toast-message');
+  if(existing) existing.remove();
+  const toast = document.createElement('div');
+  toast.className = 'toast-message';
+  toast.innerText = message;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 3000);
+}
+
+// Вкладки + восстановление отзывов
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const tabId = btn.dataset.tab;
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.panel').forEach(panel => panel.classList.remove('active'));
+    document.getElementById(tabId).classList.add('active');
+    if(tabId === 'reviews') renderUserReviews();
+  });
+});
+
+// Инициализация
+renderFavorites();
+renderHistory();
+renderUserReviews();
+
+document.querySelectorAll('#history-grid .rating-stars').forEach(starContainer => {
+  const stars = starContainer.querySelectorAll('.star');
+  stars.forEach(star => {
+    star.addEventListener('click', function(e) {
+      e.stopPropagation();
+      const rating = parseInt(this.dataset.rating);
+      stars.forEach((s, idx) => {
+        if(idx < rating) { s.textContent = '★'; s.classList.add('active'); }
+        else { s.textContent = '☆'; s.classList.remove('active'); }
+      });
+      showToast(`Оценка ${rating} ★ сохранена`);
+    });
+  });
+});
+</script>
+<!-- МОДАЛЬНОЕ ОКНО РЕДАКТИРОВАНИЯ ОТЗЫВА -->
+<div id="editReviewModal" class="modal-overlay">
+  <div class="modal-content">
+    <button class="modal-close" onclick="closeEditReviewModal()">✕</button>
+    <div class="modal-title">Редактировать отзыв</div>
+    <div class="modal-field">
+      <label>Текст отзыва</label>
+      <textarea id="edit-review-text" rows="4" style="width:100%;background:var(--bg);border:1px solid var(--border);padding:12px;color:var(--text);font-size:13px;font-family:'IBM Plex Sans',sans-serif"></textarea>
+    </div>
+    <div class="modal-buttons">
+      <button class="modal-cancel" onclick="closeEditReviewModal()">Отмена</button>
+      <button class="modal-save" onclick="saveReviewChanges()">Сохранить</button>
+    </div>
+  </div>
+</div>
+</body>
+</html>

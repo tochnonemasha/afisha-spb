@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>АФИША — Санкт-Петербург</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0C0C0E;--surface:#141416;--surface2:#1C1C1F;--border:#2A2A2E;
+  --accent:#C8A96E;--accent2:#E8C88E;--text:#F0EDE8;--muted:#888580;--red:#D64040;
+}
+body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',sans-serif;min-height:100vh}
+a{color:inherit;text-decoration:none}
+button,input,select,textarea{font-family:inherit}
+
+/* ── HEADER ── */
+header{border-bottom:1px solid var(--border);padding:0 48px;display:flex;align-items:center;justify-content:space-between;height:64px;position:sticky;top:0;z-index:100;background:rgba(12,12,14,0.96);backdrop-filter:blur(12px)}
+.logo{font-family:'Playfair Display',serif;font-size:22px;font-weight:900;letter-spacing:0.08em;color:var(--accent)}
+.logo span{color:var(--text);font-weight:400;font-size:13px;font-family:'IBM Plex Mono',monospace;margin-left:10px;opacity:0.45;letter-spacing:0.15em}
+nav{display:flex;gap:28px;align-items:center}
+nav a{color:var(--muted);font-size:12px;letter-spacing:0.08em;text-transform:uppercase;transition:color 0.2s}
+nav a:hover{color:var(--text)}
+nav a.active{color:var(--accent)}
+.header-right{display:flex;gap:10px;align-items:center}
+.btn-login{background:none;border:1px solid var(--border);color:var(--muted);padding:8px 18px;font-size:12px;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;font-family:'IBM Plex Mono',monospace;transition:all 0.2s}
+.btn-login:hover{border-color:var(--muted);color:var(--text)}
+.btn-reg{background:var(--accent);border:1px solid var(--accent);color:#000;padding:8px 18px;font-size:12px;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;font-family:'IBM Plex Mono',monospace;font-weight:500;transition:all 0.2s}
+.btn-reg:hover{background:var(--accent2)}
+.btn-fav-h{background:none;border:none;color:var(--muted);padding:8px 12px;font-size:14px;cursor:pointer;transition:color 0.2s;letter-spacing:0}
+.btn-fav-h:hover{color:var(--accent)}
+
+/* ── HERO ── */
+.hero{padding:72px 48px 56px;display:grid;grid-template-columns:1fr 1fr;gap:64px;align-items:end;border-bottom:1px solid var(--border)}
+.hero-text h1{font-family:'Playfair Display',serif;font-size:68px;line-height:1;font-weight:900;letter-spacing:-0.02em;margin-bottom:20px}
+.hero-text h1 em{font-style:italic;color:var(--accent)}
+.hero-sub{color:var(--muted);font-size:14px;line-height:1.75;max-width:400px;font-weight:300}
+.hero-stats{display:flex;gap:40px;margin-top:40px}
+.stat{border-left:2px solid var(--accent);padding-left:14px}
+.stat-num{font-family:'Playfair Display',serif;font-size:30px;font-weight:700;color:var(--accent)}
+.stat-label{font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);margin-top:3px}
+
+/* SMART PICKER CTA */
+.picker-cta{margin-top:36px;background:var(--surface);border:1px solid var(--border);padding:20px 24px;display:flex;align-items:center;gap:20px;cursor:pointer;transition:border-color 0.25s;position:relative;overflow:hidden}
+.picker-cta::before{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(200,169,110,0.04));opacity:0}
+.picker-cta:hover{border-color:var(--accent)}
+.picker-cta:hover::before{opacity:1}
+.picker-icon{width:44px;height:44px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.picker-text-block{flex:1}
+.picker-label{font-size:10px;font-family:'IBM Plex Mono',monospace;letter-spacing:0.2em;text-transform:uppercase;color:var(--accent);margin-bottom:4px}
+.picker-title{font-size:15px;font-weight:500;line-height:1.3}
+.picker-sub{font-size:12px;color:var(--muted);margin-top:3px;font-weight:300}
+.picker-arrow{font-size:18px;color:var(--border);transition:color 0.2s}
+.picker-cta:hover .picker-arrow{color:var(--accent)}
+
+/* HERO VISUAL */
+.hero-visual{position:relative;height:300px}
+.hero-card-preview{position:absolute;background:var(--surface);border:1px solid var(--border);width:240px;overflow:hidden}
+.hero-card-preview:nth-child(1){top:0;left:20px;transform:rotate(-2deg)}
+.hero-card-preview:nth-child(2){top:80px;left:150px;transform:rotate(1.5deg);z-index:2;border-color:var(--accent)}
+.hcp-img{height:100px;background:var(--surface2);position:relative;overflow:hidden}
+.hcp-img img{width:100%;height:100%;object-fit:cover;opacity:0.8}
+.hcp-body{padding:14px}
+.hcp-cat{font-size:9px;letter-spacing:0.2em;text-transform:uppercase;color:var(--accent);margin-bottom:6px;font-family:'IBM Plex Mono',monospace}
+.hcp-title{font-family:'Playfair Display',serif;font-size:15px;font-weight:700;line-height:1.2;margin-bottom:8px}
+.hcp-info{font-size:10px;color:var(--muted);font-family:'IBM Plex Mono',monospace}
+
+/* ── FILTERS ── */
+.filters-section{padding:20px 48px;border-bottom:1px solid var(--border);background:var(--surface)}
+.filters-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.filter-label{font-size:10px;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);font-family:'IBM Plex Mono',monospace;margin-right:4px;flex-shrink:0}
+.filter-wrapper{position:relative}
+.filter-select{background:var(--bg);border:1px solid var(--border);color:var(--text);padding:8px 34px 8px 12px;font-size:12px;cursor:pointer;appearance:none;-webkit-appearance:none;outline:none;transition:border-color 0.2s;min-width:130px}
+.filter-select:hover,.filter-select:focus{border-color:var(--accent)}
+.filter-arrow{position:absolute;right:10px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--muted);font-size:9px}
+.cal-wrapper{position:relative}
+.cal-btn{background:var(--bg);border:1px solid var(--border);color:var(--text);padding:8px 12px;font-size:12px;font-family:'IBM Plex Mono',monospace;cursor:pointer;display:flex;align-items:center;gap:7px;transition:border-color 0.2s;min-width:150px}
+.cal-btn:hover{border-color:var(--accent)}
+.cal-icon{color:var(--accent);font-size:11px}
+.calendar-popup{display:none;position:absolute;top:calc(100% + 4px);left:0;background:var(--surface);border:1px solid var(--border);z-index:200;padding:14px;width:252px}
+.calendar-popup.open{display:block}
+.cal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.cal-month{font-family:'Playfair Display',serif;font-size:15px;font-weight:700}
+.cal-nav{background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:4px 8px;transition:color 0.2s}
+.cal-nav:hover{color:var(--accent)}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:1px}
+.cal-day-name{font-size:9px;letter-spacing:0.1em;color:var(--muted);text-align:center;padding:3px 0;font-family:'IBM Plex Mono',monospace}
+.cal-day{font-size:11px;text-align:center;padding:5px 1px;cursor:pointer;transition:all 0.15s;font-family:'IBM Plex Mono',monospace;border:1px solid transparent}
+.cal-day:hover{color:var(--accent);border-color:var(--accent)}
+.cal-day.today{color:var(--accent);font-weight:500}
+.cal-day.selected{background:var(--accent);color:#000}
+.cal-day.empty{opacity:0;cursor:default}
+.price-wrapper{position:relative}
+.price-btn{background:var(--bg);border:1px solid var(--border);color:var(--text);padding:8px 12px;font-size:12px;font-family:'IBM Plex Mono',monospace;cursor:pointer;display:flex;align-items:center;gap:7px;transition:border-color 0.2s;min-width:150px}
+.price-btn:hover{border-color:var(--accent)}
+.price-popup{display:none;position:absolute;top:calc(100% + 4px);left:0;background:var(--surface);border:1px solid var(--border);z-index:200;padding:18px;width:250px}
+.price-popup.open{display:block}
+.price-range-label{font-size:11px;font-family:'IBM Plex Mono',monospace;color:var(--muted);margin-bottom:10px;display:flex;justify-content:space-between}
+input[type=range]{width:100%;accent-color:var(--accent);background:transparent}
+.benefit-wrapper{position:relative}
+.benefit-btn{background:var(--bg);border:1px solid var(--border);color:var(--text);padding:8px 12px;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:7px;transition:border-color 0.2s;min-width:140px}
+.benefit-btn:hover{border-color:var(--accent)}
+.benefit-popup{display:none;position:absolute;top:calc(100% + 4px);left:0;background:var(--surface);border:1px solid var(--border);z-index:200;padding:14px;width:210px}
+.benefit-popup.open{display:block}
+.benefit-item{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border)}
+.benefit-item:last-child{border-bottom:none}
+.benefit-item input{accent-color:var(--accent)}
+.benefit-item label{font-size:12px;cursor:pointer}
+.age-filter-wrapper{position:relative}
+.age-filter-btn{background:var(--bg);border:1px solid var(--border);color:var(--text);padding:8px 34px 8px 12px;font-size:12px;cursor:pointer;font-family:'IBM Plex Mono',monospace;min-width:100px}
+.age-filter-wrapper .filter-arrow{position:absolute;right:10px;top:50%;transform:translateY(-50%);pointer-events:none}
+.age-popup{display:none;position:absolute;top:calc(100% + 4px);left:0;background:var(--surface);border:1px solid var(--border);z-index:200;padding:10px;width:180px}
+.age-popup.open{display:block}
+.age-option{padding:8px 12px;cursor:pointer;font-size:12px;transition:background 0.2s}
+.age-option:hover{background:var(--surface2);color:var(--accent)}
+.age-option.selected{color:var(--accent);background:rgba(200,169,110,0.1)}
+.filter-divider{width:1px;height:28px;background:var(--border);margin:0 2px;flex-shrink:0}
+.btn-reset{background:none;border:none;color:var(--muted);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;font-family:'IBM Plex Mono',monospace;padding:8px 10px;transition:color 0.2s}
+.btn-reset:hover{color:var(--red)}
+
+/* ── CONTENT ── */
+.content{padding:48px}
+.section-header{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:28px}
+.section-title{font-family:'Playfair Display',serif;font-size:30px;font-weight:700}
+.section-count{font-size:11px;font-family:'IBM Plex Mono',monospace;color:var(--muted)}
+.cat-strip{display:flex;gap:6px;margin-bottom:36px;overflow-x:auto;padding-bottom:4px}
+.cat-strip::-webkit-scrollbar{height:2px}
+.cat-strip::-webkit-scrollbar-track{background:var(--border)}
+.cat-strip::-webkit-scrollbar-thumb{background:var(--accent)}
+.cat-chip{background:none;border:1px solid var(--border);color:var(--muted);padding:7px 18px;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;font-family:'IBM Plex Mono',monospace;white-space:nowrap;transition:all 0.2s;flex-shrink:0}
+.cat-chip:hover{border-color:var(--text);color:var(--text)}
+.cat-chip.active{background:var(--accent);border-color:var(--accent);color:#000}
+
+/* ── CARDS ── */
+.cards-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border)}
+.event-card{background:var(--bg);overflow:hidden;cursor:pointer;transition:background 0.2s;position:relative;display:flex;flex-direction:column}
+.event-card:hover{background:var(--surface2)}
+.card-img-wrap{position:relative;height:200px;overflow:hidden;flex-shrink:0}
+.card-img-wrap img{width:100%;height:100%;object-fit:cover;display:block;transition:transform 0.4s ease;filter:brightness(0.85)}
+.event-card:hover .card-img-wrap img{transform:scale(1.04)}
+.card-img-placeholder{width:100%;height:200px;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative}
+.card-img-placeholder::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(-45deg,transparent,transparent 40px,rgba(200,169,110,0.03) 40px,rgba(200,169,110,0.03) 80px)}
+.card-img-placeholder::after{content:attr(data-letter);position:absolute;font-family:'Playfair Display',serif;font-size:140px;font-weight:900;color:rgba(200,169,110,0.06);line-height:1;user-select:none;pointer-events:none}
+.card-badges{position:absolute;top:10px;left:10px;right:10px;display:flex;justify-content:space-between;align-items:flex-start;z-index:2}
+.badges-left{display:flex;flex-direction:column;gap:4px}
+.badge-age{background:rgba(12,12,14,0.82);border:1px solid rgba(200,169,110,0.3);color:var(--text);font-size:9px;font-family:'IBM Plex Mono',monospace;padding:3px 7px;letter-spacing:0.1em;display:inline-block}
+.badge-cat{background:var(--accent);color:#000;font-size:9px;font-family:'IBM Plex Mono',monospace;padding:3px 7px;letter-spacing:0.12em;font-weight:500;display:inline-block}
+.badge-private{background:var(--surface2);border:1px solid var(--border);color:var(--muted);font-size:9px;font-family:'IBM Plex Mono',monospace;padding:3px 7px;letter-spacing:0.1em;display:inline-block}
+.btn-fav-card{background:rgba(12,12,14,0.82);border:1px solid rgba(255,255,255,0.1);color:var(--muted);width:30px;height:30px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.2s;font-size:13px;flex-shrink:0}
+.btn-fav-card:hover,.btn-fav-card.active{border-color:var(--accent);color:var(--accent)}
+.card-body{padding:18px;flex:1;display:flex;flex-direction:column}
+.card-date{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--accent);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:7px}
+.card-title{font-family:'Playfair Display',serif;font-size:18px;font-weight:700;line-height:1.25;margin-bottom:8px;letter-spacing:-0.01em;flex:1}
+.card-venue{font-size:11px;color:var(--muted);margin-bottom:14px;display:flex;align-items:center;gap:5px}
+.card-venue::before{content:'';display:inline-block;width:3px;height:3px;background:var(--accent);border-radius:50%;flex-shrink:0}
+.benefit-tags{display:flex;gap:4px;margin-bottom:10px;flex-wrap:wrap}
+.benefit-tag{font-size:8px;font-family:'IBM Plex Mono',monospace;letter-spacing:0.08em;color:#000;background:var(--accent);padding:2px 5px;font-weight:500}
+.card-footer{display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--border);padding-top:12px;margin-top:auto}
+.card-price{font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--text);font-weight:500}
+.card-price em{font-style:normal;font-size:10px;color:var(--muted);margin-right:3px}
+.card-price.free{color:var(--accent)}
+.card-tags{display:flex;gap:5px}
+.tag{font-size:9px;font-family:'IBM Plex Mono',monospace;letter-spacing:0.06em;color:var(--muted);border:1px solid var(--border);padding:2px 7px}
+.card-participants{font-size:10px;font-family:'IBM Plex Mono',monospace;color:var(--muted);display:flex;align-items:center;gap:5px}
+.card-participants::before{content:'●';color:var(--accent2);font-size:7px}
+
+/* ── LOAD MORE ── */
+.load-more-section{padding:40px 48px;text-align:center;border-top:1px solid var(--border)}
+.btn-load{background:none;border:1px solid var(--border);color:var(--muted);padding:12px 44px;font-size:11px;letter-spacing:0.2em;text-transform:uppercase;cursor:pointer;font-family:'IBM Plex Mono',monospace;transition:all 0.3s}
+.btn-load:hover{border-color:var(--accent);color:var(--accent)}
+
+/* ── FOOTER ── */
+footer{border-top:1px solid var(--border);padding:28px 48px;display:flex;justify-content:space-between;align-items:center}
+.footer-logo{font-family:'Playfair Display',serif;font-size:17px;font-weight:900;color:var(--accent);letter-spacing:0.08em}
+.footer-links{display:flex;gap:24px}
+.footer-links a{font-size:11px;font-family:'IBM Plex Mono',monospace;color:var(--muted);transition:color 0.2s}
+.footer-links a:hover{color:var(--text)}
+.footer-copy{font-size:10px;font-family:'IBM Plex Mono',monospace;color:rgba(136,133,128,0.5)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">АФИША <span>SPB</span></div>
+  <nav>
+    <a href="#" class="active">Все события</a>
+    <a href="#">Концерты</a>
+    <a href="#">Театр</a>
+    <a href="#">Выставки</a>
+    <a href="#">Спорт</a>
+    <a href="#">Частные</a>
+  </nav>
+  <div class="header-right">
+    <button class="btn-fav-h" title="Избранное" onclick="window.location.href='profile.html'">⚑</button>
+    <button class="btn-login" onclick="window.location.href='login.html'">Войти</button>
+    <button class="btn-reg" onclick="window.location.href='register.html'">Регистрация</button>
+  </div>
+</header>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-text">
+    <h1>Все события<br><em>Петербурга</em><br>в одном месте</h1>
+    <p class="hero-sub">Концерты, театр, спорт, выставки, вечеринки, мастер-классы — находите интересное рядом с вами каждый день.</p>
+    <div class="hero-stats">
+      <div class="stat">
+        <div class="stat-num">1 240</div>
+        <div class="stat-label">Событий в мае</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">340+</div>
+        <div class="stat-label">Площадок</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">18</div>
+        <div class="stat-label">Районов</div>
+      </div>
+    </div>
+
+    <!-- SMART PICKER -->
+    <div class="picker-cta" onclick="window.location.href='picker.html'">
+      <div class="picker-icon">✦</div>
+      <div class="picker-text-block">
+        <div class="picker-label">Новое · Умный подбор</div>
+        <div class="picker-title">Подбор мероприятий для вас</div>
+        <div class="picker-sub">Укажите даты и интересы — составим программу автоматически</div>
+      </div>
+      <div class="picker-arrow">→</div>
+    </div>
+  </div>
+
+  <div class="hero-visual">
+    <div class="hero-card-preview">
+      <div class="hcp-img">
+        <img src="https://images.unsplash.com/photo-1507676184212-d03ab07a01bf?w=400&q=60" alt="">
+      </div>
+      <div class="hcp-body">
+        <div class="hcp-cat">Театр</div>
+        <div class="hcp-title">Чайка. Режиссёрская версия</div>
+        <div class="hcp-info">3 мая · БДТ им. Товстоногова</div>
+      </div>
+    </div>
+    <div class="hero-card-preview">
+      <div class="hcp-img">
+        <div class="card-img-placeholder" data-letter="К" style="height:100px; width:100%"></div>
+      </div>
+      <div class="hcp-body">
+        <div class="hcp-cat">Концерт</div>
+        <div class="hcp-title">Джазовый вечер у Аркадия</div>
+        <div class="hcp-info">17 мая · Петроградский р-н</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FILTERS -->
+<section class="filters-section">
+  <div class="filters-row">
+    <span class="filter-label">Фильтры:</span>
+
+    <div class="filter-wrapper">
+      <select class="filter-select" id="cat-filter">
+        <option value="">Категория</option>
+        <optgroup label="Культура">
+          <option>Театр</option><option>Концерт</option><option>Выставка</option>
+          <option>Кино</option><option>Лекция</option><option>Экскурсия</option>
+        </optgroup>
+        <optgroup label="Активный отдых">
+          <option>Спорт</option><option>Квест</option><option>Мастер-класс</option>
+        </optgroup>
+        <optgroup label="Развлечения">
+          <option>Фестиваль</option><option>Стендап</option><option>Вечеринка</option>
+          <option>Для детей</option>
+        </optgroup>
+        <optgroup label="Особые форматы">
+          <option>Частное мероприятие</option><option>Онлайн</option>
+        </optgroup>
+      </select>
+      <span class="filter-arrow">▾</span>
+    </div>
+
+    <div class="filter-wrapper">
+      <select class="filter-select" id="district-filter">
+        <option value="">Район</option>
+        <option>Центральный</option><option>Петроградский</option>
+        <option>Василеостровский</option><option>Адмиралтейский</option>
+        <option>Московский</option><option>Выборгский</option><option>Невский</option>
+      </select>
+      <span class="filter-arrow">▾</span>
+    </div>
+
+    <!-- ВОЗРАСТНОЙ ФИЛЬТР -->
+    <div class="age-filter-wrapper" id="age-wrapper">
+      <button class="age-filter-btn" id="age-filter-btn" onclick="toggleAgePopup()">Возраст ▾</button>
+      <div class="age-popup" id="age-popup">
+        <div class="age-option" data-age="0+">0+ · Для всех</div>
+        <div class="age-option" data-age="6+">6+ · Детям</div>
+        <div class="age-option" data-age="12+">12+ · Подросткам</div>
+        <div class="age-option" data-age="16+">16+ · Старше 16</div>
+        <div class="age-option" data-age="18+">18+ · Взрослым</div>
+      </div>
+    </div>
+
+    <div class="cal-wrapper" id="cal-wrapper">
+      <button class="cal-btn" onclick="toggleCal()">
+        <span class="cal-icon">▦</span>
+        <span id="cal-display">Выберите дату</span>
+      </button>
+      <div class="calendar-popup" id="cal-popup">
+        <div class="cal-header">
+          <button class="cal-nav" onclick="prevMonth()">◀</button>
+          <span class="cal-month" id="cal-month-label"></span>
+          <button class="cal-nav" onclick="nextMonth()">▶</button>
+        </div>
+        <div class="cal-grid" id="cal-grid"></div>
+      </div>
+    </div>
+
+    <div class="price-wrapper" id="price-wrapper">
+      <button class="price-btn" onclick="togglePrice()">₽ <span id="price-display">Цена</span></button>
+      <div class="price-popup" id="price-popup">
+        <div class="price-range-label">
+          <span>0 ₽</span>
+          <span id="price-val" style="color:var(--accent)">до 5 000 ₽</span>
+        </div>
+        <input type="range" min="0" max="10000" value="5000" step="500" id="price-slider" oninput="updatePrice(this.value)">
+        <div style="margin-top:10px;font-size:10px;color:var(--muted);font-family:'IBM Plex Mono',monospace">Включая бесплатные</div>
+      </div>
+    </div>
+
+    <div class="benefit-wrapper" id="benefit-wrapper">
+      <button class="benefit-btn" onclick="toggleBenefit()">✦ Льготы ▾</button>
+      <div class="benefit-popup" id="benefit-popup">
+        <div class="benefit-item"><input type="checkbox" id="b1"><label for="b1">Пушкинская карта</label></div>
+        <div class="benefit-item"><input type="checkbox" id="b2"><label for="b2">Для студентов</label></div>
+        <div class="benefit-item"><input type="checkbox" id="b3"><label for="b3">Для пенсионеров</label></div>
+        <div class="benefit-item"><input type="checkbox" id="b4"><label for="b4">Другое</label></div>
+      </div>
+    </div>
+
+    <div class="filter-divider"></div>
+    <button class="btn-reset" onclick="resetFilters()">Сбросить</button>
+  </div>
+</section>
+
+<!-- MAIN -->
+<main class="content">
+  <div class="section-header">
+    <h2 class="section-title">Ближайшие события</h2>
+    <span class="section-count" id="events-count">— мероприятий</span>
+  </div>
+
+  <div class="cat-strip">
+    <button class="cat-chip active" data-cat="all">Все</button>
+    <button class="cat-chip" data-cat="Театр">Театр</button>
+    <button class="cat-chip" data-cat="Концерт">Концерты</button>
+    <button class="cat-chip" data-cat="Выставка">Выставки</button>
+    <button class="cat-chip" data-cat="Кино">Кино</button>
+    <button class="cat-chip" data-cat="Лекция">Лекции</button>
+    <button class="cat-chip" data-cat="Спорт">Спорт</button>
+    <button class="cat-chip" data-cat="Мастер-класс">Мастер-классы</button>
+    <button class="cat-chip" data-cat="Фестиваль">Фестивали</button>
+    <button class="cat-chip" data-cat="Стендап">Стендап</button>
+    <button class="cat-chip" data-cat="Экскурсия">Экскурсии</button>
+    <button class="cat-chip" data-cat="Частное">Частные</button>
+  </div>
+
+  <div class="cards-grid" id="cards-grid"></div>
+</main>
+
+<div class="load-more-section">
+  <button class="btn-load">Загрузить ещё</button>
+</div>
+
+<footer>
+  <div class="footer-logo">АФИША · SPB</div>
+  <div class="footer-links">
+    <a href="#">О проекте</a>
+    <a href="#">Разместить событие</a>
+    <a href="#">Для организаторов</a>
+    <a href="#">Контакты</a>
+  </div>
+  <div class="footer-copy">© 2025</div>
+</footer>
+
+<script>
+const events = [
+  {id:1,title:"Чайка. Режиссёрская версия",cat:"Театр",venue:"БДТ им. Товстоногова",date:"3 мая, 19:00",price:1200,age:"16+",tags:["Драма","Классика"],benefits:["Пушкинская карта"],img:"https://images.unsplash.com/photo-1507676184212-d03ab07a01bf?w=600&q=70",private:false},
+  {id:2,title:"Николай Рерих. Симфония гор",cat:"Выставка",venue:"Русский музей",date:"до 25 мая",price:600,age:"0+",tags:["Живопись","XX век"],benefits:["Студентам","Пенсионерам"],img:"https://images.unsplash.com/photo-1518998053901-5348d3961a04?w=600&q=70",private:false},
+  {id:3,title:"Оркестр Мариинского театра",cat:"Концерт",venue:"Мариинский театр",date:"5 мая, 20:00",price:2500,age:"6+",tags:["Классика","Симфония"],benefits:["Пушкинская карта"],img:"https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=600&q=70",private:false},
+  {id:4,title:"Достоевский и Петербург",cat:"Лекция",venue:"Библиотека Маяковского",date:"7 мая, 18:30",price:0,age:"12+",tags:["Литература","История"],benefits:["Студентам"],img:"",private:false},
+  {id:5,title:"Джазовый вечер у Аркадия",cat:"Концерт",venue:"Петроградский р-н",date:"17 мая, 20:00",price:1500,age:"18+",tags:["Джаз","Камерный"],benefits:[],img:"",private:true,spots:"7 мест"},
+  {id:6,title:"Сплин — 30 лет",cat:"Концерт",venue:"А2 Green Concert",date:"10 мая, 20:00",price:3500,age:"16+",tags:["Рок","Живой звук"],benefits:[],img:"https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?w=600&q=70",private:false},
+  {id:7,title:"Шерлок Холмс. Мюзикл",cat:"Театр",venue:"Театр Музкомедии",date:"12 мая, 19:00",price:1800,age:"6+",tags:["Мюзикл","Детектив"],benefits:["Пушкинская карта"],img:"https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&q=70",private:false},
+  {id:8,title:"Архитектура Петербурга",cat:"Экскурсия",venue:"Старт у Зимнего дворца",date:"8 мая, 11:00",price:500,age:"0+",tags:["Архитектура","Прогулка"],benefits:["Пенсионерам"],img:"",private:false},
+  {id:9,title:"Илья Новиков. Стендап",cat:"Стендап",venue:"Козлёнок в молоке",date:"9 мая, 21:00",price:1000,age:"18+",tags:["Юмор"],benefits:[],img:"https://images.unsplash.com/photo-1585699324551-f6c309eedeca?w=600&q=70",private:false},
+  {id:10,title:"Кроссфит-марафон «Белые ночи»",cat:"Спорт",venue:"Парк 300-летия Петербурга",date:"11 мая, 9:00",price:800,age:"16+",tags:["Спорт","Марафон"],benefits:[],img:"https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=600&q=70",private:false},
+  {id:11,title:"Гончарная мастерская: лепка для взрослых",cat:"Мастер-класс",venue:"Студия «Глина»",date:"14 мая, 18:00",price:2200,age:"14+",tags:["Керамика","Творчество"],benefits:["Студентам"],img:"",private:false},
+  {id:12,title:"Фестиваль уличной еды «Питерский стол»",cat:"Фестиваль",venue:"Новая Голландия",date:"17–18 мая",price:0,age:"0+",tags:["Еда","Уличный"],benefits:[],img:"https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=600&q=70",private:false},
+];
+
+let activeFilter = 'all';
+let selectedAge = null;
+let maxPrice = 10000;
+let selectedDate = null;
+
+function getAgeNumber(ageStr) {
+  if(!ageStr) return 0;
+  const match = ageStr.match(/(\d+)/);
+  return match ? parseInt(match[0]) : 0;
+}
+
+function filterByAge(eventAge, selectedAgeFilter) {
+  if(!selectedAgeFilter) return true;
+  const eventAgeNum = getAgeNumber(eventAge);
+  const filterAgeNum = getAgeNumber(selectedAgeFilter);
+  return eventAgeNum >= filterAgeNum;
+}
+
+function filterEvents() {
+  let filtered = activeFilter === 'all' ? events : events.filter(e => e.cat === activeFilter || (activeFilter === 'Частное' && e.private));
+  filtered = filtered.filter(e => e.price <= maxPrice);
+  if(selectedAge) filtered = filtered.filter(e => filterByAge(e.age, selectedAge));
+  if(selectedDate) {
+    filtered = filtered.filter(e => {
+      const eventDay = e.date.split(',')[0].split(' ')[0];
+      return parseInt(eventDay) === selectedDate.getDate();
+    });
+  }
+  return filtered;
+}
+
+function renderCards(){
+  const filtered = filterEvents();
+  document.getElementById('events-count').textContent = filtered.length + ' мероприятий';
+  const grid = document.getElementById('cards-grid');
+  grid.innerHTML = filtered.map(e => {
+    const hasImage = e.img && e.img.length > 0;
+    const firstLetter = e.cat.charAt(0);
+    return `
+    <div class="event-card" onclick="window.open('${e.private ? 'private-event.html' : 'event.html'}','_blank')">
+      <div class="card-img-wrap">
+        ${hasImage ? 
+          `<img src="${e.img}" alt="${e.title}" loading="lazy">` : 
+          `<div class="card-img-placeholder" data-letter="${firstLetter}"></div>`
+        }
+        <div class="card-badges">
+          <div class="badges-left">
+            <span class="badge-cat">${e.cat}</span>
+            ${e.private ? '<span class="badge-private">Частное</span>' : ''}
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px">
+            <span class="badge-age">${e.age}</span>
+            <button class="btn-fav-card" onclick="toggleFav(event,${e.id})" id="fav-${e.id}" title="В избранное">⚑</button>
+          </div>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="card-date">${e.date}</div>
+        <div class="card-title">${e.title}</div>
+        <div class="card-venue">${e.venue}</div>
+        ${e.private && e.spots ? `<div class="card-participants">Осталось мест: ${e.spots}</div>` : ''}
+        ${e.benefits.length ? `<div class="benefit-tags">${e.benefits.map(b=>`<span class="benefit-tag">${b}</span>`).join('')}</div>` : ''}
+        <div class="card-footer">
+          <div class="card-price ${e.price===0?'free':''}">
+            ${e.price===0 ? 'Бесплатно' : `<em>от</em>${e.price.toLocaleString('ru')} ₽`}
+          </div>
+          <div class="card-tags">${e.tags.slice(0,2).map(t=>`<span class="tag">${t}</span>`).join('')}</div>
+        </div>
+      </div>
+    </div>
+  `}).join('');
+  
+  // Добавляем буквы в плейсхолдеры после рендера
+  document.querySelectorAll('.card-img-placeholder').forEach(el => {
+    const parentCard = el.closest('.event-card');
+    const catBadge = parentCard?.querySelector('.badge-cat')?.innerText || '?';
+    const letter = catBadge.charAt(0);
+    el.setAttribute('data-letter', letter);
+  });
+}
+
+function toggleFav(e,id){
+  e.stopPropagation();
+  const btn = document.getElementById('fav-'+id);
+  if(btn) btn.classList.toggle('active');
+}
+
+// Возрастной фильтр
+function toggleAgePopup() {
+  const popup = document.getElementById('age-popup');
+  popup.classList.toggle('open');
+  document.getElementById('cal-popup').classList.remove('open');
+  document.getElementById('price-popup').classList.remove('open');
+  document.getElementById('benefit-popup').classList.remove('open');
+}
+
+document.querySelectorAll('.age-option').forEach(opt => {
+  opt.addEventListener('click', () => {
+    const age = opt.dataset.age;
+    if(selectedAge === age) {
+      selectedAge = null;
+      opt.classList.remove('selected');
+      document.getElementById('age-filter-btn').innerHTML = 'Возраст ▾';
+    } else {
+      document.querySelectorAll('.age-option').forEach(o => o.classList.remove('selected'));
+      selectedAge = age;
+      opt.classList.add('selected');
+      document.getElementById('age-filter-btn').innerHTML = `${age} ▾`;
+    }
+    document.getElementById('age-popup').classList.remove('open');
+    renderCards();
+  });
+});
+
+// Calendar
+let calDate = new Date(2025,4,1);
+
+function renderCal(){
+  const months=['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+  document.getElementById('cal-month-label').textContent=months[calDate.getMonth()]+' '+calDate.getFullYear();
+  const grid=document.getElementById('cal-grid');
+  const days=['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+  let html=days.map(d=>`<div class="cal-day-name">${d}</div>`).join('');
+  let start=new Date(calDate.getFullYear(),calDate.getMonth(),1).getDay();
+  if(start===0)start=7;
+  for(let i=1;i<start;i++)html+=`<div class="cal-day empty"></div>`;
+  const dim=new Date(calDate.getFullYear(),calDate.getMonth()+1,0).getDate();
+  const today=new Date();
+  for(let d=1;d<=dim;d++){
+    const iT=today.getDate()===d&&today.getMonth()===calDate.getMonth()&&today.getFullYear()===calDate.getFullYear();
+    const iS=selectedDate&&selectedDate.getDate()===d&&selectedDate.getMonth()===calDate.getMonth();
+    html+=`<div class="cal-day${iT?' today':''}${iS?' selected':''}" onclick="selectDate(${d})">${d}</div>`;
+  }
+  grid.innerHTML=html;
+}
+
+function selectDate(d){
+  selectedDate=new Date(calDate.getFullYear(),calDate.getMonth(),d);
+  const m=['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
+  document.getElementById('cal-display').textContent=d+' '+m[calDate.getMonth()];
+  document.getElementById('cal-popup').classList.remove('open');
+  renderCal();
+  renderCards();
+}
+
+function prevMonth(){calDate=new Date(calDate.getFullYear(),calDate.getMonth()-1,1);renderCal();}
+function nextMonth(){calDate=new Date(calDate.getFullYear(),calDate.getMonth()+1,1);renderCal();}
+function toggleCal(){
+  document.getElementById('cal-popup').classList.toggle('open');
+  document.getElementById('price-popup').classList.remove('open');
+  document.getElementById('benefit-popup').classList.remove('open');
+  document.getElementById('age-popup').classList.remove('open');
+  renderCal();
+}
+function togglePrice(){
+  document.getElementById('price-popup').classList.toggle('open');
+  document.getElementById('cal-popup').classList.remove('open');
+  document.getElementById('benefit-popup').classList.remove('open');
+  document.getElementById('age-popup').classList.remove('open');
+}
+function updatePrice(v){
+  const val=parseInt(v);
+  document.getElementById('price-val').textContent='до '+val.toLocaleString('ru')+' ₽';
+  document.getElementById('price-display').textContent='до '+val.toLocaleString('ru')+' ₽';
+  maxPrice = val;
+  renderCards();
+}
+function toggleBenefit(){
+  document.getElementById('benefit-popup').classList.toggle('open');
+  document.getElementById('cal-popup').classList.remove('open');
+  document.getElementById('price-popup').classList.remove('open');
+  document.getElementById('age-popup').classList.remove('open');
+}
+function resetFilters(){
+  selectedAge = null;
+  selectedDate = null;
+  maxPrice = 10000;
+  document.getElementById('age-filter-btn').innerHTML = 'Возраст ▾';
+  document.getElementById('price-slider').value = 10000;
+  document.getElementById('price-val').textContent = 'до 10 000 ₽';
+  document.getElementById('price-display').textContent = 'Цена';
+  document.getElementById('cal-display').textContent = 'Выберите дату';
+  document.querySelectorAll('.age-option').forEach(o => o.classList.remove('selected'));
+  document.getElementById('cat-filter').value = '';
+  document.getElementById('district-filter').value = '';
+  renderCards();
+}
+
+document.addEventListener('click',e=>{
+  if(!e.target.closest('#cal-wrapper'))document.getElementById('cal-popup').classList.remove('open');
+  if(!e.target.closest('#price-wrapper'))document.getElementById('price-popup').classList.remove('open');
+  if(!e.target.closest('#benefit-wrapper'))document.getElementById('benefit-popup').classList.remove('open');
+  if(!e.target.closest('#age-wrapper'))document.getElementById('age-popup').classList.remove('open');
+});
+
+document.querySelectorAll('.cat-chip').forEach(chip=>{
+  chip.addEventListener('click',()=>{
+    document.querySelectorAll('.cat-chip').forEach(c=>c.classList.remove('active'));
+    chip.classList.add('active');
+    activeFilter = chip.dataset.cat;
+    renderCards();
+  });
+});
+
+document.getElementById('cat-filter').addEventListener('change', function() {
+  if(this.value) activeFilter = this.value;
+  else activeFilter = 'all';
+  renderCards();
+});
+
+// Инициализация плейсхолдеров для hero-визуала
+document.querySelectorAll('.hero-card-preview .card-img-placeholder').forEach(el => {
+  const parent = el.closest('.hero-card-preview');
+  const catText = parent?.querySelector('.hcp-cat')?.innerText || '?';
+  const letter = catText.charAt(0);
+  el.setAttribute('data-letter', letter);
+});
+
+renderCards();
+renderCal();
+</script>
+</body>
+</html>

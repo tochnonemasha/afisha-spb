@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Джазовый вечер у Аркадия — АФИША SPB</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0C0C0E;
+  --surface:#141416;
+  --surface2:#1C1C1F;
+  --border:#2A2A2E;
+  --accent:#C8A96E;
+  --accent2:#E8C88E;
+  --text:#F0EDE8;
+  --muted:#888580;
+  --muted2:#6A6660;
+  --red:#D64040;
+  --tag-bg:#1C1C1F;
+}
+body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',sans-serif;min-height:100vh}
+
+/* HEADER */
+header{border-bottom:1px solid var(--border);padding:0 48px;display:flex;align-items:center;justify-content:space-between;height:64px;position:sticky;top:0;z-index:100;background:rgba(12,12,14,0.95);backdrop-filter:blur(12px)}
+.logo{font-family:'Playfair Display',serif;font-size:22px;font-weight:900;letter-spacing:0.08em;color:var(--accent);text-decoration:none}
+.logo span{color:var(--text);font-weight:400;font-size:14px;font-family:'IBM Plex Mono',monospace;margin-left:12px;opacity:0.5;letter-spacing:0.15em}
+.header-badge{background:rgba(200,169,110,0.12);border:1px solid rgba(200,169,110,0.3);color:var(--accent);font-size:10px;font-family:'IBM Plex Mono',monospace;letter-spacing:0.15em;text-transform:uppercase;padding:5px 12px}
+.back-link{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:12px;font-family:'IBM Plex Mono',monospace;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;transition:color 0.2s;text-decoration:none}
+.back-link:hover{color:var(--accent)}
+.back-link::before{content:'←';font-size:16px}
+
+/* HERO - custom grid */
+.event-hero{display:grid;grid-template-columns:1fr 400px;min-height:500px;border-bottom:1px solid var(--border)}
+.hero-left{padding:56px 48px;border-right:1px solid var(--border);background:var(--surface);display:flex;flex-direction:column;justify-content:space-between}
+.private-label{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--border);color:var(--muted);font-size:9px;font-family:'IBM Plex Mono',monospace;letter-spacing:0.2em;text-transform:uppercase;padding:5px 12px;margin-bottom:24px;width:fit-content}
+.private-label::before{content:'⬡';font-size:12px;color:var(--accent)}
+.event-title{font-family:'Playfair Display',serif;font-size:68px;font-weight:900;line-height:1;letter-spacing:-0.02em;margin-bottom:12px}
+.event-title em{font-style:italic;color:var(--accent);font-weight:400}
+.event-subtitle{font-size:16px;color:var(--muted);margin-bottom:40px;font-family:'IBM Plex Sans',sans-serif;font-weight:300}
+.hero-meta{display:flex;flex-direction:column;gap:12px}
+.meta-line{display:flex;align-items:center;gap:12px;font-size:14px}
+.meta-dot{width:4px;height:4px;background:var(--accent2);border-radius:50%;flex-shrink:0}
+.meta-key{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);width:90px;flex-shrink:0}
+.meta-val{color:var(--text);font-weight:400}
+.meta-val.accent{color:var(--accent);font-weight:500}
+.age-pill{display:inline-block;background:var(--surface2);border:1px solid var(--border);font-size:11px;font-family:'IBM Plex Mono',monospace;padding:4px 12px;color:var(--text);margin-top:12px}
+
+/* RIGHT PANEL */
+.hero-right{background:var(--surface2);display:flex;flex-direction:column}
+.org-section{padding:32px;border-bottom:1px solid var(--border)}
+.org-header{display:flex;align-items:center;gap:14px;margin-bottom:20px}
+.org-avatar{width:52px;height:52px;background:var(--accent);border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-size:22px;font-weight:700;color:#000;flex-shrink:0}
+.org-info{flex:1}
+.org-role{font-size:9px;font-family:'IBM Plex Mono',monospace;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
+.org-name{font-family:'Playfair Display',serif;font-size:20px;font-weight:700;color:var(--text)}
+.org-desc{font-size:13px;color:var(--muted);line-height:1.6;font-weight:300}
+
+/* ATTENDANCE */
+.attend-section{padding:32px;border-bottom:1px solid var(--border)}
+.attend-title{font-size:9px;font-family:'IBM Plex Mono',monospace;letter-spacing:0.18em;text-transform:uppercase;color:var(--muted);margin-bottom:16px}
+.attendees-row{display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:16px}
+.av{width:36px;height:36px;border-radius:50%;border:2px solid var(--surface2);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:500;font-family:'IBM Plex Mono',monospace;flex-shrink:0;cursor:pointer;position:relative;background:var(--surface);color:var(--text);border-color:var(--border)}
+.av:hover .av-tooltip{display:block}
+.av-tooltip{display:none;position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:var(--text);color:var(--bg);font-size:9px;font-family:'IBM Plex Mono',monospace;padding:4px 8px;white-space:nowrap;z-index:10;pointer-events:none}
+.av-count{background:var(--border);color:var(--muted)}
+.spots-info{font-size:11px;font-family:'IBM Plex Mono',monospace;color:var(--muted);margin-bottom:12px}
+.spots-info strong{color:var(--accent)}
+.spots-bar{height:2px;background:var(--border);margin-bottom:20px}
+.spots-fill{height:100%;background:var(--accent);transition:width 0.5s ease}
+
+/* BUTTONS */
+.join-btn{width:100%;background:var(--accent);color:#000;border:none;padding:14px;font-size:11px;letter-spacing:0.18em;text-transform:uppercase;cursor:pointer;font-family:'IBM Plex Mono',monospace;font-weight:500;transition:all 0.2s;margin-bottom:10px}
+.join-btn:hover{background:var(--accent2)}
+.join-btn.joined{background:var(--surface);border:2px solid var(--accent);color:var(--accent)}
+.join-btn.joined:hover{background:var(--surface2)}
+.ask-btn{width:100%;background:none;border:1px solid var(--border);color:var(--muted);padding:12px;font-size:10px;letter-spacing:0.15em;text-transform:uppercase;cursor:pointer;font-family:'IBM Plex Mono',monospace;transition:all 0.2s}
+.ask-btn:hover{border-color:var(--accent);color:var(--accent)}
+
+/* MAIN LAYOUT */
+.main-grid{display:grid;grid-template-columns:1fr 420px;border-bottom:1px solid var(--border)}
+.main-left{border-right:1px solid var(--border)}
+.main-right{background:var(--surface)}
+
+/* ABOUT & BLOCKS */
+.section-block{padding:40px 48px;border-bottom:1px solid var(--border)}
+.section-block:last-child{border-bottom:none}
+.section-tag{font-size:9px;font-family:'IBM Plex Mono',monospace;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted);margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.section-tag::after{content:'';flex:1;height:1px;background:var(--border)}
+.section-heading{font-family:'Playfair Display',serif;font-size:28px;font-weight:700;margin-bottom:20px}
+.body-text{font-size:14px;line-height:1.8;color:rgba(240,237,232,0.8);font-weight:300}
+.body-text p{margin-bottom:14px}
+.body-text p:last-child{margin-bottom:0}
+
+/* PROGRAMME */
+.programme-list{display:flex;flex-direction:column;gap:0}
+.prog-item{display:flex;gap:20px;padding:16px 0;border-bottom:1px solid var(--border)}
+.prog-item:last-child{border-bottom:none}
+.prog-time{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--accent);width:56px;flex-shrink:0;padding-top:2px}
+.prog-content{flex:1}
+.prog-title{font-size:14px;font-weight:500;margin-bottom:4px;color:var(--text)}
+.prog-desc{font-size:12px;color:var(--muted);font-weight:300}
+
+/* MAP BLOCK */
+.map-block{background:var(--surface2);height:220px;display:flex;align-items:center;justify-content:center;border-bottom:1px solid var(--border);position:relative;overflow:hidden}
+.map-bg{position:absolute;inset:0}
+.map-pin{position:relative;z-index:2;text-align:center}
+.map-pin-icon{width:40px;height:40px;background:var(--accent);display:flex;align-items:center;justify-content:center;margin:0 auto 10px;font-size:18px;color:#000}
+.map-addr{font-size:14px;font-weight:500;margin-bottom:4px;font-family:'Playfair Display',serif}
+.map-sub{font-size:10px;font-family:'IBM Plex Mono',monospace;color:var(--muted);letter-spacing:0.08em}
+
+/* SIMILAR SECTION */
+.similar-strip{padding:40px 48px}
+.sim-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border);margin-top:20px}
+.sim-card{background:var(--bg);padding:24px;cursor:pointer;transition:background 0.2s}
+.sim-card:hover{background:var(--surface2)}
+.sim-top-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.sim-label{font-size:9px;font-family:'IBM Plex Mono',monospace;letter-spacing:0.18em;color:var(--accent);text-transform:uppercase}
+.sim-age-sm{font-size:9px;font-family:'IBM Plex Mono',monospace;color:var(--muted);border:1px solid var(--border);padding:2px 6px}
+.sim-name{font-family:'Playfair Display',serif;font-size:18px;font-weight:700;line-height:1.25;margin-bottom:6px}
+.sim-info{font-size:11px;color:var(--muted);margin-bottom:12px}
+.sim-price{font-size:12px;font-family:'IBM Plex Mono',monospace;color:var(--text)}
+.sim-price em{font-style:normal;color:var(--muted);font-size:10px;margin-right:3px}
+
+/* CHAT */
+.chat-section{display:flex;flex-direction:column;height:100%}
+.chat-header{padding:24px 32px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.chat-title-row{display:flex;align-items:center;gap:10px}
+.chat-title{font-family:'Playfair Display',serif;font-size:20px;font-weight:700}
+.online-dot{width:7px;height:7px;background:#5CAD5C;border-radius:50%}
+.online-count{font-size:10px;font-family:'IBM Plex Mono',monospace;color:var(--muted)}
+.chat-lock{font-size:10px;font-family:'IBM Plex Mono',monospace;color:var(--muted);display:flex;align-items:center;gap:6px;letter-spacing:0.08em}
+.chat-locked-overlay{padding:40px 32px;text-align:center;border-bottom:1px solid var(--border)}
+.lock-icon{font-size:32px;margin-bottom:16px;opacity:0.3}
+.lock-title{font-family:'Playfair Display',serif;font-size:22px;font-weight:700;margin-bottom:8px}
+.lock-desc{font-size:13px;color:var(--muted);line-height:1.6;font-weight:300}
+.preview-chat{display:flex;flex-direction:column;gap:12px;margin-top:20px}
+.preview-chat div{font-size:12px;color:var(--muted);font-style:italic;border-left:2px solid var(--accent);padding-left:12px}
+.pinned-msg{margin:0 32px 16px;border:1px solid var(--border);padding:14px 16px;background:var(--surface2);border-left:3px solid var(--accent)}
+.pinned-label{font-size:9px;font-family:'IBM Plex Mono',monospace;letter-spacing:0.18em;text-transform:uppercase;color:var(--accent);margin-bottom:6px}
+.pinned-text{font-size:12px;color:var(--muted);line-height:1.5}
+.topics-row{display:flex;gap:8px;flex-wrap:wrap;padding:0 32px 16px;margin-top:8px}
+.topic-chip{background:none;border:1px solid var(--border);color:var(--muted);font-size:9px;font-family:'IBM Plex Mono',monospace;letter-spacing:0.1em;padding:5px 12px;cursor:pointer;transition:all 0.2s;text-transform:uppercase}
+.topic-chip:hover,.topic-chip.active{border-color:var(--accent);color:var(--accent)}
+.chat-messages{flex:1;padding:24px 32px;display:flex;flex-direction:column;gap:20px;overflow-y:auto;max-height:380px;min-height:300px}
+.msg{display:flex;gap:12px;align-items:flex-start}
+.msg-av{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:500;font-family:'IBM Plex Mono',monospace;flex-shrink:0;background:var(--surface);color:var(--text);border:1px solid var(--border)}
+.msg-body{flex:1}
+.msg-top{display:flex;align-items:baseline;gap:8px;margin-bottom:4px;flex-wrap:wrap}
+.msg-name{font-size:12px;font-weight:500;color:var(--text)}
+.msg-org-badge{font-size:8px;font-family:'IBM Plex Mono',monospace;background:var(--accent);color:#000;padding:2px 6px;letter-spacing:0.08em}
+.msg-time{font-size:9px;font-family:'IBM Plex Mono',monospace;color:var(--muted)}
+.msg-text{font-size:13px;color:var(--text);line-height:1.55;font-weight:300}
+.msg-reaction{display:inline-flex;align-items:center;gap:4px;margin-top:6px;background:var(--surface2);border:1px solid var(--border);padding:3px 8px;font-size:10px;cursor:pointer;transition:all 0.2s}
+.msg-reaction:hover{border-color:var(--muted2)}
+.msg-reaction.active{border-color:var(--accent);color:var(--accent)}
+.msg.own .msg-body{align-items:flex-end;display:flex;flex-direction:column}
+.msg.own .msg-text{background:var(--accent);color:#000;padding:8px 14px;font-size:13px}
+.msg.own .msg-top{flex-direction:row-reverse}
+.chat-input-area{padding:20px 32px 24px;border-top:1px solid var(--border);background:var(--surface)}
+.input-row{display:flex;gap:10px;align-items:flex-end}
+.chat-input{flex:1;background:var(--bg);border:1px solid var(--border);padding:10px 14px;font-size:13px;font-family:'IBM Plex Sans',sans-serif;resize:none;outline:none;transition:border-color 0.2s;color:var(--text);min-height:40px;max-height:100px}
+.chat-input:focus{border-color:var(--accent)}
+.chat-input::placeholder{color:var(--muted2)}
+.send-btn{background:var(--accent);border:none;color:#000;width:40px;height:40px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;transition:background 0.2s}
+.send-btn:hover{background:var(--accent2)}
+.chat-hint{font-size:9px;font-family:'IBM Plex Mono',monospace;color:var(--muted);margin-top:8px;letter-spacing:0.06em}
+footer{border-top:1px solid var(--border);padding:32px 48px;display:flex;justify-content:space-between;align-items:center}
+.footer-logo{font-family:'Playfair Display',serif;font-size:18px;font-weight:900;color:var(--accent);letter-spacing:0.08em}
+.footer-logo span{color:var(--text);font-weight:400;font-size:12px;font-family:'IBM Plex Mono',monospace}
+.footer-copy{font-size:10px;font-family:'IBM Plex Mono',monospace;color:var(--muted);letter-spacing:0.08em}
+a{color:inherit;text-decoration:none}
+</style>
+</head>
+<body>
+
+<header>
+  <a href="index.html" class="logo">АФИША <span>SPB</span></a>
+  <div class="header-badge">Частное мероприятие</div>
+  <a href="index.html" class="back-link">Назад к афише</a>
+</header>
+
+<!-- HERO -->
+<div class="event-hero">
+  <div class="hero-left">
+    <div>
+      <div class="private-label">Камерный вечер · Только по записи</div>
+      <h1 class="event-title">Джазовый<br>вечер <em>у Аркадия</em></h1>
+      <p class="event-subtitle">Живая музыка, вино и хорошие разговоры</p>
+    </div>
+    <div class="hero-meta">
+      <div class="meta-line"><span class="meta-key">Дата</span><span class="meta-val accent">17 мая 2025, суббота</span></div>
+      <div class="meta-line"><span class="meta-key">Время</span><span class="meta-val">20:00 — ~23:30</span></div>
+      <div class="meta-line"><span class="meta-key">Место</span><span class="meta-val">Частная квартира, Петроградский р-н</span></div>
+      <div class="meta-line"><span class="meta-key">Формат</span><span class="meta-val">до 20 человек · живой звук</span></div>
+      <div class="meta-line"><span class="meta-key">Взнос</span><span class="meta-val accent" style="font-family:'IBM Plex Mono',monospace">от 1 500 ₽</span></div>
+      <div><span class="age-pill">18+</span></div>
+    </div>
+  </div>
+
+  <div class="hero-right">
+    <div class="org-section">
+      <div class="org-header">
+        <div class="org-avatar">АК</div>
+        <div class="org-info">
+          <div class="org-role">Организатор</div>
+          <div class="org-name">Аркадий Кириллов</div>
+        </div>
+      </div>
+      <p class="org-desc">Музыкант, собиратель людей и хороших историй. Провожу камерные вечера у себя дома уже три года. Люблю джаз 50–60-х и разговоры до рассвета.</p>
+    </div>
+
+    <div class="attend-section">
+      <div class="attend-title">Участники</div>
+      <div class="attendees-row" id="attendees-row">
+        <div class="av" style="background:#1C1C1F;color:#C8A96E" title="Марина С.">МС<div class="av-tooltip">Марина С.</div></div>
+        <div class="av" style="background:#1C1C1F;color:#C8A96E" title="Кирилл Д.">КД<div class="av-tooltip">Кирилл Д.</div></div>
+        <div class="av" style="background:#1C1C1F;color:#C8A96E" title="Анна В.">АВ<div class="av-tooltip">Анна В.</div></div>
+        <div class="av" style="background:#1C1C1F;color:#C8A96E" title="Павел О.">ПО<div class="av-tooltip">Павел О.</div></div>
+        <div class="av" style="background:#1C1C1F;color:#C8A96E" title="Лена Ф.">ЛФ<div class="av-tooltip">Лена Ф.</div></div>
+        <div class="av" style="background:#1C1C1F;color:#C8A96E" title="Тим Н.">ТН<div class="av-tooltip">Тим Н.</div></div>
+        <div class="av av-count">+7</div>
+      </div>
+      <div class="spots-info" id="spots-text">Занято <strong>13 из 20</strong> мест — осталось 7</div>
+      <div class="spots-bar"><div class="spots-fill" style="width:65%" id="spots-fill"></div></div>
+      <button class="join-btn" id="join-btn" onclick="joinEvent()">Хочу пойти →</button>
+      <button class="ask-btn" onclick="scrollToChat()">Задать вопрос организатору</button>
+      <div class="age-pill" style="margin-top:12px;text-align:center">18+</div>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN GRID -->
+<div class="main-grid">
+  <div class="main-left">
+    <div class="section-block">
+      <div class="section-tag">О вечере</div>
+      <div class="body-text">
+        <p>Раз в месяц я открываю двери своей квартиры для тех, кто хочет послушать живой джаз в уютной обстановке. Никакой сцены, никаких прожекторов — только музыканты в трёх метрах от вас, бокал вина и возможность поговорить после.</p>
+        <p>В этот раз выступит квартет Дмитрия Лапина — фортепиано, контрабас, ударные и тромбон. Программа: Coltrane, Miles Davis, Bill Evans и несколько авторских вещей. Не будет заявленной программы или строгого расписания — просто музыка, которая возникает в моменте.</p>
+        <p>Взнос включает вход, бокал вина или безалкогольный напиток. Дополнительные напитки и закуски по меню.</p>
+      </div>
+    </div>
+
+    <div class="section-block">
+      <div class="section-tag">Программа</div>
+      <div class="programme-list">
+        <div class="prog-item"><div class="prog-time">20:00</div><div class="prog-content"><div class="prog-title">Сбор гостей</div><div class="prog-desc">Приветственный напиток, знакомство, атмосфера</div></div></div>
+        <div class="prog-item"><div class="prog-time">20:30</div><div class="prog-content"><div class="prog-title">Первый сет — Квартет Лапина</div><div class="prog-desc">~50 минут. Стандарты и современный джаз</div></div></div>
+        <div class="prog-item"><div class="prog-time">21:30</div><div class="prog-content"><div class="prog-title">Антракт</div><div class="prog-desc">Общение, закуски, вопросы музыкантам</div></div></div>
+        <div class="prog-item"><div class="prog-time">22:00</div><div class="prog-content"><div class="prog-title">Второй сет</div><div class="prog-desc">~45 минут. Авторские вещи и импровизации</div></div></div>
+        <div class="prog-item"><div class="prog-time">22:50</div><div class="prog-content"><div class="prog-title">После концерта</div><div class="prog-desc">Неформальное общение — кто хочет остаётся</div></div></div>
+      </div>
+    </div>
+
+    <div class="map-block">
+      <svg width="100%" height="100%" viewBox="0 0 760 220" xmlns="http://www.w3.org/2000/svg" class="map-bg">
+        <rect width="760" height="220" fill="#141416"/>
+        <line x1="0" y1="80" x2="760" y2="80" stroke="#2A2A2E" stroke-width="1"/>
+        <line x1="0" y1="140" x2="760" y2="140" stroke="#2A2A2E" stroke-width="1"/>
+        <line x1="190" y1="0" x2="190" y2="220" stroke="#2A2A2E" stroke-width="1"/>
+        <line x1="380" y1="0" x2="380" y2="220" stroke="#2A2A2E" stroke-width="1"/>
+        <line x1="570" y1="0" x2="570" y2="220" stroke="#2A2A2E" stroke-width="1"/>
+        <path d="M0,120 Q180,100 380,115 Q540,128 760,105" stroke="#1C1C1F" stroke-width="50" fill="none" opacity="0.8"/>
+        <line x1="300" y1="0" x2="300" y2="220" stroke="#2A2A2E" stroke-width="10" opacity="0.8"/>
+        <line x1="0" y1="110" x2="760" y2="110" stroke="#2A2A2E" stroke-width="8" opacity="0.6"/>
+        <circle cx="380" cy="110" r="16" fill="rgba(200,169,110,0.15)"/>
+        <circle cx="380" cy="110" r="8" fill="#C8A96E"/>
+        <circle cx="380" cy="110" r="3" fill="#000"/>
+      </svg>
+      <div class="map-pin">
+        <div class="map-pin-icon">⚲</div>
+        <div class="map-addr">Петроградский район, ул. Большая Пушкарская</div>
+        <div class="map-sub">Точный адрес — участникам после подтверждения</div>
+      </div>
+    </div>
+    <div style="padding:12px 48px;border-bottom:1px solid var(--border)"><span style="font-size:10px;font-family:'IBM Plex Mono',monospace;color:var(--muted)">м. Петроградская · 7 мин пешком</span></div>
+
+    <div class="similar-strip">
+      <div class="section-tag" style="margin-bottom:12px">Похожие события</div>
+      <div class="sim-cards">
+        <div class="sim-card"><div class="sim-top-row"><div class="sim-label">Концерт</div><span class="sim-age-sm">18+</span></div><div class="sim-name">Квартет Мансурова в гостях</div><div class="sim-info">24 мая · Коломна</div><div class="sim-price"><em>от</em>1 200 ₽</div></div>
+        <div class="sim-card"><div class="sim-top-row"><div class="sim-label">Вечеринка</div><span class="sim-age-sm">18+</span></div><div class="sim-name">Vinyl Session — клуб любителей пластинок</div><div class="sim-info">20 мая · Петроградский</div><div class="sim-price"><em>от</em>800 ₽</div></div>
+        <div class="sim-card"><div class="sim-top-row"><div class="sim-label">Лекция</div><span class="sim-age-sm">16+</span></div><div class="sim-name">История джаза: от Нью-Орлеана до Петербурга</div><div class="sim-info">15 мая · Новая Голландия</div><div class="sim-price">Бесплатно</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: CHAT -->
+  <div class="main-right" id="chat-panel">
+    <div class="chat-section">
+      <div class="chat-header">
+        <div class="chat-title-row"><div class="online-dot" id="chat-online-dot" style="opacity:0.3"></div><span class="chat-title">Чат участников</span></div>
+        <span class="chat-lock" id="chat-lock-label">🔒 Только для записавшихся</span>
+      </div>
+      <div id="chat-locked" class="chat-locked-overlay">
+        <div class="lock-icon">🔒</div>
+        <div class="lock-title">Чат участников</div>
+        <p class="lock-desc">Запишитесь на вечер, чтобы познакомиться с теми, кто придёт, договориться о совместной поездке, задать вопрос организатору и узнать последние новости о событии.</p>
+        <div class="preview-chat">
+          <div>«Кто едет от Сенной? Могу взять двух попутчиков»</div>
+          <div>«Аркадий, можно принести свой ром?»</div>
+          <div>«Есть место для парковки рядом?»</div>
+        </div>
+      </div>
+      <div id="chat-active" style="display:none;flex-direction:column;height:100%">
+        <div class="pinned-msg"><div class="pinned-label">📌 Закреплено от организатора</div><div class="pinned-text">Привет всем! Адрес и код домофона пришлю в день мероприятия. Парковка: улица свободная, обычно есть места. Если вы вегетарианец — напишите заранее, подготовлю закуски.</div></div>
+        <div class="topics-row"><button class="topic-chip active" onclick="filterTopic(this,'all')">Все</button><button class="topic-chip" onclick="filterTopic(this,'logistics')">Логистика</button><button class="topic-chip" onclick="filterTopic(this,'questions')">Вопросы</button><button class="topic-chip" onclick="filterTopic(this,'music')">Музыка</button></div>
+        <div class="chat-messages" id="chat-messages">
+          <div class="msg" data-topic="logistics"><div class="msg-av">МС</div><div class="msg-body"><div class="msg-top"><span class="msg-name">Марина С.</span><span class="msg-time">вчера, 18:42</span></div><div class="msg-text">Кто-нибудь едет от центра? Ищу попутчиков или компанию на такси после 20:00</div><div style="display:flex;gap:6px;margin-top:6px"><div class="msg-reaction" onclick="react(this)">👋 3</div></div></div></div>
+          <div class="msg" data-topic="questions"><div class="msg-av">АВ</div><div class="msg-body"><div class="msg-top"><span class="msg-name">Анна В.</span><span class="msg-time">вчера, 19:05</span></div><div class="msg-text">Аркадий, можно чуть позже — минут на 15? Работа 😅</div></div></div>
+          <div class="msg" style="background:rgba(200,169,110,0.04);padding:8px;border-left:2px solid var(--accent);margin:0" data-topic="questions"><div class="msg-av" style="background:#C8A96E;color:#000">АК</div><div class="msg-body"><div class="msg-top"><span class="msg-name">Аркадий К.</span><span class="msg-org-badge">организатор</span><span class="msg-time">вчера, 19:20</span></div><div class="msg-text">Анна, конечно! Начнём с небольшого буфета, успеете к музыке. Марина — отличная идея, можно скоординироваться здесь в чате 👌</div><div class="msg-reaction active" onclick="react(this)">❤️ 5</div></div></div>
+          <div class="msg" data-topic="music"><div class="msg-av">КД</div><div class="msg-body"><div class="msg-top"><span class="msg-name">Кирилл Д.</span><span class="msg-time">сегодня, 10:14</span></div><div class="msg-text">Слушал квартет Лапина на прошлой неделе в «Kozlov Club» — ребята просто огонь. Особенно тромбонист. Готовьтесь 🎷</div><div style="display:flex;gap:6px;margin-top:6px"><div class="msg-reaction" onclick="react(this)">🔥 2</div><div class="msg-reaction" onclick="react(this)">🎵 4</div></div></div></div>
+          <div class="msg" data-topic="logistics"><div class="msg-av">ПО</div><div class="msg-body"><div class="msg-top"><span class="msg-name">Павел О.</span><span class="msg-time">сегодня, 11:30</span></div><div class="msg-text">Марина, я от Петроградской, могу захватить если что. Напиши в лс</div></div></div>
+        </div>
+        <div class="chat-input-area"><div class="input-row"><textarea class="chat-input" id="chat-input" placeholder="Написать в чат…" rows="1" onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea><button class="send-btn" onclick="sendMsg()">↑</button></div><div class="chat-hint">Виден только участникам · Отвечайте вежливо</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <div class="footer-logo">АФИША <span>SPB</span></div>
+  <div class="footer-copy">© 2025 · Санкт-Петербург</div>
+</footer>
+
+<script>
+let joined = false;
+function joinEvent(){
+  const btn = document.getElementById('join-btn');
+  if(!joined){
+    joined = true;
+    btn.textContent = '✓ Вы записаны';
+    btn.classList.add('joined');
+    document.getElementById('chat-locked').style.display = 'none';
+    document.getElementById('chat-active').style.display = 'flex';
+    document.getElementById('chat-online-dot').style.opacity = '1';
+    document.getElementById('chat-lock-label').textContent = '13 участников онлайн';
+    document.getElementById('spots-text').innerHTML = 'Занято <strong>14 из 20</strong> мест — осталось 6';
+    document.getElementById('spots-fill').style.width = '70%';
+    const row = document.getElementById('attendees-row');
+    const myAv = document.createElement('div');
+    myAv.className = 'av';
+    myAv.style.cssText = 'background:#C8A96E;color:#000;border:2px solid var(--accent2)';
+    myAv.textContent = 'Вы';
+    row.insertBefore(myAv, row.lastElementChild);
+    setTimeout(()=>{ document.getElementById('chat-panel').scrollIntoView({behavior:'smooth',block:'start'}); }, 300);
+    setTimeout(()=>{ addMsg('АК','Аркадий К.','организатор','Добро пожаловать! Рад вас видеть 🎶 Если есть вопросы — спрашивайте прямо здесь.','#C8A96E','#000','только что','all'); }, 800);
+  } else {
+    if(confirm('Отменить участие?')){
+      joined = false;
+      btn.textContent = 'Хочу пойти →';
+      btn.classList.remove('joined');
+      document.getElementById('chat-locked').style.display = 'block';
+      document.getElementById('chat-active').style.display = 'none';
+      document.getElementById('chat-online-dot').style.opacity = '0.3';
+      document.getElementById('chat-lock-label').textContent = '🔒 Только для записавшихся';
+      document.getElementById('spots-text').innerHTML = 'Занято <strong>13 из 20</strong> мест — осталось 7';
+      document.getElementById('spots-fill').style.width = '65%';
+    }
+  }
+}
+function addMsg(initials, name, badge, text, bgColor, textColor, time, topic){
+  const msgs = document.getElementById('chat-messages');
+  const div = document.createElement('div');
+  div.className = 'msg';
+  div.dataset.topic = topic || 'all';
+  div.innerHTML = `<div class="msg-av" style="background:${bgColor};color:${textColor}">${initials}</div><div class="msg-body"><div class="msg-top"><span class="msg-name">${name}</span>${badge ? `<span class="msg-org-badge">${badge}</span>` : ''}<span class="msg-time">${time}</span></div><div class="msg-text">${text}</div></div>`;
+  if(badge==='организатор') div.style.cssText = 'background:rgba(200,169,110,0.04);padding:8px;border-left:2px solid var(--accent);margin:0';
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+function sendMsg(){
+  if(!joined) return;
+  const input = document.getElementById('chat-input');
+  const text = input.value.trim();
+  if(!text) return;
+  const msgs = document.getElementById('chat-messages');
+  const div = document.createElement('div');
+  div.className = 'msg own';
+  div.innerHTML = `<div class="msg-av" style="background:#C8A96E;color:#000">Вы</div><div class="msg-body"><div class="msg-top"><span class="msg-name">Вы</span><span class="msg-time">только что</span></div><div class="msg-text">${text}</div></div>`;
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+  input.value = '';
+  input.style.height = 'auto';
+}
+function handleKey(e){ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); sendMsg(); } }
+function autoResize(el){ el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 100) + 'px'; }
+function react(el){ el.classList.toggle('active'); const parts = el.textContent.split(' '); const emoji = parts[0]; let n = parseInt(parts[1]) || 0; el.textContent = emoji + ' ' + (el.classList.contains('active') ? n+1 : n-1); }
+function filterTopic(btn, topic){ document.querySelectorAll('.topic-chip').forEach(c=>c.classList.remove('active')); btn.classList.add('active'); document.querySelectorAll('.msg').forEach(msg=>{ if(topic==='all' || !msg.dataset.topic || msg.dataset.topic===topic) msg.style.display = ''; else msg.style.display = 'none'; }); }
+function scrollToChat(){ document.getElementById('chat-panel').scrollIntoView({behavior:'smooth'}); }
+</script>
+</body>
+</html>
