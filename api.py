@@ -92,21 +92,39 @@ def get_db():
 async def startup():
     """При запуске сервера: создаём БД и обучаем модель"""
     init_db()
+
+    # Загружаем данные из CSV если база пустая
+    import os
+    from load_data import load_events_from_csv, seed_test_users
+
+    db = SessionLocal()
+    event_count = db.query(Event).count()
+    db.close()
+
+    if event_count == 0:
+        print("База пустая — загружаю данные из CSV...")
+        for filename in sorted(os.listdir(".")):
+            if filename.startswith("events_") and filename.endswith(".csv"):
+                print("Загружаю: " + filename)
+                load_events_from_csv(filename)
+        seed_test_users()
+    else:
+        print("В базе уже " + str(event_count) + " мероприятий")
+
     retrain_model()
-    # Запускаем фоновый поток для переобучения раз в сутки
     thread = threading.Thread(target=run_scheduler, daemon=True)
     thread.start()
-    print("✅ Сервер запущен и готов к работе")
+    print("Сервер запущен и готов к работе")
 
 def retrain_model():
     """Переобучает модель на актуальных данных"""
     with model_lock:
-        print(f"\n🔄 Переобучение модели [{datetime.now().strftime('%H:%M:%S')}]...")
+        print("Переобучение модели [" + datetime.now().strftime("%H:%M:%S") + "]...")
         try:
             recommender.train()
-            print("✅ Модель переобучена успешно")
+            print("Модель переобучена успешно")
         except Exception as e:
-            print(f"❌ Ошибка переобучения: {e}")
+            print("Ошибка переобучения: " + str(e))
 
 def run_scheduler():
     """Фоновый поток: переобучение каждые 24 часа"""
@@ -114,7 +132,6 @@ def run_scheduler():
     while True:
         schedule.run_pending()
         time.sleep(60)
-
 
 # ─── ЭНДПОИНТЫ: ПОЛЬЗОВАТЕЛИ ──────────────────────────────
 
