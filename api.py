@@ -207,12 +207,10 @@ def get_user(user_id: int, db=Depends(get_db)):
 def get_events(
     category: Optional[str] = None,
     max_price: Optional[int] = None,
-    limit: int = 20,
+    limit: int = 100,
     offset: int = 0,
     db=Depends(get_db)
 ):
-    """Получить список мероприятий с фильтрами"""
-
     query = db.query(Event)
 
     if category:
@@ -230,15 +228,19 @@ def get_events(
         "events": [{
             "id": e.id,
             "title": e.title,
-            "category": e.category,
-            "start_datetime": e.start_datetime,
-            "venue_title": e.venue_title,
-            "venue_address": e.venue_address,
-            "price_min": e.price_min,
-            "is_free": e.is_free,
-            "age_restriction": e.age_restriction,
-            "image_url": e.image_url,
-            "is_private": e.is_private,
+            "category": e.category or "Другое",
+            "start_datetime": e.start_datetime or "",
+            "venue_title": e.venue_title or "Не указано",
+            "venue_address": e.venue_address or "",
+            "venue_lat": e.venue_lat,
+            "venue_lon": e.venue_lon,
+            "price_min": e.price_min or 0,
+            "is_free": bool(e.is_free),
+            "age_restriction": e.age_restriction or "0+",
+            "image_url": e.image_url or "",
+            "is_private": bool(e.is_private),
+            "source": e.source or "kudago",
+            "tags": e.tags or "",
         } for e in events]
     }
 
