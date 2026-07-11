@@ -603,26 +603,102 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
   });
 });
 
+// === КОНФИГУРАЦИЯ API ===
+const API_BASE_URL = 'https://afisha-spb-production.up.railway.app';
+
+// === ЗАГРУЗКА ДАННЫХ ПОЛЬЗОВАТЕЛЯ ===
+async function loadUserData() {
+  const userId = localStorage.getItem('user_id');
+  const userName = localStorage.getItem('user_name');
+  const userEmail = localStorage.getItem('user_email');
+
+  // Если не залогинен — редирект на логин
+  if (!userId) {
+    window.location.href = '/login.html';
+    return;
+  }
+
+  // Отображаем имя и email
+  const nameEl = document.getElementById('profile-name-display');
+  const emailEl = document.getElementById('profile-email-display');
+  const avatarEl = document.querySelector('.profile-avatar');
+
+  if (nameEl) nameEl.textContent = userName || 'Пользователь';
+  if (emailEl) emailEl.textContent = userEmail || '';
+  if (avatarEl && userName) {
+    avatarEl.textContent = userName.charAt(0).toUpperCase();
+  }
+
+  // Загружаем избранное с сервера
+  try {
+    const response = await fetch(API_BASE_URL + '/api/users/' + userId + '/favorites');
+    if (response.ok) {
+      const data = await response.json();
+      renderFavoritesFromAPI(data.favorites || []);
+    }
+  } catch(e) {
+    console.error('Ошибка загрузки избранного:', e);
+  }
+
+  // Загружаем статистику
+  try {
+    const response = await fetch(API_BASE_URL + '/api/users/' + userId);
+    if (response.ok) {
+      const data = await response.json();
+      const stats = data.stats || {};
+      const statNums = document.querySelectorAll('.stat-num');
+      if (statNums[0]) statNums[0].textContent = stats.favorites || 0;
+      if (statNums[1]) statNums[1].textContent = stats.attended || 0;
+      if (statNums[2]) statNums[2].textContent = stats.total || 0;
+    }
+  } catch(e) {}
+}
+
+function renderFavoritesFromAPI(events) {
+  const grid = document.getElementById('favorites-grid');
+  if (!grid) return;
+
+  if (!events.length) {
+    grid.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:20px 0">Вы ещё не добавили мероприятий в избранное</div>';
+    return;
+  }
+
+  grid.innerHTML = events.map(e => `
+    <div class="event-card" onclick="window.open('/event.html?id=${e.id}','_blank')">
+      <div class="card-img-wrap" style="height:140px;overflow:hidden;position:relative">
+        ${e.image_url
+          ? `<img src="${e.image_url}" style="width:100%;height:100%;object-fit:cover;filter:brightness(0.8)">`
+          : `<div style="width:100%;height:100%;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-size:48px;color:rgba(200,169,110,0.15)">${(e.category||'?').charAt(0)}</div>`
+        }
+        <span style="position:absolute;top:8px;left:8px;background:var(--accent);color:#000;font-size:9px;font-family:'IBM Plex Mono',monospace;padding:3px 7px;letter-spacing:0.1em">${e.category || 'Событие'}</span>
+      </div>
+      <div style="padding:14px">
+        <div style="font-size:10px;font-family:'IBM Plex Mono',monospace;color:var(--accent);margin-bottom:6px">${e.start_datetime || ''}</div>
+        <div style="font-family:'Playfair Display',serif;font-size:16px;font-weight:700;margin-bottom:6px">${e.title}</div>
+        <div style="font-size:11px;color:var(--muted)">${e.venue_title || ''}</div>
+        <div style="margin-top:10px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:${e.is_free ? 'var(--accent)' : 'var(--text)'}">
+          ${e.is_free ? 'Бесплатно' : 'от ' + (e.price_min||0).toLocaleString('ru') + ' ₽'}
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function logout() {
+  if (confirm('Вы уверены, что хотите выйти?')) {
+    localStorage.removeItem('user_id');
+    localStorage.removeItem('user_name');
+    localStorage.removeItem('user_email');
+    localStorage.removeItem('afisha_user');
+    window.location.href = '/';
+  }
+}
+
 // Инициализация
+loadUserData();
 renderFavorites();
 renderHistory();
 renderUserReviews();
-
-document.querySelectorAll('#history-grid .rating-stars').forEach(starContainer => {
-  const stars = starContainer.querySelectorAll('.star');
-  stars.forEach(star => {
-    star.addEventListener('click', function(e) {
-      e.stopPropagation();
-      const rating = parseInt(this.dataset.rating);
-      stars.forEach((s, idx) => {
-        if(idx < rating) { s.textContent = '★'; s.classList.add('active'); }
-        else { s.textContent = '☆'; s.classList.remove('active'); }
-      });
-      showToast(`Оценка ${rating} ★ сохранена`);
-    });
-  });
-});
-</script>
 <!-- МОДАЛЬНОЕ ОКНО РЕДАКТИРОВАНИЯ ОТЗЫВА -->
 <div id="editReviewModal" class="modal-overlay">
   <div class="modal-content">
