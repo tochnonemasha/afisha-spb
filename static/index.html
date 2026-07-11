@@ -829,6 +829,34 @@ document.querySelectorAll('.hero-card-preview .card-img-placeholder').forEach(el
     const letter = catText.charAt(0);
     el.setAttribute('data-letter', letter);
 });
+// === АВТОРИЗАЦИЯ В ХЕДЕРЕ ===
+function updateHeader() {
+    const userId = localStorage.getItem('user_id');
+    const userName = localStorage.getItem('user_name');
+    const loginBtn = document.getElementById('btn-login');
+    const regBtn = document.getElementById('btn-reg');
+
+    if (userId && userName) {
+        // Пользователь залогинен — показываем имя вместо кнопок
+        loginBtn.textContent = userName.split(' ')[0]; // только имя
+        loginBtn.onclick = () => window.location.href = '/lk.html';
+        loginBtn.style.borderColor = 'var(--accent)';
+        loginBtn.style.color = 'var(--accent)';
+        regBtn.textContent = 'Выйти';
+        regBtn.style.background = 'none';
+        regBtn.style.border = '1px solid var(--border)';
+        regBtn.style.color = 'var(--muted)';
+        regBtn.onclick = () => {
+            localStorage.removeItem('user_id');
+            localStorage.removeItem('user_name');
+            localStorage.removeItem('user_email');
+            localStorage.removeItem('user_type');
+            location.reload();
+        };
+    }
+}
+
+updateHeader();
 </script>
 </body>
 </html>
