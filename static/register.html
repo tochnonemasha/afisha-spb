@@ -294,8 +294,8 @@ footer{
 <body>
 
 <header>
-  <a href="#" class="logo">АФИША <span>SPB</span></a>
-  <a href="#" class="back-link">На главную</a>
+  <a href="/" class="logo">АФИША <span>SPB</span></a>
+  <a href="/" class="back-link">На главную</a>
 </header>
 
 <main>
@@ -740,6 +740,9 @@ function renderSummary() {
   el.innerHTML=html;
 }
 
+/* ─── КОНФИГУРАЦИЯ API ─── */
+const API_BASE_URL = 'https://afisha-spb-production.up.railway.app';
+
 /* ─── SAVE / SKIP ─── */
 function buildUserData() {
   return {
@@ -748,29 +751,62 @@ function buildUserData() {
     lastname: document.getElementById('lastname').value.trim(),
     firstname: document.getElementById('firstname').value.trim(),
     middlename: document.getElementById('middlename').value.trim(),
-    registeredAt: new Date().toISOString()
   };
 }
 
-document.getElementById('saveInterestsBtn').addEventListener('click', ()=>{
-  const data={...buildUserData(), interests: selectedSubs};
-  localStorage.setItem('afisha_user', JSON.stringify(data));
-  showSuccess();
-});
-document.getElementById('skipInterestsBtn').addEventListener('click', ()=>{
-  const data={...buildUserData(), interests: null};
-  localStorage.setItem('afisha_user', JSON.stringify(data));
-  showSuccess();
+async function registerUser(interests) {
+  const data = buildUserData();
+  const password = document.getElementById('password').value;
+
+  try {
+    const response = await fetch(API_BASE_URL + '/api/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: data.firstname + (data.lastname ? ' ' + data.lastname : ''),
+        email: data.email,
+        password: password,
+        user_type: 'resident'
+      })
+    });
+
+    const result = await response.json();
+
+    if (response.ok) {
+      // Сохраняем данные пользователя в браузере
+      localStorage.setItem('user_id', result.user.id);
+      localStorage.setItem('user_name', result.user.name);
+      localStorage.setItem('user_email', result.user.email);
+      localStorage.setItem('afisha_user', JSON.stringify({
+        ...data,
+        interests: interests,
+        id: result.user.id
+      }));
+      showSuccess(data.firstname);
+    } else {
+      showToast(result.detail || 'Ошибка регистрации');
+    }
+  } catch (e) {
+    console.error('Ошибка:', e);
+    showToast('Ошибка соединения с сервером');
+  }
+}
+
+document.getElementById('saveInterestsBtn').addEventListener('click', () => {
+  registerUser(selectedSubs);
 });
 
-function showSuccess() {
-  const fn=document.getElementById('firstname').value.trim();
-  document.getElementById('registerContainer').innerHTML=`
+document.getElementById('skipInterestsBtn').addEventListener('click', () => {
+  registerUser(null);
+});
+
+function showSuccess(firstname) {
+  document.getElementById('registerContainer').innerHTML = `
     <div class="success-message">
       <div class="success-icon">✦</div>
-      <h2>Добро пожаловать, ${fn}!</h2>
+      <h2>Добро пожаловать, ${firstname}!</h2>
       <p>Регистрация успешно завершена</p>
-      <button class="btn-primary" style="min-width:220px" onclick="window.location.href='#'">ПЕРЕЙТИ К АФИШЕ</button>
+      <button class="btn-primary" style="min-width:220px" onclick="window.location.href='/'">ПЕРЕЙТИ К АФИШЕ</button>
     </div>`;
 }
 </script>
