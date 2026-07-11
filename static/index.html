@@ -584,7 +584,7 @@ function renderCards() {
         const priceClass = (e.is_free || e.price === 0) ? 'free' : '';
         
         return `
-        <div class="event-card" onclick="window.open('event.html?id=${e.id}','_blank')">
+        <div class="event-card" onclick="window.open('/event.html?id=${e.id}','_blank')">
             <div class="card-img-wrap">
                 ${hasImage ? 
                     `<img src="${e.img}" alt="${e.title}" loading="lazy">` : 
