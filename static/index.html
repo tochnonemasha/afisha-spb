@@ -411,6 +411,37 @@ let currentLimit = 20;
 const LOAD_STEP = 20;
 
 // === ЗАГРУЗКА ДАННЫХ С СЕРВЕРА ===
+// Приводим категории из API к русским названиям для фильтров
+function mapCategory(cat) {
+    if (!cat) return 'Другое';
+    const c = cat.toLowerCase();
+    if (c.includes('concert') || c.includes('концерт') || c.includes('music')) return 'Концерт';
+    if (c.includes('theater') || c.includes('театр') || c.includes('спектакл')) return 'Театр';
+    if (c.includes('exhibition') || c.includes('выставк')) return 'Выставка';
+    if (c.includes('education') || c.includes('лекци') || c.includes('семинар')) return 'Лекция';
+    if (c.includes('festival') || c.includes('фестивал')) return 'Фестиваль';
+    if (c.includes('sport') || c.includes('спорт')) return 'Спорт';
+    if (c.includes('stand') || c.includes('стендап')) return 'Стендап';
+    if (c.includes('excursion') || c.includes('экскурси')) return 'Экскурсия';
+    if (c.includes('party') || c.includes('вечеринк')) return 'Вечеринка';
+    if (c.includes('master') || c.includes('мастер')) return 'Мастер-класс';
+    if (c.includes('cinema') || c.includes('кино')) return 'Кино';
+    return cat;
+}
+
+// Форматируем дату для отображения
+function formatDate(dateStr) {
+    if (!dateStr) return 'Дата не указана';
+    try {
+        const months = ['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
+        const d = new Date(dateStr);
+        if (isNaN(d.getTime())) return dateStr;
+        return d.getDate() + ' ' + months[d.getMonth()] + ', ' + 
+               String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+    } catch {
+        return dateStr;
+    }
+}
 async function loadEventsFromAPI() {
     const grid = document.getElementById('cards-grid');
     grid.innerHTML = '<div class="loading-spinner"><div class="spinner"></div></div>';
@@ -421,20 +452,21 @@ async function loadEventsFromAPI() {
         if (response.ok) {
             const data = await response.json();
             allEvents = data.events.map(e => ({
-                id: e.id || 0,
-                title: e.title || 'Без названия',
-                cat: e.category || 'Другое',
-                venue: e.venue || e.venue_title || 'Не указано',
-                date: e.datetime || e.start_datetime || 'Дата не указана',
-                price: e.price || e.price_min || 0,
-                age: e.age_restriction || '0+',
-                tags: e.tags ? (Array.isArray(e.tags) ? e.tags : e.tags.split(', ')) : [],
-                benefits: [],
-                img: e.image_url || '',
-                private: false,
-                is_free: e.is_free || e.price === 0 || false,
-                venue_address: e.venue_address || ''
-            }));
+    id: e.id || 0,
+    title: e.title || 'Без названия',
+    cat: mapCategory(e.category || 'Другое'),
+    venue: e.venue_title || 'Не указано',
+    date: formatDate(e.start_datetime || ''),
+    price: e.price_min || 0,
+    age: e.age_restriction || '0+',
+    tags: e.tags ? e.tags.split(', ').filter(t => t.length > 0) : [],
+    benefits: [],
+    img: e.image_url || '',
+    private: e.is_private || false,
+    is_free: e.is_free || e.price_min === 0,
+    venue_address: e.venue_address || '',
+    source: e.source || 'kudago'
+}));
             events = allEvents.slice(0, currentLimit);
             
             // Обновляем статистику в hero
