@@ -148,6 +148,25 @@ header{border-bottom:1px solid var(--border);padding:0 48px;display:flex;align-i
 .empty-icon{font-size:48px;margin-bottom:16px;opacity:0.5}
 .empty-text{font-size:14px;margin-bottom:8px}
 .empty-sub{font-size:12px;font-family:'IBM Plex Mono',monospace;color:var(--muted2)}
+
+/* SECTION HEADER WITH ACTION */
+.section-title-row{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
+.btn-add-history{background:rgba(200,169,110,0.12);border:1px solid var(--accent);color:var(--accent);padding:9px 18px;font-size:11px;font-family:'IBM Plex Mono',monospace;letter-spacing:0.08em;cursor:pointer;transition:all 0.2s}
+.btn-add-history:hover{background:var(--accent);color:#000}
+.custom-badge{display:inline-block;font-size:8px;font-family:'IBM Plex Mono',monospace;letter-spacing:0.05em;color:var(--accent2);border:1px solid var(--accent2);padding:2px 6px;margin-left:6px;vertical-align:middle}
+.test-note{font-size:10px;font-family:'IBM Plex Mono',monospace;color:var(--muted2);margin-top:6px;line-height:1.6}
+
+/* MODAL SELECT */
+.modal-field select,.modal-field textarea{width:100%;background:var(--bg);border:1px solid var(--border);padding:12px;color:var(--text);font-size:14px;font-family:'IBM Plex Sans',sans-serif}
+.modal-field select:focus,.modal-field textarea:focus{outline:none;border-color:var(--accent)}
+.modal-content.wide{max-width:520px}
+
+/* LOGOUT OVERLAY */
+.logout-overlay{display:none;position:fixed;inset:0;background:var(--bg);z-index:2000;flex-direction:column;align-items:center;justify-content:center;gap:20px;text-align:center;padding:24px}
+.logout-overlay .logo{font-size:28px}
+.logout-title{font-family:'Playfair Display',serif;font-size:22px;font-weight:700}
+.logout-sub{font-size:12px;color:var(--muted);font-family:'IBM Plex Mono',monospace}
+.logout-actions{display:flex;gap:12px;margin-top:8px}
 footer{border-top:1px solid var(--border);padding:32px 48px;display:flex;justify-content:space-between;align-items:center;background:var(--bg)}
 .footer-logo{font-family:'Playfair Display',serif;font-size:18px;font-weight:900;color:var(--accent);letter-spacing:0.08em}
 .footer-logo span{color:var(--text);font-weight:400;font-size:12px;font-family:'IBM Plex Mono',monospace}
@@ -169,7 +188,7 @@ button{cursor:pointer}
 
 <div class="profile-hero">
   <div class="profile-row">
-    <div class="profile-avatar" onclick="openEditProfileModal()">АК</div>
+    <div class="profile-avatar" id="profile-avatar" onclick="openEditProfileModal()">МВ</div>
     <div class="profile-info">
       <div class="profile-name">
         <span id="profile-name-display">Мария Васнецова</span>
@@ -202,13 +221,8 @@ button{cursor:pointer}
     <button class="btn-show-more" onclick="showMoreFavorites()">Показать ещё →</button>
   </div>
   <div class="recommend-section">
-    <div class="section-title">Может быть интересно <span>на основе избранного</span></div>
-    <div class="recommend-grid">
-      <div class="recommend-card"><div class="card-cat">Театр</div><div class="card-title">Три сестры. Новая редакция</div><div class="card-venue">Театр Ленсовета</div><div class="card-price"><em>от</em>600 ₽</div></div>
-      <div class="recommend-card"><div class="card-cat">Джаз</div><div class="card-title">Jazz Philharmonic Orchestra</div><div class="card-venue">Филармония джаза</div><div class="card-price"><em>от</em>1 500 ₽</div></div>
-      <div class="recommend-card"><div class="card-cat">Спектакль</div><div class="card-title">Дядя Ваня</div><div class="card-venue">МДТ</div><div class="card-price"><em>от</em>800 ₽</div></div>
-      <div class="recommend-card"><div class="card-cat">Выставка</div><div class="card-title">Айвазовский. Морская стихия</div><div class="card-venue">Русский музей</div><div class="card-price"><em>от</em>500 ₽</div></div>
-    </div>
+    <div class="section-title">Может быть интересно <span id="recommend-basis">на основе избранного</span></div>
+    <div class="recommend-grid" id="recommend-grid"></div>
   </div>
 </div>
 
@@ -235,19 +249,18 @@ button{cursor:pointer}
 
 <!-- ПОСЕЩЁННЫЕ (4 видимых + кнопка показать ещё) -->
 <div id="history" class="panel">
-  <div class="section-title">Посещенные мероприятия <span class="count" id="history-count-display">4</span></div>
-  <div class="cards-grid" id="history-grid"></div>
+  <div class="section-title-row">
+    <div class="section-title" style="margin-bottom:0">Посещенные мероприятия <span class="count" id="history-count-display">4</span></div>
+    <button class="btn-add-history" onclick="openAddHistoryModal()">+ Отметить, что был(а)</button>
+  </div>
+  <div class="cards-grid" id="history-grid" style="margin-top:16px"></div>
   <div class="show-more-wrapper" id="history-show-more-wrapper">
     <button class="btn-show-more" onclick="showMoreHistory()">Показать ещё →</button>
   </div>
   <div style="margin-top:32px;padding:24px;background:var(--surface);border:1px solid var(--border);text-align:center">
-    <div class="section-title" style="justify-content:center;margin-bottom:16px">Ваш театральный рейтинг</div>
-    <div style="font-family:'Playfair Display',serif;font-size:48px;color:var(--accent);margin:16px 0">ТОП-3 жанров</div>
-    <div style="display:flex;gap:24px;justify-content:center;flex-wrap:wrap">
-      <span style="background:var(--surface2);padding:6px 16px;font-size:13px">🎭 Драма · 5 посещений</span>
-      <span style="background:var(--surface2);padding:6px 16px;font-size:13px">🎷 Джаз · 4 посещения</span>
-      <span style="background:var(--surface2);padding:6px 16px;font-size:13px">🎨 Выставки · 3 посещения</span>
-    </div>
+    <div class="section-title" style="justify-content:center;margin-bottom:16px">Ваш культурный профиль</div>
+    <div style="font-family:'Playfair Display',serif;font-size:48px;color:var(--accent);margin:16px 0">ТОП жанров</div>
+    <div style="display:flex;gap:24px;justify-content:center;flex-wrap:wrap" id="top-genres-list"></div>
   </div>
 </div>
 
@@ -279,10 +292,113 @@ button{cursor:pointer}
 </footer>
 
 <!-- МОДАЛЬНЫЕ ОКНА -->
-<div id="editProfileModal" class="modal-overlay"><div class="modal-content"><button class="modal-close" onclick="closeEditProfileModal()">✕</button><div class="modal-title">Редактировать профиль</div><div class="modal-field"><label>Имя и фамилия</label><input type="text" id="edit-name" value="Алексей Ковалёв"></div><div class="modal-field"><label>Email</label><input type="email" id="edit-email" value="alexey@example.com"></div><div class="modal-buttons"><button class="modal-cancel" onclick="closeEditProfileModal()">Отмена</button><button class="modal-save" onclick="saveProfileChanges()">Сохранить</button></div></div></div>
+<div id="editProfileModal" class="modal-overlay"><div class="modal-content"><button class="modal-close" onclick="closeEditProfileModal()">✕</button><div class="modal-title">Редактировать профиль</div><div class="modal-field"><label>Имя и фамилия</label><input type="text" id="edit-name" placeholder="Как к вам обращаться"></div><div class="modal-field"><label>Email</label><input type="email" id="edit-email" placeholder="you@example.com"></div><div class="modal-buttons"><button class="modal-cancel" onclick="closeEditProfileModal()">Отмена</button><button class="modal-save" onclick="saveProfileChanges()">Сохранить</button></div></div></div>
+
+<!-- МОДАЛЬНОЕ ОКНО: ДОБАВИТЬ ФЕЙКОВОЕ ПОСЕЩЕНИЕ (для теста рекомендаций) -->
+<div id="addHistoryModal" class="modal-overlay">
+  <div class="modal-content wide">
+    <button class="modal-close" onclick="closeAddHistoryModal()">✕</button>
+    <div class="modal-title">Отметить, что я был(а) на мероприятии</div>
+    <div class="modal-field">
+      <label>Категория</label>
+      <select id="ah-cat">
+        <option>Театр</option>
+        <option>Джаз</option>
+        <option>Концерт</option>
+        <option>Опера</option>
+        <option>Балет</option>
+        <option>Выставка</option>
+        <option>Стендап</option>
+        <option>Кино</option>
+        <option>Лекция</option>
+        <option>Мюзикл</option>
+        <option>Другое</option>
+      </select>
+    </div>
+    <div class="modal-field"><label>Название мероприятия</label><input type="text" id="ah-title" placeholder="Например: Лебединое озеро" maxlength="80"></div>
+    <div class="modal-field"><label>Площадка</label><input type="text" id="ah-venue" placeholder="Например: Мариинский театр" maxlength="80"></div>
+    <div class="modal-field"><label>Дата посещения</label><input type="date" id="ah-date"></div>
+    <div class="modal-field">
+      <label>Оценка (необязательно)</label>
+      <div class="rating-stars" id="ah-stars">
+        <span class="star" data-rating="1">☆</span><span class="star" data-rating="2">☆</span><span class="star" data-rating="3">☆</span><span class="star" data-rating="4">☆</span><span class="star" data-rating="5">☆</span>
+      </div>
+    </div>
+    <div class="modal-field"><label>Впечатления (необязательно)</label><textarea id="ah-review" rows="3" maxlength="300" placeholder="Коротко о мероприятии..."></textarea></div>
+    <div class="test-note">⚙ Это тестовый функционал: мероприятие добавляется без оплаты и билета, только для проверки того, как алгоритм рекомендаций реагирует на историю посещений.</div>
+    <div class="modal-buttons">
+      <button class="modal-cancel" onclick="closeAddHistoryModal()">Отмена</button>
+      <button class="modal-save" onclick="submitAddHistory()">Добавить</button>
+    </div>
+  </div>
+</div>
+
+<!-- ЭКРАН ВЫХОДА -->
+<div id="logoutOverlay" class="logout-overlay">
+  <a href="#" class="logo">АФИША <span>SPB</span></a>
+  <div class="logout-title">Вы вышли из аккаунта</div>
+  <div class="logout-sub">Ваши данные сохранены и будут ждать вас при следующем входе</div>
+  <div class="logout-actions">
+    <button class="modal-save" style="padding:12px 24px" onclick="loginAgain()">Войти снова</button>
+    <a href="#" class="modal-cancel" style="display:inline-flex;align-items:center;justify-content:center;padding:12px 24px;text-decoration:none">На главную</a>
+  </div>
+</div>
 
 <script>
-// ДАННЫЕ
+// ==================== ПРОФИЛЬ (реальные, актуальные данные пользователя) ====================
+const DEFAULT_PROFILE = {name:"Мария Васнецова", email:"masha@example.com"};
+
+function loadProfile() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('lk_profile') || 'null');
+    if(saved && saved.name && saved.email) return saved;
+  } catch(e) {}
+  return DEFAULT_PROFILE;
+}
+function getInitials(name) {
+  return name.trim().split(/\s+/).slice(0,2).map(w => w[0]).join('').toUpperCase();
+}
+function renderProfile() {
+  const p = loadProfile();
+  document.getElementById('profile-name-display').textContent = p.name;
+  document.getElementById('profile-email-display').textContent = p.email;
+  document.getElementById('profile-avatar').textContent = getInitials(p.name) || '?';
+}
+function openEditProfileModal() {
+  const p = loadProfile();
+  document.getElementById('edit-name').value = p.name;
+  document.getElementById('edit-email').value = p.email;
+  document.getElementById('editProfileModal').style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+function closeEditProfileModal() {
+  document.getElementById('editProfileModal').style.display = 'none';
+  document.body.style.overflow = 'auto';
+}
+function saveProfileChanges() {
+  const newName = document.getElementById('edit-name').value.trim();
+  const newEmail = document.getElementById('edit-email').value.trim();
+  if(!newName) { showToast('Введите имя'); return; }
+  if(!newEmail || !newEmail.includes('@') || !newEmail.includes('.')) { showToast('Введите корректный email'); return; }
+  localStorage.setItem('lk_profile', JSON.stringify({name:newName, email:newEmail}));
+  renderProfile();
+  closeEditProfileModal();
+  showToast('Профиль обновлён');
+}
+
+// ==================== ВЫХОД ИЗ АККАУНТА ====================
+function logout() {
+  if(!confirm('Вы уверены, что хотите выйти?')) return;
+  document.getElementById('logoutOverlay').style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+function loginAgain() {
+  document.getElementById('logoutOverlay').style.display = 'none';
+  document.body.style.overflow = 'auto';
+  showToast('С возвращением!');
+}
+
+// ==================== ДАННЫЕ ====================
 let allFavorites = [
   {id:1,cat:"Театр",title:"Чайка. Режиссёрская версия",venue:"БДТ им. Товстоногова",date:"3 мая 2025, 19:00",price:"от 1 200 ₽",age:"16+"},
   {id:2,cat:"Джаз",title:"Джазовый вечер у Аркадия",venue:"Частная квартира, Петроградский",date:"17 мая 2025, 20:00",price:"взнос 1 500 ₽",age:"18+"},
@@ -301,8 +417,164 @@ let allHistory = [
   {id:6,cat:"Стендап",title:"Илья Новиков",venue:"Козлёнок в молоке",date:"20 февраля 2025",age:"18+"}
 ];
 
+// Мероприятия, добавленные пользователем вручную ("я там был"), хранятся отдельно
+// и подмешиваются к истории при каждой загрузке страницы
+try {
+  const customHistory = JSON.parse(localStorage.getItem('user_history_custom') || '[]');
+  allHistory = customHistory.concat(allHistory);
+} catch(e) {}
+
+function saveCustomHistory() {
+  const customItems = allHistory.filter(h => h.custom);
+  localStorage.setItem('user_history_custom', JSON.stringify(customItems));
+}
+
 let visibleFavCount = 4;
 let visibleHistoryCount = 4;
+
+// ==================== ДОБАВИТЬ ФЕЙКОВОЕ ПОСЕЩЕНИЕ (для теста рекомендаций) ====================
+let ahSelectedRating = 0;
+
+function openAddHistoryModal() {
+  document.getElementById('ah-title').value = '';
+  document.getElementById('ah-venue').value = '';
+  document.getElementById('ah-date').value = '';
+  document.getElementById('ah-cat').value = 'Театр';
+  document.getElementById('ah-review').value = '';
+  ahSelectedRating = 0;
+  document.querySelectorAll('#ah-stars .star').forEach(s => { s.textContent = '☆'; s.classList.remove('active'); });
+  document.getElementById('addHistoryModal').style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+function closeAddHistoryModal() {
+  document.getElementById('addHistoryModal').style.display = 'none';
+  document.body.style.overflow = 'auto';
+}
+function formatDateRu(isoDate) {
+  if(!isoDate) return '';
+  const months = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+  const parts = isoDate.split('-').map(Number);
+  const y = parts[0], m = parts[1], d = parts[2];
+  if(!y || !m || !d) return isoDate;
+  return `${d} ${months[m-1]} ${y}`;
+}
+function submitAddHistory() {
+  const title = document.getElementById('ah-title').value.trim();
+  const venue = document.getElementById('ah-venue').value.trim();
+  const dateRaw = document.getElementById('ah-date').value;
+  const cat = document.getElementById('ah-cat').value;
+  const reviewText = document.getElementById('ah-review').value.trim();
+  if(!title || !venue || !dateRaw) { showToast('Заполните название, площадку и дату'); return; }
+
+  const dateStr = formatDateRu(dateRaw);
+  const newItem = {id: Date.now(), cat, title, venue, date: dateStr, age:'0+', custom: true};
+  allHistory.unshift(newItem);
+  saveCustomHistory();
+
+  if(reviewText) {
+    let reviews = JSON.parse(localStorage.getItem('user_reviews') || '[]');
+    reviews.push({id: Date.now()+1, title, date: dateStr, rating: ahSelectedRating, text: reviewText});
+    localStorage.setItem('user_reviews', JSON.stringify(reviews));
+  }
+
+  renderHistory();
+  renderTopGenres();
+  renderRecommendations();
+  closeAddHistoryModal();
+  showToast('Мероприятие добавлено в «Посещённые» ✓');
+  if(document.getElementById('reviews').classList.contains('active')) renderUserReviews();
+}
+function removeHistoryItem(event, id) {
+  event.stopPropagation();
+  if(!confirm('Удалить это мероприятие из посещённых?')) return;
+  allHistory = allHistory.filter(h => h.id !== id);
+  if(visibleHistoryCount > allHistory.length) visibleHistoryCount = Math.max(4, allHistory.length);
+  saveCustomHistory();
+  renderHistory();
+  renderTopGenres();
+  renderRecommendations();
+  showToast('Мероприятие удалено');
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('#ah-stars .star').forEach(star => {
+    star.addEventListener('click', function() {
+      ahSelectedRating = parseInt(this.dataset.rating);
+      document.querySelectorAll('#ah-stars .star').forEach((s, idx) => {
+        s.textContent = idx < ahSelectedRating ? '★' : '☆';
+        s.classList.toggle('active', idx < ahSelectedRating);
+      });
+    });
+  });
+});
+
+// ==================== ТОП ЖАНРОВ (пересчитывается по избранному + посещённым) ====================
+const CATEGORY_ICONS = {
+  'Театр':'🎭','Джаз':'🎷','Концерт':'🎵','Опера':'🎼','Балет':'🩰','Выставка':'🎨',
+  'Стендап':'🎤','Кино':'🎬','Лекция':'📖','Мюзикл':'🎹','Классика':'🎻','Другое':'✨'
+};
+function pluralVisits(n) {
+  const n10 = n % 10, n100 = n % 100;
+  if(n10 === 1 && n100 !== 11) return 'посещение';
+  if([2,3,4].includes(n10) && ![12,13,14].includes(n100)) return 'посещения';
+  return 'посещений';
+}
+function computeCategoryCounts() {
+  const counts = {};
+  allFavorites.concat(allHistory).forEach(e => { counts[e.cat] = (counts[e.cat] || 0) + 1; });
+  return Object.entries(counts).sort((a,b) => b[1]-a[1]);
+}
+function renderTopGenres() {
+  const el = document.getElementById('top-genres-list');
+  if(!el) return;
+  const sorted = computeCategoryCounts().slice(0,3);
+  if(sorted.length === 0) {
+    el.innerHTML = '<span style="background:var(--surface2);padding:6px 16px;font-size:13px;color:var(--muted)">Пока нет данных — добавьте мероприятия</span>';
+    return;
+  }
+  el.innerHTML = sorted.map(([cat,count]) => `<span style="background:var(--surface2);padding:6px 16px;font-size:13px">${CATEGORY_ICONS[cat]||'•'} ${escapeHtml(cat)} · ${count} ${pluralVisits(count)}</span>`).join('');
+}
+
+// ==================== РЕКОМЕНДАЦИИ (реагируют на избранное + фейковые посещения) ====================
+const recommendPool = [
+  {cat:"Театр",title:"Три сестры. Новая редакция",venue:"Театр Ленсовета",price:"600 ₽"},
+  {cat:"Театр",title:"Дядя Ваня",venue:"МДТ",price:"800 ₽"},
+  {cat:"Джаз",title:"Jazz Philharmonic Orchestra",venue:"Филармония джаза",price:"1 500 ₽"},
+  {cat:"Джаз",title:"Джем-сейшн на крыше",venue:"Лофт-пространство Этажи",price:"700 ₽"},
+  {cat:"Выставка",title:"Айвазовский. Морская стихия",venue:"Русский музей",price:"500 ₽"},
+  {cat:"Выставка",title:"Современная фотография",venue:"Эрарта",price:"450 ₽"},
+  {cat:"Опера",title:"Пиковая дама",venue:"Мариинский театр",price:"1 800 ₽"},
+  {cat:"Балет",title:"Лебединое озеро",venue:"Михайловский театр",price:"2 000 ₽"},
+  {cat:"Концерт",title:"Симфонический вечер Чайковского",venue:"Филармония им. Шостаковича",price:"900 ₽"},
+  {cat:"Стендап",title:"Открытый микрофон",venue:"Стендап-клуб на Рубинштейна",price:"500 ₽"},
+  {cat:"Лекция",title:"Архитектура Серебряного века",venue:"Новая Голландия",price:"Бесплатно"},
+  {cat:"Мюзикл",title:"Анна Каренина",venue:"Театр Музкомедии",price:"1 900 ₽"},
+  {cat:"Кино",title:"Ночь немого кино с оркестром",venue:"Дом кино",price:"600 ₽"},
+  {cat:"Классика",title:"Три сестры. Читка",venue:"Александринский театр",price:"400 ₽"}
+];
+function renderRecommendations() {
+  const grid = document.getElementById('recommend-grid');
+  const basisLabel = document.getElementById('recommend-basis');
+  if(!grid) return;
+  const topCats = computeCategoryCounts().map(c => c[0]);
+  const favTitles = new Set(allFavorites.map(f => f.title));
+  const historyTitles = new Set(allHistory.map(h => h.title));
+
+  let pool = recommendPool.filter(e => !favTitles.has(e.title) && !historyTitles.has(e.title));
+  pool.sort((a,b) => {
+    const sa = topCats.indexOf(a.cat); const sb = topCats.indexOf(b.cat);
+    return (sa === -1 ? 999 : sa) - (sb === -1 ? 999 : sb);
+  });
+  const picks = pool.slice(0,4);
+
+  grid.innerHTML = picks.map(r => `
+    <div class="recommend-card"><div class="card-cat">${escapeHtml(r.cat)}</div><div class="card-title">${escapeHtml(r.title)}</div><div class="card-venue">${escapeHtml(r.venue)}</div><div class="card-price"><em>от</em>${escapeHtml(r.price)}</div></div>
+  `).join('');
+
+  if(basisLabel) {
+    basisLabel.textContent = topCats.length ? `на основе ваших интересов: ${topCats.slice(0,2).join(', ')}` : 'на основе избранного';
+  }
+}
 
 // Рендер избранного
 function renderFavorites() {
@@ -337,6 +609,8 @@ function removeFavorite(event, id) {
   allFavorites = allFavorites.filter(f => f.id !== id);
   if(visibleFavCount > allFavorites.length) visibleFavCount = allFavorites.length;
   renderFavorites();
+  renderTopGenres();
+  renderRecommendations();
   showToast('Удалено из избранного');
 }
 
@@ -344,26 +618,37 @@ function removeFavorite(event, id) {
 function renderHistory() {
   const grid = document.getElementById('history-grid');
   const visible = allHistory.slice(0, visibleHistoryCount);
-  grid.innerHTML = visible.map(hist => `
+  const reviews = JSON.parse(localStorage.getItem('user_reviews') || '[]');
+  grid.innerHTML = visible.map(hist => {
+    const existingReview = reviews.find(r => r.title === hist.title);
+    const starsHtml = Array(5).fill().map((_,i) => {
+      const filled = existingReview && i < existingReview.rating;
+      return `<span class="star${filled?' active':''}" data-rating="${i+1}">${filled?'★':'☆'}</span>`;
+    }).join('');
+    const reviewBtnLabel = existingReview ? '✎ Редактировать отзыв' : '✎ Написать отзыв';
+    const reviewBtnStyle = existingReview ? 'border-color:var(--accent);color:var(--accent)' : '';
+    const reviewDisplay = existingReview ? `<div class="review-text">📝 "${escapeHtml(existingReview.text.substring(0,60))}${existingReview.text.length>60?'...':''}"</div>` : '';
+    return `
     <div class="event-card" data-history-id="${hist.id}">
-      <div class="card-cat">${hist.cat} · ${hist.date}</div>
-      <div class="card-title">${hist.title}</div>
-      <div class="card-venue">${hist.venue}</div>
-      <div class="card-date">Посещено: ${hist.date}</div>
-      <div class="rating-stars" data-event="${hist.title}">
-        <span class="star" data-rating="1">☆</span><span class="star" data-rating="2">☆</span><span class="star" data-rating="3">☆</span><span class="star" data-rating="4">☆</span><span class="star" data-rating="5">☆</span>
+      <div class="card-cat">${escapeHtml(hist.cat)} · ${escapeHtml(hist.date)}${hist.custom ? '<span class="custom-badge">вручную</span>' : ''}</div>
+      <div class="card-title">${escapeHtml(hist.title)}</div>
+      <div class="card-venue">${escapeHtml(hist.venue)}</div>
+      <div class="card-date">Посещено: ${escapeHtml(hist.date)}</div>
+      <div class="rating-stars" data-event="${escapeHtml(hist.title)}">
+        ${starsHtml}
       </div>
       <div class="review-section">
-        <button class="review-btn" onclick="toggleReviewFormHist(this)">✎ Написать отзыв</button>
+        <button class="review-btn" style="${reviewBtnStyle}" onclick="toggleReviewFormHist(this)">${reviewBtnLabel}</button>
         <div class="review-form" style="display:none">
           <input type="text" class="review-input" placeholder="Поделитесь впечатлениями..." maxlength="200">
           <button class="review-submit" onclick="submitReviewHist(this)">Отправить</button>
         </div>
-        <div class="review-display"></div>
+        <div class="review-display">${reviewDisplay}</div>
       </div>
-      <div class="card-bottom"><span class="card-status used">Посещено</span></div>
+      <div class="card-bottom"><span class="card-status used">Посещено</span>${hist.custom ? `<button class="remove-fav" onclick="removeHistoryItem(event, ${hist.id})">✕ Удалить</button>` : ''}</div>
     </div>
-  `).join('');
+  `;
+  }).join('');
   
   const wrapper = document.getElementById('history-show-more-wrapper');
   if(visibleHistoryCount >= allHistory.length) wrapper.style.display = 'none';
@@ -563,24 +848,6 @@ function deleteReview(id) {
   }
 }
 
-// Профиль
-function openEditProfileModal() {
-  document.getElementById('editProfileModal').style.display = 'flex';
-  document.body.style.overflow = 'hidden';
-}
-function closeEditProfileModal() {
-  document.getElementById('editProfileModal').style.display = 'none';
-  document.body.style.overflow = 'auto';
-}
-function saveProfileChanges() {
-  const newName = document.getElementById('edit-name').value;
-  const newEmail = document.getElementById('edit-email').value;
-  document.getElementById('profile-name-display').textContent = newName;
-  document.getElementById('profile-email-display').textContent = newEmail;
-  closeEditProfileModal();
-  showToast('Профиль обновлён');
-}
-function logout() { if(confirm('Вы уверены, что хотите выйти?')) showToast('До свидания!'); }
 function showToast(message) {
   const existing = document.querySelector('.toast-message');
   if(existing) existing.remove();
@@ -603,102 +870,38 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
   });
 });
 
-// === КОНФИГУРАЦИЯ API ===
-const API_BASE_URL = 'https://afisha-spb-production.up.railway.app';
-
-// === ЗАГРУЗКА ДАННЫХ ПОЛЬЗОВАТЕЛЯ ===
-async function loadUserData() {
-  const userId = localStorage.getItem('user_id');
-  const userName = localStorage.getItem('user_name');
-  const userEmail = localStorage.getItem('user_email');
-
-  // Если не залогинен — редирект на логин
-  if (!userId) {
-    window.location.href = '/login.html';
-    return;
-  }
-
-  // Отображаем имя и email
-  const nameEl = document.getElementById('profile-name-display');
-  const emailEl = document.getElementById('profile-email-display');
-  const avatarEl = document.querySelector('.profile-avatar');
-
-  if (nameEl) nameEl.textContent = userName || 'Пользователь';
-  if (emailEl) emailEl.textContent = userEmail || '';
-  if (avatarEl && userName) {
-    avatarEl.textContent = userName.charAt(0).toUpperCase();
-  }
-
-  // Загружаем избранное с сервера
-  try {
-    const response = await fetch(API_BASE_URL + '/api/users/' + userId + '/favorites');
-    if (response.ok) {
-      const data = await response.json();
-      renderFavoritesFromAPI(data.favorites || []);
-    }
-  } catch(e) {
-    console.error('Ошибка загрузки избранного:', e);
-  }
-
-  // Загружаем статистику
-  try {
-    const response = await fetch(API_BASE_URL + '/api/users/' + userId);
-    if (response.ok) {
-      const data = await response.json();
-      const stats = data.stats || {};
-      const statNums = document.querySelectorAll('.stat-num');
-      if (statNums[0]) statNums[0].textContent = stats.favorites || 0;
-      if (statNums[1]) statNums[1].textContent = stats.attended || 0;
-      if (statNums[2]) statNums[2].textContent = stats.total || 0;
-    }
-  } catch(e) {}
-}
-
-function renderFavoritesFromAPI(events) {
-  const grid = document.getElementById('favorites-grid');
-  if (!grid) return;
-
-  if (!events.length) {
-    grid.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:20px 0">Вы ещё не добавили мероприятий в избранное</div>';
-    return;
-  }
-
-  grid.innerHTML = events.map(e => `
-    <div class="event-card" onclick="window.open('/event.html?id=${e.id}','_blank')">
-      <div class="card-img-wrap" style="height:140px;overflow:hidden;position:relative">
-        ${e.image_url
-          ? `<img src="${e.image_url}" style="width:100%;height:100%;object-fit:cover;filter:brightness(0.8)">`
-          : `<div style="width:100%;height:100%;background:var(--surface2);display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-size:48px;color:rgba(200,169,110,0.15)">${(e.category||'?').charAt(0)}</div>`
-        }
-        <span style="position:absolute;top:8px;left:8px;background:var(--accent);color:#000;font-size:9px;font-family:'IBM Plex Mono',monospace;padding:3px 7px;letter-spacing:0.1em">${e.category || 'Событие'}</span>
-      </div>
-      <div style="padding:14px">
-        <div style="font-size:10px;font-family:'IBM Plex Mono',monospace;color:var(--accent);margin-bottom:6px">${e.start_datetime || ''}</div>
-        <div style="font-family:'Playfair Display',serif;font-size:16px;font-weight:700;margin-bottom:6px">${e.title}</div>
-        <div style="font-size:11px;color:var(--muted)">${e.venue_title || ''}</div>
-        <div style="margin-top:10px;font-family:'IBM Plex Mono',monospace;font-size:12px;color:${e.is_free ? 'var(--accent)' : 'var(--text)'}">
-          ${e.is_free ? 'Бесплатно' : 'от ' + (e.price_min||0).toLocaleString('ru') + ' ₽'}
-        </div>
-      </div>
-    </div>
-  `).join('');
-}
-
-function logout() {
-  if (confirm('Вы уверены, что хотите выйти?')) {
-    localStorage.removeItem('user_id');
-    localStorage.removeItem('user_name');
-    localStorage.removeItem('user_email');
-    localStorage.removeItem('afisha_user');
-    window.location.href = '/';
-  }
-}
-
 // Инициализация
-loadUserData();
+renderProfile();
 renderFavorites();
 renderHistory();
 renderUserReviews();
+renderTopGenres();
+renderRecommendations();
+
+// Актуализация счётчика активных билетов (реальные данные из DOM)
+const ticketsCountEl = document.getElementById('active-tickets-count');
+const statTicketsEl = document.getElementById('stat-tickets');
+if(ticketsCountEl && statTicketsEl) {
+  const realCount = document.querySelectorAll('#active-tickets-grid .event-card').length;
+  ticketsCountEl.textContent = realCount;
+  statTicketsEl.textContent = realCount;
+}
+
+document.querySelectorAll('#history-grid .rating-stars').forEach(starContainer => {
+  const stars = starContainer.querySelectorAll('.star');
+  stars.forEach(star => {
+    star.addEventListener('click', function(e) {
+      e.stopPropagation();
+      const rating = parseInt(this.dataset.rating);
+      stars.forEach((s, idx) => {
+        if(idx < rating) { s.textContent = '★'; s.classList.add('active'); }
+        else { s.textContent = '☆'; s.classList.remove('active'); }
+      });
+      showToast(`Оценка ${rating} ★ сохранена`);
+    });
+  });
+});
+</script>
 <!-- МОДАЛЬНОЕ ОКНО РЕДАКТИРОВАНИЯ ОТЗЫВА -->
 <div id="editReviewModal" class="modal-overlay">
   <div class="modal-content">
