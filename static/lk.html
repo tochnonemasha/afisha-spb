@@ -315,8 +315,12 @@ async function loadUserData() {
             currentUser = JSON.parse(savedUser);
             updateProfileUI();
         } else {
-            // Если нет пользователя - перенаправляем на логин
-            window.location.href = 'login.html';
+            // Если нет пользователя - показываем форму входа
+            // НЕ ПЕРЕНАПРАВЛЯЕМ!
+            document.getElementById('profile-name-display').textContent = 'Гость';
+            document.getElementById('profile-email-display').textContent = 'Войдите в аккаунт';
+            document.querySelector('.profile-hero').style.opacity = '0.5';
+            showToast('Пожалуйста, войдите в аккаунт');
             return;
         }
 
