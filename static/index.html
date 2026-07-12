@@ -546,7 +546,6 @@ function filterEvents() {
     return filtered;
 }
 
-// === ОТОБРАЖЕНИЕ КАРТОЧЕК ===
 function renderCards() {
     const filtered = filterEvents();
     const totalFiltered = filtered.length;
@@ -566,7 +565,6 @@ function renderCards() {
         return;
     }
     
-    // Показываем только первые currentLimit записей
     const displayEvents = filtered.slice(0, currentLimit);
     
     grid.innerHTML = displayEvents.map(e => {
@@ -603,11 +601,36 @@ function renderCards() {
                     `<div class="benefit-tags">${e.benefits.map(b => `<span class="benefit-tag">${b}</span>`).join('')}</div>` : ''}
                 <div class="card-footer">
                     <div class="card-price ${priceClass}">${priceDisplay}</div>
-                    <div class="card-tags">${e.tags && e.tags.length ? e.tags.slice(0, 2).map(t => `<span class="tag">${t}</span>`).join('') : ''}</div>
+                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                        <div class="card-tags">${e.tags && e.tags.length ? e.tags.slice(0, 2).map(t => `<span class="tag">${t}</span>`).join('') : ''}</div>
+                        <button onclick="event.stopPropagation();buyTicket(${JSON.stringify(e).replace(/"/g,'&quot;')})" 
+                            style="background:none;border:1px solid var(--border);color:var(--muted);font-size:9px;padding:4px 8px;font-family:'IBM Plex Mono',monospace;cursor:pointer;transition:all 0.2s"
+                            onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'"
+                            onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">
+                            + Билет
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
     `}).join('');
+    
+    const loadMoreBtn = document.getElementById('load-more-btn');
+    const filteredCount = filtered.length;
+    if (filteredCount > currentLimit) {
+        loadMoreBtn.style.display = 'block';
+        loadMoreBtn.textContent = `Загрузить ещё (${currentLimit}/${filteredCount})`;
+    } else {
+        loadMoreBtn.style.display = 'none';
+    }
+    
+    document.querySelectorAll('.card-img-placeholder').forEach(el => {
+        const parentCard = el.closest('.event-card');
+        const catBadge = parentCard?.querySelector('.badge-cat')?.innerText || '?';
+        const letter = catBadge.charAt(0);
+        el.setAttribute('data-letter', letter);
+    });
+}
     
     // Показываем/скрываем кнопку "Загрузить ещё"
     const loadMoreBtn = document.getElementById('load-more-btn');
@@ -850,6 +873,48 @@ function updateHeader() {
 }
 
 updateHeader();
+  function buyTicket(eventData) {
+  const userId = localStorage.getItem('user_id');
+  if (!userId) {
+    if (confirm('Чтобы купить билет нужно войти. Перейти к входу?')) {
+      location.href = '/login.html';
+    }
+    return;
+  }
+  const tickets = JSON.parse(localStorage.getItem('user_tickets_' + userId) || '[]');
+  if (tickets.find(t => t.event_id === eventData.id)) {
+    showToast('Билет уже куплен!');
+    return;
+  }
+  const ticket = {
+    ...eventData,
+    event_id: eventData.id,
+    ticket_num: Math.floor(Math.random() * 90000) + 10000,
+    bought_at: new Date().toISOString()
+  };
+  tickets.push(ticket);
+  localStorage.setItem('user_tickets_' + userId, JSON.stringify(tickets));
+
+  // Записываем в API
+  fetch(API_BASE_URL + '/api/interactions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ user_id: parseInt(userId), event_id: eventData.id, interaction_type: 'attended' })
+  }).catch(() => {});
+
+  showToast('Билет #' + ticket.ticket_num + ' добавлен в ЛК!');
+}
+
+function showToast(msg) {
+  const existing = document.querySelector('.toast-msg');
+  if (existing) existing.remove();
+  const t = document.createElement('div');
+  t.className = 'toast-msg';
+  t.textContent = msg;
+  t.style.cssText = 'position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:var(--accent);color:#000;padding:10px 24px;font-family:IBM Plex Mono,monospace;font-size:11px;z-index:2000;';
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3000);
+}
 </script>
 </body>
 </html>
