@@ -615,6 +615,7 @@ function renderCards() {
         </div>
     `}).join('');
     
+    // === КНОПКА "ЗАГРУЗИТЬ ЕЩЁ" ===
     const loadMoreBtn = document.getElementById('load-more-btn');
     const filteredCount = filtered.length;
     if (filteredCount > currentLimit) {
@@ -624,41 +625,14 @@ function renderCards() {
         loadMoreBtn.style.display = 'none';
     }
     
+    // === ПЛЕЙСХОЛДЕРЫ ===
     document.querySelectorAll('.card-img-placeholder').forEach(el => {
         const parentCard = el.closest('.event-card');
         const catBadge = parentCard?.querySelector('.badge-cat')?.innerText || '?';
         const letter = catBadge.charAt(0);
         el.setAttribute('data-letter', letter);
     });
-}
-    
-    // Показываем/скрываем кнопку "Загрузить ещё"
-    const loadMoreBtn = document.getElementById('load-more-btn');
-    const filteredCount = filtered.length;
-    if (filteredCount > currentLimit) {
-        loadMoreBtn.style.display = 'block';
-        loadMoreBtn.textContent = `Загрузить ещё (${currentLimit}/${filteredCount})`;
-    } else {
-        loadMoreBtn.style.display = 'none';
-    }
-    
-    // Обновляем плейсхолдеры
-    document.querySelectorAll('.card-img-placeholder').forEach(el => {
-        const parentCard = el.closest('.event-card');
-        const catBadge = parentCard?.querySelector('.badge-cat')?.innerText || '?';
-        const letter = catBadge.charAt(0);
-        el.setAttribute('data-letter', letter);
-    });
-
-
-// === ЗАГРУЗКА ЕЩЁ ===
-document.getElementById('load-more-btn').addEventListener('click', function() {
-    const filtered = filterEvents();
-    if (currentLimit < filtered.length) {
-        currentLimit += LOAD_STEP;
-        renderCards();
-    }
-});
+} 
 
 // === TOGGLE FAV ===
 function toggleFav(e, id) {
