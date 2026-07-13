@@ -633,7 +633,19 @@ function renderCards() {
         el.setAttribute('data-letter', letter);
     });
 } 
-
+// === ЗАГРУЗКА ЕЩЁ ===
+document.getElementById('load-more-btn').addEventListener('click', function() {
+    const filtered = filterEvents();
+    if (currentLimit < filtered.length) {
+        currentLimit += LOAD_STEP;
+        if (currentLimit > filtered.length) {
+            currentLimit = filtered.length;
+        }
+        renderCards();
+    } else {
+        this.style.display = 'none';
+    }
+});
 // === TOGGLE FAV ===
 function toggleFav(e, id) {
     e.stopPropagation();
