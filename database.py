@@ -1,15 +1,17 @@
-from sqlalchemy import (
-    create_engine, Column, Integer, String, 
-    Float, Boolean, DateTime, Text, ForeignKey
-)
+import os
+from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, relationship
-from datetime import datetime
+from sqlalchemy.orm import sessionmaker
 
-# ─── ПОДКЛЮЧЕНИЕ ──────────────────────────────────────────
-# Пока используем SQLite — не нужно ничего устанавливать
-# Потом заменим на PostgreSQL для продакшена
-DATABASE_URL = "sqlite:///afisha_spb.db"
+# Берём URL из переменной окружения Railway, иначе SQLite для локальной разработки
+DATABASE_URL = os.environ.get(
+    "DATABASE_URL",
+    "sqlite:///afisha_spb.db"
+)
+
+# Railway даёт URL вида postgres://, SQLAlchemy требует postgresql://
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
 engine = create_engine(DATABASE_URL, echo=False)
 SessionLocal = sessionmaker(bind=engine)
