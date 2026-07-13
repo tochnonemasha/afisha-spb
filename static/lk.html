@@ -483,8 +483,12 @@ function showMoreFavorites() {
 }
 
 async function removeFavorite(eventId) {
-  // Записываем взаимодействие view (отмена избранного)
-  await recordInteraction(eventId, 'view');
+  try {
+    const userId = localStorage.getItem('user_id');
+    await fetch(API_BASE_URL + '/api/interactions/favorite/' + userId + '/' + eventId, {
+      method: 'DELETE'
+    });
+  } catch(e) {}
   allFavorites = allFavorites.filter(f => f.id !== eventId);
   document.getElementById('stat-fav-count').textContent = allFavorites.length;
   document.getElementById('fav-count-display').textContent = allFavorites.length;
