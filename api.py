@@ -15,29 +15,31 @@ from recommender import HybridRecommender
 
 # ─── ИНИЦИАЛИЗАЦИЯ ────────────────────────────────────────
 app = FastAPI(title="Афиша SPB — API", version="1.0")
-# Подключаем папку со статическими файлами
-app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# Главная страница открывается по корневому адресу
-@app.get("/")
-def root():
-    return FileResponse("static/index.html")
-
-# Любой HTML файл открывается по имени
-@app.get("/{page}.html")
-def get_page(page: str):
-    file_path = f"static/{page}.html"
-    import os
-    if os.path.exists(file_path):
-        return FileResponse(file_path)
-    return FileResponse("static/index.html")
-# Разрешаем запросы с любых сайтов (для фронтенда)
+# CORS — должен быть первым
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Подключаем папку со статическими файлами
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# Главная страница
+@app.get("/")
+def root():
+    return FileResponse("static/index.html")
+
+# Любой HTML файл по имени
+@app.get("/{page}.html")
+def get_page(page: str):
+    import os
+    file_path = f"static/{page}.html"
+    if os.path.exists(file_path):
+        return FileResponse(file_path)
+    return FileResponse("static/index.html")
 
 # Глобальная модель — обучается один раз при старте
 # и переобучается по расписанию
@@ -214,6 +216,21 @@ def get_user(user_id: int, db=Depends(get_db)):
         }
     }
 
+
+
+
+@app.put("/api/users/{user_id}")
+def update_user(user_id: int, data: dict, db=Depends(get_db)):
+    """Обновить профиль пользователя"""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Пользователь не найден")
+    if "name" in data and data["name"]:
+        user.name = data["name"]
+    if "email" in data and data["email"]:
+        user.email = data["email"]
+    db.commit()
+    return {"success": True, "user": {"id": user.id, "name": user.name, "email": user.email}}
 
 # ─── ЭНДПОИНТЫ: МЕРОПРИЯТИЯ ───────────────────────────────
 
