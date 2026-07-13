@@ -123,9 +123,9 @@ footer{border-top:1px solid var(--border);padding:28px 48px;display:flex;justify
 <header>
   <a href="/" class="logo">АФИША <span>SPB</span></a>
   <a href="/" class="back-btn">Назад к афише</a>
-  <div class="header-right">
-    <button class="btn-login" onclick="location.href='login.html'">Войти</button>
-    <button class="btn-reg" onclick="location.href='register.html'">Регистрация</button>
+  <div class="header-right" id="header-right">
+    <button class="btn-login" id="btn-login" onclick="location.href='/login.html'">Войти</button>
+    <button class="btn-reg" id="btn-reg" onclick="location.href='/register.html'">Регистрация</button>
   </div>
 </header>
 
@@ -458,6 +458,34 @@ async function loadEvent() {
     }
 }
 
+// === АВТОРИЗАЦИЯ В ХЕДЕРЕ ===
+function updateHeader() {
+    const userId = localStorage.getItem('user_id');
+    const userName = localStorage.getItem('user_name');
+    const loginBtn = document.getElementById('btn-login');
+    const regBtn = document.getElementById('btn-reg');
+    if (!loginBtn || !regBtn) return;
+
+    if (userId && userName) {
+        loginBtn.textContent = userName.split(' ')[0];
+        loginBtn.onclick = () => window.location.href = '/lk.html';
+        loginBtn.style.borderColor = 'var(--accent)';
+        loginBtn.style.color = 'var(--accent)';
+        regBtn.textContent = 'Выйти';
+        regBtn.style.background = 'none';
+        regBtn.style.border = '1px solid var(--border)';
+        regBtn.style.color = 'var(--muted)';
+        regBtn.onclick = () => {
+            localStorage.removeItem('user_id');
+            localStorage.removeItem('user_name');
+            localStorage.removeItem('user_email');
+            localStorage.removeItem('user_type');
+            location.reload();
+        };
+    }
+}
+
+updateHeader();
 loadEvent();
 </script>
 </body>
