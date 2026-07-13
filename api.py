@@ -217,7 +217,16 @@ def get_user(user_id: int, db=Depends(get_db)):
     }
 
 
-
+@app.delete("/api/interactions/favorite/{user_id}/{event_id}")
+def remove_favorite(user_id: int, event_id: int, db=Depends(get_db)):
+    """Удалить мероприятие из избранного"""
+    db.query(UserInteraction).filter(
+        UserInteraction.user_id == user_id,
+        UserInteraction.event_id == event_id,
+        UserInteraction.interaction_type == "favorite"
+    ).delete()
+    db.commit()
+    return {"success": True}
 
 @app.put("/api/users/{user_id}")
 def update_user(user_id: int, data: dict, db=Depends(get_db)):
