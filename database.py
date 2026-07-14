@@ -163,6 +163,15 @@ class SmartPlan(Base):
 def init_db():
     """Создаёт все таблицы в базе данных"""
     Base.metadata.create_all(bind=engine)
+     try:
+        from sqlalchemy import text
+        with engine.connect() as conn:
+            # Для PostgreSQL
+            conn.execute(text('ALTER TABLE events ADD COLUMN IF NOT EXISTS benefits VARCHAR(300) DEFAULT ""'))
+            conn.commit()
+            print("✅ Колонка benefits добавлена (или уже существует)")
+    except Exception as e:
+        print(f"⚠️ Не удалось добавить benefits: {e}")
     print("✅ База данных создана успешно")
 
 
