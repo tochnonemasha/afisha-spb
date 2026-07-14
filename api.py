@@ -261,9 +261,9 @@ def get_events(
             (Event.is_free == True) | (Event.price_min <= max_price)
         )
     if benefits:
-    query = query.filter(Event.benefits.contains(benefits))
-    total = query.count()
-    events = query.offset(offset).limit(limit).all()
+        query = query.filter(Event.benefits.contains(benefits))
+        total = query.count()
+        events = query.offset(offset).limit(limit).all()
 
     return {
         "total": total,
