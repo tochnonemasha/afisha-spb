@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Умный подбор — АФИША SPB</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#0C0C0E;--surface:#141416;--surface2:#1C1C1F;--border:#2A2A2E;--accent:#C8A96E;--accent2:#E8C88E;--text:#F0EDE8;--muted:#888580;--red:#D64040}
+body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',sans-serif;min-height:100vh}
+a{color:inherit;text-decoration:none}
+button,input,select,textarea{font-family:inherit}
+
+/* HEADER */
+header{border-bottom:1px solid var(--border);padding:0 48px;display:flex;align-items:center;justify-content:space-between;height:64px;position:sticky;top:0;z-index:100;background:rgba(12,12,14,0.96);backdrop-filter:blur(12px)}
+.logo{font-family:'Playfair Display',serif;font-size:22px;font-weight:900;letter-spacing:0.08em;color:var(--accent)}
+.logo span{color:var(--text);font-weight:400;font-size:13px;font-family:'IBM Plex Mono',monospace;margin-left:10px;opacity:0.45;letter-spacing:0.15em}
+.back-btn{font-size:12px;font-family:'IBM Plex Mono',monospace;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);transition:color 0.2s}
+.back-btn:hover{color:var(--accent)}
+.back-btn::before{content:'← '}
+
+/* HERO */
+.picker-hero{padding:64px 48px 48px;border-bottom:1px solid var(--border);background:var(--surface)}
+.picker-hero h1{font-family:'Playfair Display',serif;font-size:56px;font-weight:900;line-height:1;letter-spacing:-0.02em;margin-bottom:12px}
+.picker-hero h1 em{font-style:italic;color:var(--accent)}
+.picker-hero p{font-size:14px;color:var(--muted);font-weight:300;max-width:480px;line-height:1.7}
+
+/* FORM */
+.form-container{display:grid;grid-template-columns:1fr 1fr;gap:0;border-bottom:1px solid var(--border)}
+.form-left{padding:48px;border-right:1px solid var(--border)}
+.form-right{padding:48px;background:var(--surface)}
+
+.form-section{margin-bottom:36px}
+.form-section:last-child{margin-bottom:0}
+.section-label{font-size:10px;font-family:'IBM Plex Mono',monospace;letter-spacing:0.2em;text-transform:uppercase;color:var(--accent);margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.section-label::after{content:'';flex:1;height:1px;background:var(--border)}
+
+/* Поля ввода */
+.field-group{display:flex;gap:12px;margin-bottom:12px}
+.field{flex:1}
+.field label{display:block;font-size:10px;font-family:'IBM Plex Mono',monospace;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.field input,.field select,.field textarea{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:11px 14px;font-size:13px;outline:none;transition:border-color 0.2s;-webkit-appearance:none}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--accent)}
+.field input::placeholder{color:rgba(136,133,128,0.5)}
+.field textarea{resize:vertical;min-height:80px}
+
+/* Категории */
+.categories-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.cat-toggle{background:none;border:1px solid var(--border);color:var(--muted);padding:10px 8px;font-size:11px;font-family:'IBM Plex Mono',monospace;letter-spacing:0.08em;text-align:center;cursor:pointer;transition:all 0.2s;display:flex;flex-direction:column;align-items:center;gap:4px}
+.cat-toggle:hover{border-color:var(--text);color:var(--text)}
+.cat-toggle.active{background:var(--accent);border-color:var(--accent);color:#000}
+.cat-icon{font-family:'Playfair Display',serif;font-size:18px;font-style:italic}
+
+/* Слоты времени */
+.days-container{display:flex;flex-direction:column;gap:12px;max-height:320px;overflow-y:auto}
+.day-row{background:var(--surface2);border:1px solid var(--border);padding:14px 16px}
+.day-name{font-size:11px;font-family:'IBM Plex Mono',monospace;color:var(--accent);margin-bottom:10px;letter-spacing:0.1em}
+.slots-row{display:flex;gap:8px;flex-wrap:wrap}
+.slot-btn{background:none;border:1px solid var(--border);color:var(--muted);padding:6px 12px;font-size:10px;font-family:'IBM Plex Mono',monospace;letter-spacing:0.1em;cursor:pointer;transition:all 0.2s}
+.slot-btn:hover{border-color:var(--accent);color:var(--accent)}
+.slot-btn.active{background:var(--accent);border-color:var(--accent);color:#000}
+
+/* Льготы */
+.benefits-row{display:flex;gap:8px;flex-wrap:wrap}
+.benefit-toggle{background:none;border:1px solid var(--border);color:var(--muted);padding:7px 14px;font-size:11px;font-family:'IBM Plex Mono',monospace;cursor:pointer;transition:all 0.2s}
+.benefit-toggle:hover{border-color:var(--accent);color:var(--accent)}
+.benefit-toggle.active{background:rgba(200,169,110,0.15);border-color:var(--accent);color:var(--accent)}
+
+/* Кнопка отправки */
+.submit-section{padding:32px 48px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:24px}
+.btn-generate{background:var(--accent);border:none;color:#000;padding:16px 48px;font-size:13px;letter-spacing:0.2em;text-transform:uppercase;cursor:pointer;font-family:'IBM Plex Mono',monospace;font-weight:500;transition:all 0.2s;display:flex;align-items:center;gap:10px}
+.btn-generate:hover{background:var(--accent2)}
+.btn-generate:disabled{opacity:0.5;cursor:not-allowed}
+.btn-reset-form{background:none;border:1px solid var(--border);color:var(--muted);padding:16px 24px;font-size:11px;letter-spacing:0.15em;text-transform:uppercase;cursor:pointer;font-family:'IBM Plex Mono',monospace;transition:all 0.2s}
+.btn-reset-form:hover{border-color:var(--red);color:var(--red)}
+.generate-hint{font-size:11px;color:var(--muted);font-family:'IBM Plex Mono',monospace;line-height:1.6}
+
+/* Спиннер */
+.spinner{width:16px;height:16px;border:2px solid rgba(0,0,0,0.3);border-top:2px solid #000;border-radius:50%;animation:spin 0.8s linear infinite;display:none}
+.spinner.show{display:block}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* РЕЗУЛЬТАТЫ */
+.results-section{padding:48px;display:none}
+.results-section.show{display:block}
+.results-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:32px;flex-wrap:wrap;gap:16px}
+.results-title{font-family:'Playfair Display',serif;font-size:32px;font-weight:700}
+.results-stats{display:flex;gap:24px;flex-wrap:wrap}
+.result-stat{text-align:right}
+.result-stat-num{font-family:'Playfair Display',serif;font-size:24px;font-weight:700;color:var(--accent)}
+.result-stat-label{font-size:10px;font-family:'IBM Plex Mono',monospace;color:var(--muted);letter-spacing:0.1em;text-transform:uppercase}
+
+/* День расписания */
+.day-schedule{margin-bottom:40px;border:1px solid var(--border)}
+.day-header{background:var(--surface);padding:16px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.day-title{font-family:'Playfair Display',serif;font-size:18px;font-weight:700}
+.day-cost{font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--accent)}
+.day-events{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1px;background:var(--border)}
+.day-event{background:var(--bg);padding:20px;display:flex;flex-direction:column;gap:8px;cursor:pointer;transition:background 0.2s;position:relative}
+.day-event:hover{background:var(--surface2)}
+.event-slot-label{font-size:9px;font-family:'IBM Plex Mono',monospace;letter-spacing:0.2em;text-transform:uppercase;color:var(--muted2,#6A6660);margin-bottom:4px}
+.event-img{width:100%;height:120px;object-fit:cover;margin-bottom:8px;filter:brightness(0.8)}
+.event-img-placeholder{width:100%;height:120px;background:var(--surface2);display:flex;align-items:center;justify-content:center;margin-bottom:8px;font-family:'Playfair Display',serif;font-size:40px;color:rgba(200,169,110,0.15);font-style:italic}
+.event-cat{font-size:9px;font-family:'IBM Plex Mono',monospace;letter-spacing:0.15em;text-transform:uppercase;color:var(--accent)}
+.event-title{font-family:'Playfair Display',serif;font-size:16px;font-weight:700;line-height:1.3}
+.event-venue{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:4px}
+.event-venue::before{content:'';width:3px;height:3px;background:var(--accent);border-radius:50%;flex-shrink:0}
+.event-datetime{font-size:10px;font-family:'IBM Plex Mono',monospace;color:var(--muted)}
+.event-price{font-size:12px;font-family:'IBM Plex Mono',monospace;margin-top:auto}
+.event-price.free{color:var(--accent)}
+.event-price em{font-style:normal;color:var(--muted);font-size:9px;margin-right:3px}
+.event-benefits{font-size:9px;font-family:'IBM Plex Mono',monospace;color:var(--accent2);letter-spacing:0.06em}
+.event-age{position:absolute;top:10px;right:10px;background:rgba(12,12,14,0.85);border:1px solid rgba(200,169,110,0.3);color:var(--text);font-size:9px;font-family:'IBM Plex Mono',monospace;padding:3px 7px}
+
+/* Пустой день */
+.day-empty{padding:32px;text-align:center;color:var(--muted);font-size:13px;font-family:'IBM Plex Mono',monospace;background:var(--bg)}
+
+/* Нет результатов */
+.no-results{padding:60px 48px;text-align:center;border-bottom:1px solid var(--border)}
+.no-results-icon{font-family:'Playfair Display',serif;font-size:64px;color:rgba(200,169,110,0.15);margin-bottom:16px}
+.no-results h3{font-family:'Playfair Display',serif;font-size:24px;margin-bottom:8px}
+.no-results p{color:var(--muted);font-size:13px}
+
+/* Итог */
+.results-summary{background:var(--surface);border:1px solid var(--border);padding:24px;margin-top:32px;display:flex;gap:32px;flex-wrap:wrap}
+.summary-item{display:flex;flex-direction:column;gap:4px}
+.summary-num{font-family:'Playfair Display',serif;font-size:28px;font-weight:700;color:var(--accent)}
+.summary-label{font-size:10px;font-family:'IBM Plex Mono',monospace;color:var(--muted);letter-spacing:0.1em;text-transform:uppercase}
+
+footer{border-top:1px solid var(--border);padding:28px 48px;display:flex;justify-content:space-between;align-items:center}
+.footer-logo{font-family:'Playfair Display',serif;font-size:17px;font-weight:900;color:var(--accent)}
+.footer-copy{font-size:10px;font-family:'IBM Plex Mono',monospace;color:rgba(136,133,128,0.4)}
+
+/* range input */
+input[type=range]{width:100%;accent-color:var(--accent);background:transparent;margin-top:8px}
+.range-label{display:flex;justify-content:space-between;font-size:10px;font-family:'IBM Plex Mono',monospace;color:var(--muted);margin-top:4px}
+</style>
+</head>
+<body>
+
+<header>
+  <a href="/" class="logo">АФИША <span>SPB</span></a>
+  <a href="/" class="back-btn">К афише</a>
+</header>
+
+<div class="picker-hero">
+  <h1>Умный<br>подбор <em>событий</em></h1>
+  <p>Укажите даты, интересы и бюджет — система составит персональное расписание с учётом географии и вашего профиля</p>
+</div>
+
+<div class="form-container">
+  <!-- ЛЕВАЯ КОЛОНКА -->
+  <div class="form-left">
+
+    <!-- ДАТЫ -->
+    <div class="form-section">
+      <div class="section-label">Даты</div>
+      <div class="field-group">
+        <div class="field">
+          <label>Дата начала</label>
+          <input type="date" id="date-from">
+        </div>
+        <div class="field">
+          <label>Дата окончания</label>
+          <input type="date" id="date-to">
+        </div>
+      </div>
+    </div>
+
+    <!-- КАТЕГОРИИ ИНТЕРЕСОВ -->
+    <div class="form-section">
+      <div class="section-label">Интересы</div>
+      <div class="categories-grid" id="categories-grid">
+        <button class="cat-toggle" data-cat="concert"><span class="cat-icon">♪</span>Концерты</button>
+        <button class="cat-toggle" data-cat="theater"><span class="cat-icon">❧</span>Театр</button>
+        <button class="cat-toggle" data-cat="exhibition"><span class="cat-icon">◈</span>Выставки</button>
+        <button class="cat-toggle" data-cat="education"><span class="cat-icon">✦</span>Лекции</button>
+        <button class="cat-toggle" data-cat="festival"><span class="cat-icon">❋</span>Фестивали</button>
+        <button class="cat-toggle" data-cat="sport"><span class="cat-icon">◆</span>Спорт</button>
+        <button class="cat-toggle" data-cat="stand-up"><span class="cat-icon">◉</span>Стендап</button>
+        <button class="cat-toggle" data-cat="excursion"><span class="cat-icon">◎</span>Экскурсии</button>
+        <button class="cat-toggle" data-cat="party"><span class="cat-icon">✶</span>Вечеринки</button>
+        <button class="cat-toggle" data-cat="cinema"><span class="cat-icon">◇</span>Кино</button>
+        <button class="cat-toggle" data-cat="education"><span class="cat-icon">∴</span>Мастер-классы</button>
+        <button class="cat-toggle" data-cat="kids"><span class="cat-icon">◦</span>Детям</button>
+      </div>
+    </div>
+
+    <!-- БЮДЖЕТ -->
+    <div class="form-section">
+      <div class="section-label">Бюджет</div>
+      <div class="field-group">
+        <div class="field">
+          <label>Бюджет на всё (₽)</label>
+          <input type="number" id="budget-total" placeholder="Не ограничен" min="0" step="500">
+        </div>
+        <div class="field">
+          <label>Количество человек</label>
+          <input type="number" id="group-size" value="1" min="1" max="20">
+        </div>
+      </div>
+      <div class="field">
+        <label>Макс. событий в день</label>
+        <input type="range" id="max-per-day" min="1" max="5" value="3"
+          oninput="document.getElementById('max-per-day-val').textContent=this.value">
+        <div class="range-label">
+          <span>1</span>
+          <span id="max-per-day-val" style="color:var(--accent)">3 события</span>
+          <span>5</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ПРАВАЯ КОЛОНКА -->
+  <div class="form-right">
+
+    <!-- ВРЕМЕННЫЕ СЛОТЫ -->
+    <div class="form-section">
+      <div class="section-label">Время по дням</div>
+      <p style="font-size:11px;color:var(--muted);margin-bottom:14px;font-weight:300">
+        Выберите даты слева — здесь появятся настройки времени для каждого дня
+      </p>
+      <div class="days-container" id="days-container">
+        <div style="padding:20px;text-align:center;color:var(--muted);font-size:12px;font-family:'IBM Plex Mono',monospace">
+          Сначала укажите даты
+        </div>
+      </div>
+    </div>
+
+    <!-- РАЙОН -->
+    <div class="form-section">
+      <div class="section-label">Локация</div>
+      <div class="field">
+        <label>Предпочтительный район</label>
+        <select id="district">
+          <option value="">Любой район</option>
+          <option>Центральный</option>
+          <option>Петроградский</option>
+          <option>Василеостровский</option>
+          <option>Адмиралтейский</option>
+          <option>Московский</option>
+          <option>Выборгский</option>
+          <option>Невский</option>
+          <option>Приморский</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- ЛЬГОТЫ -->
+    <div class="form-section">
+      <div class="section-label">Льготы</div>
+      <div class="benefits-row">
+        <button class="benefit-toggle" data-benefit="Пушкинская карта">Пушкинская карта</button>
+        <button class="benefit-toggle" data-benefit="Студентам">Студентам</button>
+        <button class="benefit-toggle" data-benefit="Пенсионерам">Пенсионерам</button>
+        <button class="benefit-toggle" data-benefit="Детям">Детям</button>
+        <button class="benefit-toggle" data-benefit="Льготный">Льготный</button>
+      </div>
+    </div>
+
+    <!-- ДОПОЛНИТЕЛЬНО -->
+    <div class="form-section">
+      <div class="section-label">Дополнительно</div>
+      <div class="field">
+        <label>Возрастная группа</label>
+        <select id="age-group">
+          <option value="">Без ограничений</option>
+          <option value="0+">Для всех (0+)</option>
+          <option value="6+">Детям (6+)</option>
+          <option value="12+">Подросткам (12+)</option>
+          <option value="16+">Старше 16</option>
+          <option value="18+">Взрослым (18+)</option>
+        </select>
+      </div>
+      <div class="field" style="margin-top:12px">
+        <label>Пожелания (необязательно)</label>
+        <textarea id="extra-wishes" placeholder="Например: хочу что-то необычное, предпочитаю камерные мероприятия..."></textarea>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- КНОПКА -->
+<div class="submit-section">
+  <button class="btn-generate" id="generate-btn" onclick="generatePlan()">
+    <div class="spinner" id="generate-spinner"></div>
+    <span id="generate-btn-text">✦ Составить расписание</span>
+  </button>
+  <button class="btn-reset-form" onclick="resetForm()">Сбросить</button>
+  <div class="generate-hint">
+    Система подберёт мероприятия с учётом<br>
+    вашего профиля, географии и бюджета
+  </div>
+</div>
+
+<!-- РЕЗУЛЬТАТЫ -->
+<div class="results-section" id="results-section">
+  <div id="results-content"></div>
+</div>
+
+<footer>
+  <div class="footer-logo">АФИША · SPB</div>
+  <div class="footer-copy">© 2025</div>
+</footer>
+
+<script>
+const API_BASE_URL = 'https://afisha-spb-production.up.railway.app';
+
+// === ИНИЦИАЛИЗАЦИЯ ДАТ ===
+function initDates() {
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
+    const nextWeek = new Date(today);
+    nextWeek.setDate(today.getDate() + 7);
+
+    document.getElementById('date-from').value = tomorrow.toISOString().split('T')[0];
+    document.getElementById('date-to').value = nextWeek.toISOString().split('T')[0];
+
+    generateDaySlots();
+}
+
+// === ГЕНЕРАЦИЯ СЛОТОВ ПО ДНЯМ ===
+function generateDaySlots() {
+    const dateFrom = document.getElementById('date-from').value;
+    const dateTo = document.getElementById('date-to').value;
+    const container = document.getElementById('days-container');
+
+    if (!dateFrom || !dateTo) {
+        container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted);font-size:12px;font-family:\'IBM Plex Mono\',monospace">Сначала укажите даты</div>';
+        return;
+    }
+
+    const start = new Date(dateFrom);
+    const end = new Date(dateTo);
+    if (start > end) {
+        container.innerHTML = '<div style="padding:20px;text-align:center;color:var(--red);font-size:12px;font-family:\'IBM Plex Mono\',monospace">Дата начала позже даты окончания</div>';
+        return;
+    }
+
+    const days = [];
+    const cur = new Date(start);
+    while (cur <= end) {
+        days.push(cur.toISOString().split('T')[0]);
+        cur.setDate(cur.getDate() + 1);
+    }
+
+    const daysRu = ['Вс','Пн','Вт','Ср','Чт','Пт','Сб'];
+    const monthsRu = ['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
+
+    container.innerHTML = days.map(day => {
+        const d = new Date(day);
+        const label = daysRu[d.getDay()] + ', ' + d.getDate() + ' ' + monthsRu[d.getMonth()];
+        return `
+        <div class="day-row" data-day="${day}">
+            <div class="day-name">${label}</div>
+            <div class="slots-row">
+                <button class="slot-btn active" data-slot="morning" onclick="toggleSlot(this,'${day}')">Утро</button>
+                <button class="slot-btn active" data-slot="afternoon" onclick="toggleSlot(this,'${day}')">День</button>
+                <button class="slot-btn active" data-slot="evening" onclick="toggleSlot(this,'${day}')">Вечер</button>
+                <button class="slot-btn" data-slot="any" onclick="selectAllSlots(this,'${day}')">Любое</button>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function toggleSlot(btn, day) {
+    if (btn.dataset.slot === 'any') return;
+    btn.classList.toggle('active');
+}
+
+function selectAllSlots(btn, day) {
+    const row = btn.closest('.day-row');
+    const slots = row.querySelectorAll('.slot-btn:not([data-slot="any"])');
+    const anyActive = btn.classList.toggle('active');
+    slots.forEach(s => {
+        if (anyActive) s.classList.add('active');
+        else s.classList.remove('active');
+    });
+}
+
+// === КАТЕГОРИИ ===
+document.querySelectorAll('.cat-toggle').forEach(btn => {
+    btn.addEventListener('click', () => btn.classList.toggle('active'));
+});
+
+// === ЛЬГОТЫ ===
+document.querySelectorAll('.benefit-toggle').forEach(btn => {
+    btn.addEventListener('click', () => btn.classList.toggle('active'));
+});
+
+// === СЛУШАТЕЛИ ДАТ ===
+document.getElementById('date-from').addEventListener('change', generateDaySlots);
+document.getElementById('date-to').addEventListener('change', generateDaySlots);
+document.getElementById('max-per-day').addEventListener('input', function() {
+    document.getElementById('max-per-day-val').textContent = this.value + ' ' + (this.value == 1 ? 'событие' : parseInt(this.value) < 5 ? 'события' : 'событий');
+});
+
+// === СБОР ДАННЫХ ФОРМЫ ===
+function getFormData() {
+    const dateFrom = document.getElementById('date-from').value;
+    const dateTo = document.getElementById('date-to').value;
+
+    // Категории
+    const interests = [];
+    document.querySelectorAll('.cat-toggle.active').forEach(btn => {
+        if (!interests.includes(btn.dataset.cat)) {
+            interests.push(btn.dataset.cat);
+        }
+    });
+
+    // Временные слоты по дням
+    const timeSlots = {};
+    document.querySelectorAll('.day-row').forEach(row => {
+        const day = row.dataset.day;
+        const activeSlots = [];
+        row.querySelectorAll('.slot-btn.active[data-slot]').forEach(btn => {
+            if (btn.dataset.slot !== 'any') activeSlots.push(btn.dataset.slot);
+        });
+        // Если выбрано «Любое» или все 3 — передаём any
+        if (row.querySelector('.slot-btn[data-slot="any"].active') || activeSlots.length === 3) {
+            timeSlots[day] = ['morning', 'afternoon', 'evening'];
+        } else if (activeSlots.length > 0) {
+            timeSlots[day] = activeSlots;
+        } else {
+            timeSlots[day] = ['evening']; // дефолт
+        }
+    });
+
+    // Льготы
+    const selectedBenefits = [];
+    document.querySelectorAll('.benefit-toggle.active').forEach(btn => {
+        selectedBenefits.push(btn.dataset.benefit);
+    });
+
+    return {
+        date_from: dateFrom,
+        date_to: dateTo,
+        interests: interests.length ? interests : ['concert', 'theater', 'exhibition', 'festival'],
+        budget_total: parseInt(document.getElementById('budget-total').value) || null,
+        group_size: parseInt(document.getElementById('group-size').value) || 1,
+        time_slots: timeSlots,
+        district: document.getElementById('district').value || null,
+        benefits_filter: selectedBenefits.length === 1 ? selectedBenefits[0] : null,
+        max_events_per_day: parseInt(document.getElementById('max-per-day').value) || 3,
+        user_id: parseInt(localStorage.getItem('user_id')) || null,
+    };
+}
+
+// === ГЕНЕРАЦИЯ ПЛАНА ===
+async function generatePlan() {
+    const data = getFormData();
+
+    if (!data.date_from || !data.date_to) {
+        alert('Укажите даты');
+        return;
+    }
+
+    // Показываем спиннер
+    const btn = document.getElementById('generate-btn');
+    const spinner = document.getElementById('generate-spinner');
+    const btnText = document.getElementById('generate-btn-text');
+    btn.disabled = true;
+    spinner.classList.add('show');
+    btnText.textContent = 'Подбираем...';
+
+    try {
+        const response = await fetch(API_BASE_URL + '/api/smart-plan', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+
+        if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.detail || 'Ошибка сервера');
+        }
+
+        const result = await response.json();
+        renderResults(result.plan, data);
+
+    } catch(e) {
+        alert('Ошибка: ' + e.message);
+    } finally {
+        btn.disabled = false;
+        spinner.classList.remove('show');
+        btnText.textContent = '✦ Составить расписание';
+    }
+}
+
+// === РЕНДЕР РЕЗУЛЬТАТОВ ===
+function renderResults(plan, params) {
+    const section = document.getElementById('results-section');
+    const content = document.getElementById('results-content');
+    section.classList.add('show');
+
+    if (!plan || plan.error) {
+        content.innerHTML = `
+            <div class="no-results">
+                <div class="no-results-icon">◇</div>
+                <h3>Ничего не найдено</h3>
+                <p>${plan?.message || plan?.error || 'Попробуйте изменить параметры поиска'}</p>
+            </div>`;
+        section.scrollIntoView({ behavior: 'smooth' });
+        return;
+    }
+
+    const schedule = plan.schedule || [];
+
+    let html = `
+        <div class="results-header">
+            <div class="results-title">Ваше расписание</div>
+            <div class="results-stats">
+                <div class="result-stat">
+                    <div class="result-stat-num">${plan.total_events}</div>
+                    <div class="result-stat-label">Мероприятий</div>
+                </div>
+                <div class="result-stat">
+                    <div class="result-stat-num">${plan.days}</div>
+                    <div class="result-stat-label">Дней</div>
+                </div>
+                ${plan.total_cost > 0 ? `
+                <div class="result-stat">
+                    <div class="result-stat-num">${plan.total_cost_per_person?.toLocaleString('ru')} ₽</div>
+                    <div class="result-stat-label">На человека</div>
+                </div>` : ''}
+                ${params.group_size > 1 && plan.total_cost > 0 ? `
+                <div class="result-stat">
+                    <div class="result-stat-num">${plan.total_cost?.toLocaleString('ru')} ₽</div>
+                    <div class="result-stat-label">На ${params.group_size} чел.</div>
+                </div>` : ''}
+            </div>
+        </div>`;
+
+    schedule.forEach(day => {
+        const events = day.events || [];
+        html += `
+            <div class="day-schedule">
+                <div class="day-header">
+                    <div class="day-title">${day.date_label || day.date}</div>
+                    ${day.day_cost > 0 ? `<div class="day-cost">День: ${day.day_cost.toLocaleString('ru')} ₽</div>` : '<div class="day-cost" style="color:var(--accent)">Бесплатно</div>'}
+                </div>
+                <div class="day-events">`;
+
+        if (!events.length) {
+            html += `<div class="day-empty">Нет подходящих мероприятий на этот день</div>`;
+        } else {
+            events.forEach(e => {
+                const priceDisplay = e.is_free ? 'Бесплатно' :
+                    (e.price_per_person > 0 ? `<em>от</em>${e.price_per_person.toLocaleString('ru')} ₽` : 'Цена не указана');
+                const priceClass = e.is_free ? 'free' : '';
+                html += `
+                    <div class="day-event" onclick="window.open('/event.html?id=${e.id}','_blank')">
+                        <div class="event-slot-label">${e.slot_label || e.slot}</div>
+                        ${e.image_url
+                            ? `<img class="event-img" src="${e.image_url}" alt="${e.title}">`
+                            : `<div class="event-img-placeholder">${(e.category||'?').charAt(0)}</div>`
+                        }
+                        <div class="event-cat">${mapCat(e.category)}</div>
+                        <div class="event-title">${e.title}</div>
+                        ${e.venue_title ? `<div class="event-venue">${e.venue_title}</div>` : ''}
+                        ${e.venue_address ? `<div class="event-venue" style="font-size:10px">${e.venue_address}</div>` : ''}
+                        ${e.start_datetime ? `<div class="event-datetime">${e.start_datetime}</div>` : ''}
+                        ${e.benefits ? `<div class="event-benefits">✦ ${e.benefits}</div>` : ''}
+                        <div class="event-price ${priceClass}">${priceDisplay}</div>
+                        <div class="event-age">${e.age_restriction || '0+'}</div>
+                    </div>`;
+            });
+        }
+
+        html += `</div></div>`;
+    });
+
+    // Итоговая сводка
+    if (plan.total_events > 0) {
+        html += `
+            <div class="results-summary">
+                <div class="summary-item">
+                    <div class="summary-num">${plan.total_events}</div>
+                    <div class="summary-label">Мероприятий подобрано</div>
+                </div>
+                <div class="summary-item">
+                    <div class="summary-num">${plan.days}</div>
+                    <div class="summary-label">Дней в программе</div>
+                </div>
+                ${plan.total_cost > 0 ? `
+                <div class="summary-item">
+                    <div class="summary-num">${plan.total_cost_per_person?.toLocaleString('ru')} ₽</div>
+                    <div class="summary-label">На человека итого</div>
+                </div>` : `
+                <div class="summary-item">
+                    <div class="summary-num" style="color:var(--accent)">0 ₽</div>
+                    <div class="summary-label">Всё бесплатно</div>
+                </div>`}
+                ${plan.remaining_budget ? `
+                <div class="summary-item">
+                    <div class="summary-num">${plan.remaining_budget?.toLocaleString('ru')} ₽</div>
+                    <div class="summary-label">Остаток бюджета</div>
+                </div>` : ''}
+            </div>`;
+    }
+
+    content.innerHTML = html;
+    section.scrollIntoView({ behavior: 'smooth' });
+}
+
+function mapCat(cat) {
+    if (!cat) return 'Событие';
+    const c = cat.toLowerCase();
+    if (c.includes('concert')) return 'Концерт';
+    if (c.includes('theater') || c.includes('spektakl')) return 'Театр';
+    if (c.includes('exhibition')) return 'Выставка';
+    if (c.includes('education') || c.includes('master')) return 'Лекция';
+    if (c.includes('festival')) return 'Фестиваль';
+    if (c.includes('sport')) return 'Спорт';
+    if (c.includes('stand')) return 'Стендап';
+    if (c.includes('excursion')) return 'Экскурсия';
+    if (c.includes('party')) return 'Вечеринка';
+    if (c.includes('cinema')) return 'Кино';
+    return cat;
+}
+
+// === СБРОС ФОРМЫ ===
+function resetForm() {
+    document.querySelectorAll('.cat-toggle').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.benefit-toggle').forEach(b => b.classList.remove('active'));
+    document.getElementById('budget-total').value = '';
+    document.getElementById('group-size').value = '1';
+    document.getElementById('district').value = '';
+    document.getElementById('age-group').value = '';
+    document.getElementById('extra-wishes').value = '';
+    document.getElementById('max-per-day').value = '3';
+    document.getElementById('max-per-day-val').textContent = '3 события';
+    document.getElementById('results-section').classList.remove('show');
+    initDates();
+}
+
+// === ИНИЦИАЛИЗАЦИЯ ===
+initDates();
+</script>
+</body>
+</html>
