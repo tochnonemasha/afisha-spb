@@ -262,8 +262,9 @@ def get_events(
         )
     if benefits:
         query = query.filter(Event.benefits.contains(benefits))
-        total = query.count()
-        events = query.offset(offset).limit(limit).all()
+
+    total = query.count()  # ← ЭТА СТРОКА ДОЛЖНА БЫТЬ!
+    events = query.offset(offset).limit(limit).all()
 
     return {
         "total": total,
