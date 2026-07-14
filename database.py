@@ -163,7 +163,7 @@ class SmartPlan(Base):
 def init_db():
     """Создаёт все таблицы в базе данных"""
     Base.metadata.create_all(bind=engine)
-     try:
+    try:
         from sqlalchemy import text
         with engine.connect() as conn:
             # Для PostgreSQL
