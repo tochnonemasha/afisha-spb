@@ -52,6 +52,7 @@ class Event(Base):
     price_raw = Column(String(200))
     is_free = Column(Boolean, default=False)
     age_restriction = Column(String(10), default="0+")
+    benefits = Column(String(300), default="")
     image_url = Column(Text)
     site_url = Column(Text)
     source = Column(String(50), default="kudago")
