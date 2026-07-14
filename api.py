@@ -247,6 +247,7 @@ def update_user(user_id: int, data: dict, db=Depends(get_db)):
 def get_events(
     category: Optional[str] = None,
     max_price: Optional[int] = None,
+    benefits: Optional[str] = None,
     limit: int = 100,
     offset: int = 0,
     db=Depends(get_db)
@@ -259,7 +260,8 @@ def get_events(
         query = query.filter(
             (Event.is_free == True) | (Event.price_min <= max_price)
         )
-
+    if benefits:
+    query = query.filter(Event.benefits.contains(benefits))
     total = query.count()
     events = query.offset(offset).limit(limit).all()
 
@@ -269,6 +271,7 @@ def get_events(
             "id": e.id,
             "title": e.title,
             "category": e.category or "Другое",
+            "benefits": e.benefits or "",
             "start_datetime": e.start_datetime or "",
             "venue_title": e.venue_title or "Не указано",
             "venue_address": e.venue_address or "",
