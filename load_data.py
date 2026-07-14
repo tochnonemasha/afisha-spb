@@ -78,6 +78,7 @@ def load_events_from_csv(csv_path: str):
                 price_raw=str(row.get("price_raw", ""))[:200],
                 is_free=bool(row.get("is_free", False)),
                 age_restriction=str(row.get("age_restriction", "0+")),
+                benefits=str(row.get("benefits", "")) if str(row.get("benefits", "")) != "nan" else "",
                 image_url=str(row.get("image_url", "")),
                 site_url=str(row.get("site_url", "")),
                 source="kudago",
