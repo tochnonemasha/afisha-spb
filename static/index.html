@@ -332,12 +332,13 @@ footer{border-top:1px solid var(--border);padding:28px 48px;display:flex;justify
 
     <div class="benefit-wrapper" id="benefit-wrapper">
       <button class="benefit-btn" onclick="toggleBenefit()">✦ Льготы ▾</button>
-      <div class="benefit-popup" id="benefit-popup">
-        <div class="benefit-item"><input type="checkbox" id="b1"><label for="b1">Пушкинская карта</label></div>
-        <div class="benefit-item"><input type="checkbox" id="b2"><label for="b2">Для студентов</label></div>
-        <div class="benefit-item"><input type="checkbox" id="b3"><label for="b3">Для пенсионеров</label></div>
-        <div class="benefit-item"><input type="checkbox" id="b4"><label for="b4">Другое</label></div>
-      </div>
+     <div class="benefit-popup" id="benefit-popup">
+  <div class="benefit-item"><input type="checkbox" id="b1" data-benefit="Пушкинская карта"><label for="b1">Пушкинская карта</label></div>
+  <div class="benefit-item"><input type="checkbox" id="b2" data-benefit="Студентам"><label for="b2">Для студентов</label></div>
+  <div class="benefit-item"><input type="checkbox" id="b3" data-benefit="Пенсионерам"><label for="b3">Для пенсионеров</label></div>
+  <div class="benefit-item"><input type="checkbox" id="b4" data-benefit="Детям"><label for="b4">Для детей</label></div>
+  <div class="benefit-item"><input type="checkbox" id="b5" data-benefit="Льготный"><label for="b5">Льготный билет</label></div>
+</div>
     </div>
 
     <div class="filter-divider"></div>
@@ -398,6 +399,7 @@ let allEvents = [];
 let activeFilter = 'all';
 let selectedAge = null;
 let maxPrice = 1000000;
+let selectedBenefits = [];
 let selectedDate = null;
 let isLoading = false;
 let currentLimit = 15;
@@ -452,6 +454,7 @@ async function loadEventsFromAPI() {
     date: formatDate(e.start_datetime || ''),
     price: e.price_min || 0,
     age: e.age_restriction || '0+',
+    benefits: e.benefits || '',
     tags: e.tags ? e.tags.split(', ').filter(t => t.length > 0) : [],
     benefits: [],
     img: e.image_url || '',
@@ -525,7 +528,13 @@ function filterEvents() {
     
     // Фильтр по цене
     filtered = filtered.filter(e => e.price <= maxPrice);
-    
+    // Фильтр по льготам
+if (selectedBenefits.length > 0) {
+    filtered = filtered.filter(e => {
+        const benefits = e.benefits || '';
+        return selectedBenefits.every(b => benefits.includes(b));
+    });
+}
     // Фильтр по возрасту
     if (selectedAge) {
         filtered = filtered.filter(e => filterByAge(e.age, selectedAge));
@@ -765,6 +774,29 @@ function toggleBenefit() {
     document.getElementById('age-popup')?.classList.remove('open');
 }
 
+// Обработчик чекбоксов льгот
+document.querySelectorAll('.benefit-item input[type=checkbox]').forEach(cb => {
+    cb.addEventListener('change', () => {
+        const benefit = cb.dataset.benefit;
+        if (cb.checked) {
+            if (!selectedBenefits.includes(benefit)) selectedBenefits.push(benefit);
+        } else {
+            selectedBenefits = selectedBenefits.filter(b => b !== benefit);
+        }
+        // Обновляем кнопку
+        const btn = document.querySelector('.benefit-btn');
+        if (selectedBenefits.length > 0) {
+            btn.style.borderColor = 'var(--accent)';
+            btn.style.color = 'var(--accent)';
+        } else {
+            btn.style.borderColor = '';
+            btn.style.color = '';
+        }
+        currentLimit = LOAD_STEP;
+        renderCards();
+    });
+});
+
 // === СБРОС ФИЛЬТРОВ ===
 function resetFilters() {
     selectedAge = null;
@@ -785,7 +817,10 @@ function resetFilters() {
     document.querySelectorAll('.cat-chip').forEach(c => c.classList.remove('active'));
     document.querySelector('.cat-chip[data-cat="all"]')?.classList.add('active');
     activeFilter = 'all';
-    
+    selectedBenefits = [];
+document.querySelectorAll('.benefit-item input[type=checkbox]').forEach(cb => cb.checked = false);
+const btn = document.querySelector('.benefit-btn');
+if (btn) { btn.style.borderColor = ''; btn.style.color = ''; }
     renderCards();
 }
 
