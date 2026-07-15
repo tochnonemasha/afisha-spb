@@ -656,10 +656,31 @@ document.getElementById('load-more-btn').addEventListener('click', function() {
     }
 });
 // === TOGGLE FAV ===
-function toggleFav(e, id) {
+async function toggleFav(e, id) {
     e.stopPropagation();
+    const userId = localStorage.getItem('user_id');
+    if (!userId) {
+        if (confirm('Чтобы сохранить в избранное нужно войти. Перейти?')) {
+            location.href = '/login.html';
+        }
+        return;
+    }
     const btn = document.getElementById('fav-' + id);
-    if (btn) btn.classList.toggle('active');
+    if (!btn) return;
+    const isActive = btn.classList.toggle('active');
+    const interactionType = isActive ? 'favorite' : 'view';
+    try {
+        await fetch(API_BASE_URL + '/api/interactions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                user_id: parseInt(userId),
+                event_id: id,
+                interaction_type: interactionType
+            })
+        });
+        showToast(isActive ? '⚑ Добавлено в избранное' : 'Удалено из избранного');
+    } catch(err) {}
 }
 
 // === ВОЗРАСТНОЙ ФИЛЬТР ===
