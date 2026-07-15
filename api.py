@@ -69,10 +69,15 @@ class SmartPlanRequest(BaseModel):
     user_id: Optional[int] = None
     date_from: str
     date_to: str
-    budget: int
     interests: List[str]
+    budget_total: Optional[int] = None
+    budget_per_day: Optional[int] = None
+    group_size: int = 1
     time_slots: Optional[dict] = None
     district: Optional[str] = None
+    max_events_per_day: int = 3
+    benefits_filter: Optional[str] = None
+    age_group: Optional[str] = None
 
 
 # ─── ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ──────────────────────────────
@@ -262,8 +267,7 @@ def get_events(
         )
     if benefits:
         query = query.filter(Event.benefits.contains(benefits))
-
-    total = query.count()  # ← ЭТА СТРОКА ДОЛЖНА БЫТЬ!
+    total = query.count()
     events = query.offset(offset).limit(limit).all()
 
     return {
@@ -474,19 +478,23 @@ def trigger_retrain():
 def create_smart_plan(data: SmartPlanRequest, db=Depends(get_db)):
     """
     Составляет персонализированное расписание
-    для гостя города по датам, интересам и бюджету.
+    по датам, интересам, бюджету и временным слотам.
     """
     from smart_planner import SmartPlanner
     planner = SmartPlanner(db, recommender)
 
     plan = planner.create_plan(
-        user_id=data.user_id,
         date_from=data.date_from,
         date_to=data.date_to,
-        budget=data.budget,
         interests=data.interests,
+        budget_total=data.budget_total,
+        budget_per_day=data.budget_per_day,
+        group_size=data.group_size or 1,
         time_slots=data.time_slots,
         district=data.district,
+        max_events_per_day=data.max_events_per_day or 3,
+        benefits_filter=data.benefits_filter,
+        user_id=data.user_id,
     )
 
     return {"success": True, "plan": plan}
