@@ -334,6 +334,9 @@ function renderEvent(e) {
       </div>
     `;
 
+    // Сохраняем данные мероприятия для кнопки билета
+    currentEventData = e;
+
     // Загружаем похожие события
     loadSimilar(e.category, e.id);
 
@@ -456,6 +459,76 @@ async function loadEvent() {
                 <a href="/" class="back-link">← Вернуться к афише</a>
             </div>`;
     }
+}
+
+// === КУПИТЬ БИЛЕТ (добавить в ЛК) ===
+let currentEventData = null; // хранит данные текущего мероприятия
+
+function buyTicketFromEvent() {
+    const userId = localStorage.getItem('user_id');
+    if (!userId) {
+        if (confirm('Чтобы купить билет нужно войти. Перейти?')) {
+            location.href = '/login.html';
+        }
+        return;
+    }
+    if (!currentEventData) {
+        showToast('Данные мероприятия не загружены');
+        return;
+    }
+    const tickets = JSON.parse(localStorage.getItem('user_tickets_' + userId) || '[]');
+    if (tickets.find(t => t.event_id === currentEventData.id)) {
+        showToast('Билет уже добавлен!');
+        return;
+    }
+    const ticket = {
+        event_id: currentEventData.id,
+        title: currentEventData.title,
+        category: currentEventData.category,
+        venue_title: currentEventData.venue_title,
+        venue_address: currentEventData.venue_address,
+        start_datetime: currentEventData.start_datetime,
+        price_min: currentEventData.price_min,
+        is_free: currentEventData.is_free,
+        image_url: currentEventData.image_url,
+        age_restriction: currentEventData.age_restriction,
+        ticket_num: Math.floor(Math.random() * 90000) + 10000,
+        bought_at: new Date().toISOString()
+    };
+    tickets.push(ticket);
+    localStorage.setItem('user_tickets_' + userId, JSON.stringify(tickets));
+
+    // Записываем в API
+    fetch(API_BASE_URL + '/api/interactions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            user_id: parseInt(userId),
+            event_id: currentEventData.id,
+            interaction_type: 'attended'
+        })
+    }).catch(() => {});
+
+    const btn = document.getElementById('btn-ticket-buy');
+    if (btn) {
+        btn.textContent = '✓ Билет куплен';
+        btn.style.background = 'rgba(200,169,110,0.2)';
+        btn.style.borderColor = 'var(--accent)';
+        btn.style.color = 'var(--accent)';
+        btn.disabled = true;
+    }
+    showToast('Билет #' + ticket.ticket_num + ' добавлен в ЛК!');
+}
+
+function showToast(msg) {
+    const existing = document.querySelector('.toast-evt');
+    if (existing) existing.remove();
+    const t = document.createElement('div');
+    t.className = 'toast-evt';
+    t.textContent = msg;
+    t.style.cssText = 'position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:var(--accent);color:#000;padding:10px 24px;font-family:IBM Plex Mono,monospace;font-size:11px;z-index:2000;letter-spacing:0.08em';
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 3000);
 }
 
 // === АВТОРИЗАЦИЯ В ХЕДЕРЕ ===
