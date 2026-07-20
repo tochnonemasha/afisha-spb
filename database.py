@@ -36,7 +36,8 @@ class Event(Base):
     __tablename__ = "events"
 
     id = Column(Integer, primary_key=True, index=True)
-    external_id = Column(Integer, unique=True, nullable=True)
+    external_id = Column(Integer, nullable=True, index=True)
+    external_id_str = Column(String(100), nullable=True, index=True)
     title = Column(String(500), nullable=False)
     short_title = Column(String(300))
     description = Column(Text)
@@ -166,12 +167,20 @@ def init_db():
     try:
         from sqlalchemy import text
         with engine.connect() as conn:
-            # Для PostgreSQL
-            conn.execute(text('ALTER TABLE events ADD COLUMN IF NOT EXISTS benefits VARCHAR(300) DEFAULT ""'))
+            # Добавляем колонки если ещё нет (PostgreSQL)
+            migrations = [
+                "ALTER TABLE events ADD COLUMN IF NOT EXISTS benefits VARCHAR(300) DEFAULT ''",
+                "ALTER TABLE events ADD COLUMN IF NOT EXISTS external_id_str VARCHAR(100)",
+            ]
+            for sql in migrations:
+                try:
+                    conn.execute(text(sql))
+                except Exception:
+                    pass
             conn.commit()
-            print("✅ Колонка benefits добавлена (или уже существует)")
+            print("Миграции выполнены")
     except Exception as e:
-        print(f"⚠️ Не удалось добавить benefits: {e}")
+        print(f"Миграции: {e}")
     print("✅ База данных создана успешно")
 
 
