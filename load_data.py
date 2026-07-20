@@ -31,11 +31,29 @@ def load_events_from_csv(csv_path: str):
 
     for _, row in df.iterrows():
         # Проверяем — нет ли уже такого мероприятия
-        external_id = int(row["external_id"]) if pd.notna(row["external_id"]) else None
+        raw_eid = row.get("external_id")
+        external_id = None
+        external_id_str = None
 
-        if external_id:
+        if pd.notna(raw_eid) and str(raw_eid).strip() not in ("", "nan", "None"):
+            raw_str = str(raw_eid).strip()
+            try:
+                external_id = int(float(raw_str))
+            except (ValueError, OverflowError):
+                # строковый ID например "tp_4058544"
+                external_id_str = raw_str
+
+        # Проверяем дубль по числовому или строковому ID
+        if external_id is not None:
             exists = db.query(Event).filter(
                 Event.external_id == external_id
+            ).first()
+            if exists:
+                skipped += 1
+                continue
+        elif external_id_str is not None:
+            exists = db.query(Event).filter(
+                Event.external_id_str == external_id_str
             ).first()
             if exists:
                 skipped += 1
@@ -61,27 +79,36 @@ def load_events_from_csv(csv_path: str):
                 except:
                     end_datetime = end_str
 
+            # Получаем title и делаем первую букву заглавной
+            raw_title = str(row.get("title", "")).strip()
+            title = (raw_title[0].upper() + raw_title[1:]) if raw_title else "Без названия"
+
+            def safe_str(val, default=""):
+                s = str(val) if pd.notna(val) else default
+                return "" if s in ("nan", "None", "none") else s
+
             event = Event(
                 external_id=external_id,
-                title=str(row.get("title", ""))[:500],
-                short_title=str(row.get("short_title", ""))[:300],
-                description=str(row.get("description", ""))[:2000],
-                category=str(row.get("category", "other")),
-                tags=str(row.get("tags", "")),
+                external_id_str=external_id_str,
+                title=title[:500],
+                short_title=safe_str(row.get("short_title"))[:300],
+                description=safe_str(row.get("description"))[:3000],
+                category=safe_str(row.get("category"), "other"),
+                tags=safe_str(row.get("tags")),
                 start_datetime=start_datetime,
                 end_datetime=end_datetime,
-                venue_title=str(row.get("venue_title", ""))[:300],
-                venue_address=str(row.get("venue_address", ""))[:500],
+                venue_title=safe_str(row.get("venue_title"))[:300],
+                venue_address=safe_str(row.get("venue_address"))[:500],
                 venue_lat=float(row["venue_lat"]) if pd.notna(row.get("venue_lat")) else None,
                 venue_lon=float(row["venue_lon"]) if pd.notna(row.get("venue_lon")) else None,
-                price_min=int(row["price_min"]) if pd.notna(row.get("price_min")) else 0,
-                price_raw=str(row.get("price_raw", ""))[:200],
+                price_min=int(float(row["price_min"])) if pd.notna(row.get("price_min")) else 0,
+                price_raw=safe_str(row.get("price_raw"))[:200],
                 is_free=bool(row.get("is_free", False)),
-                age_restriction=str(row.get("age_restriction", "0+")),
-                benefits=str(row.get("benefits", "")) if str(row.get("benefits", "")) != "nan" else "",
-                image_url=str(row.get("image_url", "")),
-                site_url=str(row.get("site_url", "")),
-                source="kudago",
+                age_restriction=safe_str(row.get("age_restriction"), "0+"),
+                benefits=safe_str(row.get("benefits")),
+                image_url=safe_str(row.get("image_url")),
+                site_url=safe_str(row.get("site_url")),
+                source=safe_str(row.get("source"), "kudago"),
             )
             db.add(event)
             added += 1
