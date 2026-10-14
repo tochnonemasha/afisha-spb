@@ -1,38 +1,27 @@
+"""Модели БД для афиши и системы умного подбора мероприятий."""
 import os
-from sqlalchemy import (
-    create_engine,
-    Column,
-    Integer,
-    String,
-    Float,
-    Boolean,
-    DateTime,
-    Text,
-    ForeignKey
-)
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, relationship
 from datetime import datetime
-
-# Берём URL из переменной окружения Railway, иначе SQLite для локальной разработки
-DATABASE_URL = os.environ.get(
-    "DATABASE_URL",
-    "sqlite:///afisha_spb.db"
+from sqlalchemy import (
+    create_engine, Column, Integer, String, Float, Boolean, DateTime,
+    Text, ForeignKey, UniqueConstraint, Index, inspect, text,
 )
+from sqlalchemy.orm import sessionmaker, relationship, declarative_base
 
-# Railway даёт URL вида postgres://, SQLAlchemy требует postgresql://
+DATABASE_URL = os.environ.get("DATABASE_URL", "sqlite:///afisha_spb.db")
+# Совместимость с URL, который иногда выдаёт Railway.
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
-engine = create_engine(DATABASE_URL, echo=False)
-SessionLocal = sessionmaker(bind=engine)
+engine_options = {"pool_pre_ping": True}
+if DATABASE_URL.startswith("sqlite:"):
+    engine_options["connect_args"] = {"check_same_thread": False}
+engine = create_engine(DATABASE_URL, echo=False, **engine_options)
+SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
 Base = declarative_base()
 
 
-# ─── ТАБЛИЦЫ ──────────────────────────────────────────────
-
 class Event(Base):
-    """Мероприятия"""
+    """Мероприятие из парсера или добавленное вручную."""
     __tablename__ = "events"
 
     id = Column(Integer, primary_key=True, index=True)
@@ -41,50 +30,49 @@ class Event(Base):
     title = Column(String(500), nullable=False)
     short_title = Column(String(300))
     description = Column(Text)
-    category = Column(String(200))
+    category = Column(String(200), index=True)
     tags = Column(Text)
-    start_datetime = Column(String(50))
+    # Храним нормализованные строки YYYY-MM-DD HH:MM:SS ради совместимости
+    # с текущими API и планировщиком. Парсер дат в приложении преобразует их.
+    start_datetime = Column(String(50), index=True)
     end_datetime = Column(String(50))
+    duration_minutes = Column(Integer, nullable=True)
     venue_title = Column(String(300))
     venue_address = Column(String(500))
     venue_lat = Column(Float)
     venue_lon = Column(Float)
-    price_min = Column(Integer, default=0)
+    price_min = Column(Integer, nullable=True, default=None)
     price_raw = Column(String(200))
-    is_free = Column(Boolean, default=False)
-    age_restriction = Column(String(10), default="0+")
-    benefits = Column(String(300), default="")
+    is_free = Column(Boolean, nullable=False, default=False, index=True)
+    age_restriction = Column(String(10), nullable=False, default="0+")
+    benefits = Column(String(300), nullable=False, default="")
     image_url = Column(Text)
     site_url = Column(Text)
-    source = Column(String(50), default="kudago")
-    is_private = Column(Boolean, default=False)
+    source = Column(String(50), nullable=False, default="manual", index=True)
+    is_private = Column(Boolean, nullable=False, default=False)
     max_participants = Column(Integer, nullable=True)
     parsed_at = Column(String(50))
-    created_at = Column(DateTime, default=datetime.now)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 
-    # Связь с взаимодействиями
-    interactions = relationship("UserInteraction", back_populates="event")
+    interactions = relationship("UserInteraction", back_populates="event", cascade="all, delete-orphan")
 
     def __repr__(self):
         return f"<Event {self.id}: {self.title[:50]}>"
 
 
 class User(Base):
-    """Пользователи"""
+    """Пользователи системы."""
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String(200), nullable=False)
-    email = Column(String(200), unique=True, nullable=False)
+    email = Column(String(200), unique=True, nullable=False, index=True)
     password_hash = Column(String(500))
-    user_type = Column(String(20), default="resident")
-    # resident = житель города
-    # guest    = гость города (турист)
-    registered_at = Column(DateTime, default=datetime.now)
+    user_type = Column(String(20), nullable=False, default="resident")
+    registered_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 
-    # Связи
-    interactions = relationship("UserInteraction", back_populates="user")
-    preferences = relationship("UserPreference", back_populates="user")
+    interactions = relationship("UserInteraction", back_populates="user", cascade="all, delete-orphan")
+    preferences = relationship("UserPreference", back_populates="user", cascade="all, delete-orphan")
     smart_plans = relationship("SmartPlan", back_populates="user")
 
     def __repr__(self):
@@ -92,26 +80,19 @@ class User(Base):
 
 
 class UserInteraction(Base):
-    """
-    Взаимодействия пользователей с мероприятиями.
-    Это главная таблица для рекомендательного алгоритма.
-    """
+    """Просмотры, избранное, посещения и оценки для рекомендателя."""
     __tablename__ = "user_interactions"
+    __table_args__ = (
+        Index("ix_interaction_user_event_type", "user_id", "event_id", "interaction_type"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    event_id = Column(Integer, ForeignKey("events.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    event_id = Column(Integer, ForeignKey("events.id", ondelete="CASCADE"), nullable=False)
+    interaction_type = Column(String(20), nullable=False)  # view/favorite/attended/rated
+    rating = Column(Float, nullable=True)
+    timestamp = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
 
-    # Типы взаимодействий и их веса для алгоритма:
-    # view      = просмотр карточки   → вес 1
-    # favorite  = добавил в избранное → вес 3
-    # attended  = посетил             → вес 5
-    # rated     = поставил оценку     → значение оценки (1-5)
-    interaction_type = Column(String(20), nullable=False)
-    rating = Column(Float, nullable=True)  # только для rated
-    timestamp = Column(DateTime, default=datetime.now)
-
-    # Связи
     user = relationship("User", back_populates="interactions")
     event = relationship("Event", back_populates="interactions")
 
@@ -120,17 +101,15 @@ class UserInteraction(Base):
 
 
 class UserPreference(Base):
-    """
-    Предпочтения пользователей по категориям.
-    Обновляется автоматически на основе взаимодействий.
-    """
+    """Веса интереса пользователя к категориям."""
     __tablename__ = "user_preferences"
+    __table_args__ = (UniqueConstraint("user_id", "category", name="uq_user_preference_category"),)
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     category = Column(String(200), nullable=False)
-    weight = Column(Float, default=0.0)  # от 0 до 1
-    updated_at = Column(DateTime, default=datetime.now)
+    weight = Column(Float, nullable=False, default=0.0)
+    updated_at = Column(DateTime, nullable=False, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     user = relationship("User", back_populates="preferences")
 
@@ -139,20 +118,23 @@ class UserPreference(Base):
 
 
 class SmartPlan(Base):
-    """
-    Планы умного подбора для гостей города.
-    """
+    """Сохранённый запрос и итоговое расписание умного подбора."""
     __tablename__ = "smart_plans"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     date_from = Column(String(20))
     date_to = Column(String(20))
     budget = Column(Integer)
+    budget_per_day = Column(Integer, nullable=True)
+    group_size = Column(Integer, nullable=False, default=1)
+    district = Column(String(200), nullable=True)
+    age_group = Column(String(20), nullable=True)
+    max_events_per_day = Column(Integer, nullable=True)
     interests = Column(Text)   # JSON список категорий
-    time_slots = Column(Text)  # JSON временные предпочтения
+    time_slots = Column(Text)  # JSON временные предпочтения / обязательные точки
     schedule = Column(Text)    # JSON итоговое расписание
-    created_at = Column(DateTime, default=datetime.now)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 
     user = relationship("User", back_populates="smart_plans")
 
@@ -160,32 +142,42 @@ class SmartPlan(Base):
         return f"<SmartPlan {self.id}: {self.date_from}–{self.date_to}>"
 
 
-# ─── СОЗДАНИЕ ТАБЛИЦ ──────────────────────────────────────
+def _add_missing_columns(table_name, columns):
+    """Добавляет недостающие совместимые колонки в существующую БД без удаления данных."""
+    inspector = inspect(engine)
+    if table_name not in inspector.get_table_names():
+        return
+    existing = {col["name"] for col in inspector.get_columns(table_name)}
+    with engine.begin() as conn:
+        for column_name, sql_type in columns.items():
+            if column_name not in existing:
+                conn.execute(text(f'ALTER TABLE "{table_name}" ADD COLUMN "{column_name}" {sql_type}'))
+                print(f"Миграция: добавлена колонка {table_name}.{column_name}")
+
+
 def init_db():
-    """Создаёт все таблицы в базе данных"""
+    """Создаёт таблицы и добавляет новые поля в уже существующую БД."""
     Base.metadata.create_all(bind=engine)
-    try:
-        from sqlalchemy import text
-        with engine.connect() as conn:
-            # Добавляем колонки если ещё нет (PostgreSQL)
-            migrations = [
-                "ALTER TABLE events ADD COLUMN IF NOT EXISTS benefits VARCHAR(300) DEFAULT ''",
-                "ALTER TABLE events ADD COLUMN IF NOT EXISTS external_id_str VARCHAR(100)",
-            ]
-            for sql in migrations:
-                try:
-                    conn.execute(text(sql))
-                except Exception:
-                    pass
-            conn.commit()
-            print("Миграции выполнены")
-    except Exception as e:
-        print(f"Миграции: {e}")
-    print("✅ База данных создана успешно")
+    # create_all не изменяет существующие таблицы, поэтому новые поля добавляем отдельно.
+    # Типы ниже совместимы с SQLite и PostgreSQL.
+    _add_missing_columns("events", {
+        "benefits": "VARCHAR(300) DEFAULT ''",
+        "external_id_str": "VARCHAR(100)",
+        "duration_minutes": "INTEGER",
+        "max_participants": "INTEGER",
+        "parsed_at": "VARCHAR(50)",
+    })
+    _add_missing_columns("smart_plans", {
+        "budget_per_day": "INTEGER",
+        "group_size": "INTEGER DEFAULT 1",
+        "district": "VARCHAR(200)",
+        "age_group": "VARCHAR(20)",
+        "max_events_per_day": "INTEGER",
+    })
+    print("База данных готова")
 
 
 def get_db():
-    """Возвращает сессию базы данных"""
     db = SessionLocal()
     try:
         yield db
