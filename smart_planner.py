@@ -29,7 +29,7 @@ def haversine(lat1, lon1, lat2, lon2):
 
 # Границы районов загружаются из districts.geojson, лежащего рядом с этим файлом.
 _DISTRICTS_CACHE = None
-_DISTRICTS_PATH = Path(__file__).resolve().parent / "districts.geojson"
+_DISTRICTS_PATH = Path(__file__).resolve().parent / "districts.json"
 _WEB_MERCATOR_RADIUS = 6378137.0
 
 
@@ -49,7 +49,7 @@ def _load_district_features():
     if not _DISTRICTS_PATH.is_file():
         raise FileNotFoundError(
             f"Не найден файл границ районов: {_DISTRICTS_PATH}. "
-            "Положите districts.geojson рядом с smart_planner.py."
+            "Положите districts.json рядом с smart_planner.py."
         )
 
     with _DISTRICTS_PATH.open("r", encoding="utf-8-sig") as file:
@@ -57,7 +57,7 @@ def _load_district_features():
 
     features = geojson.get("features")
     if not isinstance(features, list) or not features:
-        raise ValueError("В districts.geojson отсутствует непустой список features.")
+        raise ValueError("В districts.json отсутствует непустой список features.")
 
     # В используемом наборе dm18 геометрия задана в EPSG:3857,
     # а названия районов хранятся в properties.NAME.
@@ -87,7 +87,7 @@ def _district_feature_for_name(district):
         for f in features if (f.get("properties") or {}).get("NAME")
     })
     raise ValueError(
-        f"Район «{district}» не найден в districts.geojson. "
+        f"Район «{district}» не найден в districts.json. "
         f"Примеры названий в файле: {', '.join(available[:8])}"
     )
 
