@@ -239,6 +239,7 @@ def event_in_slot(event_dt, slot_key):
     return start_mins <= event_mins <= end_mins
 
 _GEOCODE_CACHE = {}
+_GEOCODE_LAST_REQUEST_AT = 0.0
 
 
 def geocode_address(address):
@@ -388,7 +389,7 @@ class SmartPlanner:
 
         candidates = self._get_candidates(
             interests=interests, district=district, benefits_filter=benefits_filter,
-            age_group=age_group,
+            age_group=age_group, date_from=date_from, date_to=date_to,
         )
         scores = {}
         if user_id and self.recommender and getattr(self.recommender, "is_trained", False):
@@ -668,9 +669,37 @@ class SmartPlanner:
             "schedule": schedule,
         }
 
-    def _get_candidates(self, interests, district=None, benefits_filter=None, age_group=None):
-        """Выбирает мероприятия-кандидаты из БД"""
+    def _get_candidates(self, interests, district=None, benefits_filter=None, age_group=None,
+                        date_from=None, date_to=None):
+        """Выбирает кандидатов с учётом дат ДО ограничения количества строк.
+
+        Раньше сначала выбирались первые 500 строк БД, а даты проверялись уже
+        при сборке плана. Если нужные события находились дальше этих строк,
+        план оказывался пустым, хотя в базе были подходящие события.
+        """
         query = self.db.query(Event)
+
+        # В первую очередь ограничиваем выборку датами пользователя. Даты в БД
+        # обычно хранятся в ISO-формате YYYY-MM-DD HH:MM:SS, поэтому строковое
+        # сравнение корректно. События без фиксированной даты оставляем как
+        # гибкие кандидаты, которые можно поставить в свободное окно.
+        if date_from:
+            query = query.filter(
+                (Event.start_datetime.is_(None)) |
+                (Event.start_datetime == "") |
+                (Event.start_datetime >= str(date_from)[:10])
+            )
+        if date_to:
+            try:
+                day_after = (datetime.strptime(str(date_to)[:10], "%Y-%m-%d").date()
+                             + timedelta(days=1)).isoformat()
+                query = query.filter(
+                    (Event.start_datetime.is_(None)) |
+                    (Event.start_datetime == "") |
+                    (Event.start_datetime < day_after)
+                )
+            except ValueError:
+                pass
 
         # Категории из UI могут быть slug-кодами (concert), а в БД — русскими словами.
         if interests:
@@ -692,7 +721,10 @@ class SmartPlanner:
         if benefits_filter:
             query = query.filter(Event.benefits.ilike("%" + benefits_filter + "%"))
 
-        events = query.limit(500).all()
+        # После фильтрации по датам получаем весь релевантный набор. Лимит в 500
+        # строк здесь приводил к пустым планам: нужные даты могли находиться
+        # за пределами первых 500 записей в базе.
+        events = query.all()
 
         district_feature = None
         if district and _normalize_name(district) not in {"любой", "любой район"}:
