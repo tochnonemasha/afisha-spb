@@ -11,7 +11,7 @@ from database import SessionLocal, init_db, Event
 
 
 def find_latest_csv():
-    csv_files = glob.glob("events_*.csv")
+    csv_files = glob.glob("*.csv")
     return max(csv_files, key=os.path.getmtime) if csv_files else None
 
 
@@ -295,7 +295,7 @@ if __name__ == "__main__":
             else:
                 print(f"❌ Файл не найден: {csv_file}")
     else:
-        csv_files = sorted(glob.glob("events_*.csv"), key=os.path.getmtime)
+        csv_files = sorted(glob.glob("*.csv"), key=os.path.getmtime)
         if csv_files:
             for csv_file in csv_files:
                 load_events_from_csv(csv_file)
