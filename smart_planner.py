@@ -770,7 +770,6 @@ class SmartPlanner:
                 "benefits": e.benefits or "",
                 "source": e.source or "",
             })
-
         return result
 
     def _format_date_label(self, date_str):
