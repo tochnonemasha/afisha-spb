@@ -118,6 +118,29 @@ header{border-bottom:1px solid var(--border);padding:0 48px;display:flex;align-i
 .mandatory-form .wide{grid-column:1/-1}
 .mandatory-list{display:grid;gap:8px;margin-top:12px}
 .mandatory-item{padding:10px;border:1px solid var(--border);font-size:11px;display:flex;justify-content:space-between;gap:8px}
+
+/* Красивые формы добавления точек после генерации */
+.plan-actions{display:flex;gap:12px;flex-wrap:wrap;margin:0 0 28px;padding:18px;background:var(--surface);border:1px solid var(--border)}
+.plan-action-btn{border:1px solid var(--accent);background:transparent;color:var(--accent);padding:12px 16px;font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;transition:all .2s}
+.plan-action-btn:hover{background:var(--accent);color:#0C0C0E}
+.modal-backdrop{position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.78);backdrop-filter:blur(7px);display:none;align-items:center;justify-content:center;padding:18px}
+.modal-backdrop.open{display:flex}
+.plan-modal{width:min(680px,100%);max-height:92vh;overflow:auto;background:var(--surface);border:1px solid var(--accent);box-shadow:0 24px 90px rgba(0,0,0,.55)}
+.modal-head{padding:24px 26px 18px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;gap:16px;align-items:flex-start}
+.modal-kicker{font:10px 'IBM Plex Mono',monospace;letter-spacing:.18em;color:var(--accent);text-transform:uppercase;margin-bottom:8px}
+.modal-title{font:700 27px 'Playfair Display',serif}
+.modal-subtitle{font-size:12px;line-height:1.6;color:var(--muted);margin-top:7px}
+.modal-close{border:1px solid var(--border);background:transparent;color:var(--muted);width:34px;height:34px;cursor:pointer;font-size:20px;flex-shrink:0}
+.modal-body{padding:24px 26px;display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.modal-field{min-width:0}.modal-field.wide{grid-column:1/-1}
+.modal-field label{display:block;color:var(--muted);font:10px 'IBM Plex Mono',monospace;letter-spacing:.1em;text-transform:uppercase;margin-bottom:7px}
+.modal-field input,.modal-field select,.modal-field textarea{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:12px 13px;font-size:13px;outline:none;border-radius:0}
+.modal-field input:focus,.modal-field select:focus,.modal-field textarea:focus{border-color:var(--accent)}
+.modal-note{grid-column:1/-1;padding:12px 14px;background:var(--surface2);border-left:2px solid var(--accent);font-size:11px;line-height:1.6;color:var(--muted)}
+.modal-footer{padding:18px 26px 24px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap}
+.modal-secondary,.modal-primary{padding:12px 16px;font:10px 'IBM Plex Mono',monospace;letter-spacing:.08em;text-transform:uppercase;cursor:pointer}
+.modal-secondary{background:transparent;border:1px solid var(--border);color:var(--muted)}.modal-primary{background:var(--accent);border:1px solid var(--accent);color:#0C0C0E}
+@media(max-width:600px){.modal-body{grid-template-columns:1fr;padding:20px}.modal-field.wide,.modal-note{grid-column:auto}.modal-head,.modal-footer{padding-left:20px;padding-right:20px}.plan-modal{max-height:95vh}.results-section{padding:24px}}
 @media(max-width:700px){.mandatory-form{grid-template-columns:1fr}.mandatory-form .wide{grid-column:auto}}
 
 /* Нет результатов */
@@ -327,10 +350,11 @@ input[type=range]{width:100%;accent-color:var(--accent);background:transparent;m
       <div class="mandatory-form">
         <div class="wide"><label for="mandatory-title">Название / место</label><input id="mandatory-title" placeholder="Например, встреча в музее"></div>
         <div><label for="mandatory-date">Дата</label><input id="mandatory-date" type="date"></div>
-        <div class="wide"><label for="mandatory-address">Адрес (обязательно для расчёта маршрута)</label><input id="mandatory-address" placeholder="Например, Невский проспект, 30, Санкт-Петербург" required></div>
-        <div><label for="mandatory-start">Начало</label><input id="mandatory-start" type="time" value="10:00" required></div>
-        <div><label for="mandatory-end">Конец</label><input id="mandatory-end" type="time" value="11:00" required></div>
+        <div><label for="mandatory-address">Адрес (необязательно)</label><input id="mandatory-address" placeholder="Адрес места"></div>
+        <div><label for="mandatory-start">Начало</label><input id="mandatory-start" type="time" value="10:00"></div>
+        <div><label for="mandatory-duration">Длительность, минут</label><input id="mandatory-duration" type="number" min="15" max="1440" step="15" value="60" required></div>
         <div><label for="mandatory-cost">Цена на человека, ₽</label><input id="mandatory-cost" type="number" min="0" value="0"></div>
+        <div class="wide" id="mandatory-end-preview" style="font-size:11px;color:var(--muted)">Окончание рассчитается автоматически по времени начала и длительности.</div>
         <div class="wide"><button type="button" class="day-add-btn" onclick="addMandatoryPointFromForm()">＋ Добавить обязательную точку</button></div>
       </div>
       <div class="mandatory-list" id="mandatory-list"></div>
@@ -357,6 +381,27 @@ input[type=range]{width:100%;accent-color:var(--accent);background:transparent;m
   <div id="results-content"></div>
 </div>
 
+<!-- Модальное окно: обязательная точка / постоянная экспозиция -->
+<div class="modal-backdrop" id="plan-point-modal" role="dialog" aria-modal="true" aria-labelledby="plan-point-modal-title" onclick="if(event.target===this)closePlanPointModal()">
+  <div class="plan-modal">
+    <div class="modal-head">
+      <div><div class="modal-kicker" id="plan-point-kicker">Ваш маршрут · настройка</div><div class="modal-title" id="plan-point-modal-title">Добавить обязательную точку</div><div class="modal-subtitle" id="plan-point-subtitle">Точка останется в расписании, а подбор событий будет выполнен заново.</div></div>
+      <button type="button" class="modal-close" aria-label="Закрыть" onclick="closePlanPointModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-field wide"><label for="plan-point-title">Название места *</label><input id="plan-point-title" placeholder="Например, встреча в Русском музее" maxlength="180"></div>
+      <div class="modal-field"><label for="plan-point-date">День плана *</label><select id="plan-point-date"></select></div>
+      <div class="modal-field"><label for="plan-point-start">Время начала *</label><input id="plan-point-start" type="time" value="12:00"></div>
+      <div class="modal-field"><label for="plan-point-duration">Длительность, минут *</label><input id="plan-point-duration" type="number" min="15" max="720" step="15" value="90"></div>
+      <div class="modal-field"><label for="plan-point-cost">Стоимость на человека, ₽</label><input id="plan-point-cost" type="number" min="0" step="50" value="0"></div>
+      <div class="modal-field wide"><label for="plan-point-address">Адрес / музей</label><input id="plan-point-address" placeholder="Адрес или название площадки"></div>
+      <div class="modal-field wide" id="plan-point-url-wrap"><label for="plan-point-url">Ссылка на сайт (необязательно)</label><input id="plan-point-url" type="url" placeholder="https://..."></div>
+      <div class="modal-note" id="plan-point-note">После подтверждения план будет пересчитан: обязательная точка сохранится, а мероприятия, которые конфликтуют с ней по времени, будут заменены при наличии подходящих вариантов.</div>
+    </div>
+    <div class="modal-footer"><button type="button" class="modal-secondary" onclick="closePlanPointModal()">Отмена</button><button type="button" class="modal-primary" id="plan-point-submit" onclick="submitPlanPointModal()">Добавить и перестроить план</button></div>
+  </div>
+</div>
+
 <footer>
   <div class="footer-logo">АФИША · SPB</div>
   <div class="footer-copy">© 2025</div>
@@ -364,7 +409,7 @@ input[type=range]{width:100%;accent-color:var(--accent);background:transparent;m
 
 <script>
 // Можно переопределить адрес API через window.API_BASE_URL перед этим скриптом.
-const API_BASE_URL = window.API_BASE_URL || (window.location.protocol === 'file:' ? 'http://127.0.0.1:8000' : ((window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? window.location.origin : 'https://web-production-02057.up.railway.app'));
+const API_BASE_URL = window.API_BASE_URL || (window.location.protocol === 'file:' ? 'http://127.0.0.1:8000' : ((window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? window.location.origin : 'https://afisha-spb-production.up.railway.app'));
 
 // === ИНИЦИАЛИЗАЦИЯ ДАТ ===
 function initDates() {
@@ -463,21 +508,40 @@ function toggleBudgetFields() {
     });
 }
 
+function calculateMandatoryEnd(startTime, durationMinutes) {
+    const [hours, minutes] = String(startTime || '09:00').split(':').map(Number);
+    const total = hours * 60 + minutes + Number(durationMinutes || 60);
+    if (!Number.isFinite(total) || total > 24 * 60) return null;
+    return String(Math.floor(total / 60)).padStart(2, '0') + ':' + String(total % 60).padStart(2, '0');
+}
+
+function updateMandatoryEndPreview() {
+    const start = document.getElementById('mandatory-start')?.value || '10:00';
+    const duration = Number(document.getElementById('mandatory-duration')?.value || 60);
+    const end = calculateMandatoryEnd(start, duration);
+    const preview = document.getElementById('mandatory-end-preview');
+    if (preview) preview.textContent = end
+      ? `Планируемое окончание: ${end} (через ${duration} мин.)`
+      : 'Точка не должна выходить за пределы выбранного дня. Уменьшите длительность или измените начало.';
+}
+
 function addMandatoryPointFromForm() {
     const title = document.getElementById('mandatory-title').value.trim();
     const date = document.getElementById('mandatory-date').value;
     const start_time = document.getElementById('mandatory-start').value;
-    const end_time = document.getElementById('mandatory-end').value;
-    const address = document.getElementById('mandatory-address').value.trim();
+    const duration = Number(document.getElementById('mandatory-duration').value || 0);
+    const end_time = calculateMandatoryEnd(start_time, duration);
     const costInput = document.getElementById('mandatory-cost').value;
-    if (!title || !date || !start_time || !end_time || !address) {
-        alert('Укажите название, дату, адрес, время начала и конца обязательной точки'); return;
-    }
-    if (end_time <= start_time) { alert('Время окончания должно быть позже времени начала в тот же день'); return; }
+    if (!title || !date || !start_time) { alert('Укажите название, дату и время начала обязательной точки'); return; }
+    if (!Number.isFinite(duration) || duration < 15 || duration > 1440) { alert('Длительность должна быть от 15 до 1440 минут'); return; }
+    if (!end_time) { alert('Обязательная точка должна завершиться в тот же день. Уменьшите длительность или измените время начала.'); return; }
     if (costInput !== '' && Number(costInput) < 0) { alert('Стоимость не может быть отрицательной'); return; }
     mandatoryPoints.push({
-        id: 'mandatory-' + Date.now(), title, date, start_time, end_time, address,
-        price_per_person: Number(costInput || 0), category: 'Личная точка', url: ''
+        id: 'mandatory-' + Date.now(), title, date, start_time, end_time,
+        address: document.getElementById('mandatory-address').value.trim(),
+        price_per_person: Number(costInput || 0),
+        duration_minutes: duration,
+        category: 'Личная точка', url: ''
     });
     renderMandatoryPoints();
     document.getElementById('mandatory-title').value = '';
@@ -492,7 +556,93 @@ function removeMandatoryPoint(id) {
 function renderMandatoryPoints() {
     const list = document.getElementById('mandatory-list');
     if (!list) return;
-    list.innerHTML = mandatoryPoints.map(p => `<div class="mandatory-item"><span><strong>${escapeHtml(p.title)}</strong><br>${p.date} · ${p.start_time}–${p.end_time}<br>${escapeHtml(p.address)}</span><button class="mandatory-remove" onclick="removeMandatoryPoint('${p.id}')">Убрать</button></div>`).join('');
+    list.innerHTML = mandatoryPoints.map(p => `<div class="mandatory-item"><span><strong>${escapeHtml(p.title)}</strong><br>${p.date} · ${p.start_time}–${p.end_time} · ${p.duration_minutes} мин.${p.address ? '<br>' + escapeHtml(p.address) : ''}</span><button class="mandatory-remove" onclick="removeMandatoryPoint('${p.id}')">Убрать</button></div>`).join('');
+}
+
+let planPointModalMode = 'mandatory';
+
+function openPlanPointModal(mode) {
+    if (!currentPlan || !Array.isArray(currentPlan.schedule) || !currentPlan.schedule.length) {
+        alert('Сначала составьте расписание.'); return;
+    }
+    planPointModalMode = mode === 'exhibition' ? 'exhibition' : 'mandatory';
+    const exhibition = planPointModalMode === 'exhibition';
+    document.getElementById('plan-point-kicker').textContent = exhibition ? 'Постоянная коллекция · музей' : 'Ваш маршрут · обязательная точка';
+    document.getElementById('plan-point-modal-title').textContent = exhibition ? 'Добавить постоянную экспозицию' : 'Добавить обязательную точку';
+    document.getElementById('plan-point-subtitle').textContent = exhibition
+      ? 'Укажите экспозицию и выберите, в какой день и время встроить посещение.'
+      : 'Точка останется в расписании. После подтверждения система подберёт события вокруг неё.';
+    document.getElementById('plan-point-submit').textContent = exhibition ? 'Добавить экспозицию в план' : 'Добавить и перестроить план';
+    document.getElementById('plan-point-note').textContent = exhibition
+      ? 'Постоянная экспозиция не обязана иметь дату проведения в афише: вы сами выбираете день посещения. Система закрепит выбранное время и заново подберёт мероприятия.'
+      : 'Если выбранное время занято, сайт предупредит о конфликте. После подтверждения обязательная точка получит приоритет, а план будет перестроен.';
+    const dateSelect = document.getElementById('plan-point-date');
+    dateSelect.innerHTML = currentPlan.schedule.map(day => `<option value="${escapeHtml(day.date)}">${escapeHtml(day.date_label || day.date)}</option>`).join('');
+    const today = currentPlan.schedule[0]?.date;
+    if (today) dateSelect.value = today;
+    document.getElementById('plan-point-title').value = '';
+    document.getElementById('plan-point-start').value = '12:00';
+    document.getElementById('plan-point-duration').value = exhibition ? '90' : '60';
+    document.getElementById('plan-point-cost').value = '0';
+    document.getElementById('plan-point-address').value = '';
+    document.getElementById('plan-point-url').value = '';
+    document.getElementById('plan-point-url-wrap').hidden = !exhibition;
+    document.getElementById('plan-point-modal').classList.add('open');
+    document.body.style.overflow = 'hidden';
+    setTimeout(() => document.getElementById('plan-point-title').focus(), 50);
+}
+
+function closePlanPointModal() {
+    document.getElementById('plan-point-modal')?.classList.remove('open');
+    document.body.style.overflow = '';
+}
+
+function submitPlanPointModal() {
+    const title = document.getElementById('plan-point-title').value.trim();
+    const date = document.getElementById('plan-point-date').value;
+    const start_time = document.getElementById('plan-point-start').value;
+    const duration = Number(document.getElementById('plan-point-duration').value || 0);
+    const price = Number(document.getElementById('plan-point-cost').value || 0);
+    const address = document.getElementById('plan-point-address').value.trim();
+    const url = document.getElementById('plan-point-url').value.trim();
+    const end_time = calculateMandatoryEnd(start_time, duration);
+    if (!title || !date || !start_time) { alert('Заполните название, день и время начала.'); return; }
+    if (!Number.isFinite(duration) || duration < 15 || duration > 720) { alert('Длительность должна быть от 15 до 720 минут.'); return; }
+    if (!end_time) { alert('Посещение должно завершиться в тот же день. Уменьшите длительность или измените время.'); return; }
+    if (!Number.isFinite(price) || price < 0) { alert('Стоимость не может быть отрицательной.'); return; }
+    if (url && !/^https?:\/\//i.test(url)) { alert('Ссылка должна начинаться с https:// или http://.'); return; }
+
+    const day = currentPlan?.schedule?.find(d => d.date === date);
+    if (!day) { alert('Не удалось найти выбранный день плана.'); return; }
+    const overlaps = (day.events || []).filter(e => {
+        const start = e.planned_start || String(e.start_datetime || '').slice(11,16);
+        let end = e.planned_end;
+        if (!end && start) end = calculateMandatoryEnd(start, Number(e.duration_minutes || 90));
+        return start && end && start_time < end && end_time > start;
+    });
+    const conflictText = overlaps.length
+      ? `\n\nНа это время уже запланировано: ${overlaps.map(e => `«${e.title}» (${e.planned_start || ''}–${e.planned_end || ''})`).join(', ')}.\nЕсли продолжить, план будет пересчитан, а конфликтующие обычные мероприятия не будут сохраняться любой ценой.`
+      : '';
+    if (overlaps.length && !window.confirm((planPointModalMode === 'exhibition' ? 'Добавить экспозицию на занятое время?' : 'Добавить обязательную точку на занятое время?') + conflictText + '\n\nПродолжить?')) return;
+
+    // Не допускаем пересечения двух точек, которые пользователь уже закрепил вручную.
+    const fixedConflict = mandatoryPoints.find(p => p.date === date && start_time < p.end_time && end_time > p.start_time);
+    if (fixedConflict) {
+        alert(`В это время уже закреплена обязательная точка «${fixedConflict.title}». Измените время новой точки или существующей.`);
+        return;
+    }
+    mandatoryPoints.push({
+        id: (planPointModalMode === 'exhibition' ? 'exhibition-' : 'mandatory-') + Date.now(),
+        title, date, start_time, end_time, address,
+        venue_title: address,
+        price_per_person: price,
+        duration_minutes: duration,
+        category: planPointModalMode === 'exhibition' ? 'Постоянная экспозиция' : 'Личная точка',
+        url, mandatory: true, permanent_exhibition: planPointModalMode === 'exhibition'
+    });
+    renderMandatoryPoints();
+    closePlanPointModal();
+    generatePlan();
 }
 
 function escapeHtml(value) {
@@ -637,7 +787,7 @@ function getFormData() {
         } else if (activeSlots.length > 0) {
             timeSlots[day] = activeSlots;
         } else {
-            timeSlots[day] = ['morning', 'afternoon', 'evening']; // без выбора ищем весь день
+            timeSlots[day] = ['evening']; // дефолт
         }
     });
 
@@ -726,7 +876,7 @@ function renderResults(plan, params, isEditRender = false) {
     let html = `
         <div class="results-header">
             <div class="results-title">Ваше расписание</div>
-            <div style="font-size:11px;color:var(--muted);margin-top:6px">Расстояния рассчитаны по координатам; для автомобиля используется дорожный маршрут OSRM, пешком/транспортом — приблизительная оценка. Это не полноценная навигация.</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:6px">Время переездов — предварительная оценка, не навигационный маршрут.</div>
             <div class="results-stats">
                 <div class="result-stat">
                     <div class="result-stat-num">${plan.total_events}</div>
@@ -750,23 +900,10 @@ function renderResults(plan, params, isEditRender = false) {
             </div>
         </div>`;
 
-    if (Number(plan.total_events || 0) === 0) {
-        html += `<div class="no-results" style="padding:18px 0"><h3>Не удалось заполнить расписание мероприятиями</h3><p>${escapeHtml(plan.empty_reason || 'Попробуйте расширить даты, снять ограничение по району/бюджету или выбрать другие категории.')}</p><p style="margin-top:6px">Кандидатов после фильтрации: ${Number(plan.candidate_count || 0)}. Места с постоянными экспозициями ниже доступны отдельно.</p></div>`;
-    }
-
-    const permanentPlaces = plan.permanent_places || [];
-    if (permanentPlaces.length) {
-        html += `<section style="margin:24px 0;padding:18px;border:1px solid var(--border)">
-          <div class="results-title" style="font-size:20px;margin-bottom:6px">Места с постоянными экспозициями</div>
-          <p style="font-size:11px;color:var(--muted);margin-bottom:14px">Это отдельные рекомендации: они не привязаны к датам афиши и не включены автоматически в расписание. Стоимость и часы работы проверяйте на официальных сайтах.</p>
-          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px">${permanentPlaces.map(place => `<article style="padding:12px;background:var(--surface2);border:1px solid var(--border)">
-            <div class="event-cat">${escapeHtml(place.category || 'Музей')}</div><div class="event-title">${escapeHtml(place.title)}</div>
-            <div class="event-venue" style="margin-top:8px">${escapeHtml(place.address)}</div>
-            <p style="font-size:11px;color:var(--muted);margin:8px 0">${escapeHtml(place.description || '')}</p>
-            <div style="font-size:11px;margin-bottom:8px">Рекомендуемое время: ${Number(place.duration_minutes || 120) / 60} ч · Стоимость уточнить</div>
-            <a href="${escapeHtml(place.url)}" target="_blank" rel="noopener noreferrer" style="color:var(--accent);font-size:11px">Официальный сайт ↗</a>
-          </article>`).join('')}</div></section>`;
-    }
+    html += `<div class="plan-actions">
+      <button class="plan-action-btn" onclick="openPlanPointModal('mandatory')">＋ Добавить обязательную точку</button>
+      <button class="plan-action-btn" onclick="openPlanPointModal('exhibition')">＋ Добавить постоянную экспозицию</button>
+    </div>`;
 
     schedule.forEach(day => {
         const events = day.events || [];
@@ -897,7 +1034,9 @@ initDates();
 toggleBudgetFields();
 const mandatoryDateInput = document.getElementById('mandatory-date');
 if (mandatoryDateInput) { mandatoryDateInput.value = document.getElementById('date-from').value || '2026-12-01'; }
-
+document.getElementById('mandatory-start')?.addEventListener('input', updateMandatoryEndPreview);
+document.getElementById('mandatory-duration')?.addEventListener('input', updateMandatoryEndPreview);
+updateMandatoryEndPreview();
 </script>
 </body>
 </html>
