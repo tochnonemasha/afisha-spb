@@ -363,7 +363,7 @@ input[type=range]{width:100%;accent-color:var(--accent);background:transparent;m
       <div class="mandatory-form">
         <div class="wide"><label for="mandatory-title">Название / место</label><input id="mandatory-title" placeholder="Например, встреча в музее"></div>
         <div><label for="mandatory-date">Дата</label><input id="mandatory-date" type="date"></div>
-        <div><label for="mandatory-address">Адрес (необязательно)</label><input id="mandatory-address" placeholder="Адрес места"></div>
+        <div><label for="mandatory-address">Адрес (необязательно)</label><input id="mandatory-address" list="yandex-address-suggestions" placeholder="Начните вводить адрес места"><datalist id="yandex-address-suggestions"></datalist></div>
         <div><label for="mandatory-start">Начало</label><input id="mandatory-start" type="time" value="10:00"></div>
         <div><label for="mandatory-end">Время окончания</label><input id="mandatory-end" type="time" value="11:00" required></div>
         <div><label for="mandatory-cost">Цена на человека, ₽</label><input id="mandatory-cost" type="number" min="0" value="0"></div>
@@ -407,7 +407,7 @@ input[type=range]{width:100%;accent-color:var(--accent);background:transparent;m
       <div class="modal-field"><label for="plan-point-start">Время начала *</label><input id="plan-point-start" type="time" value="12:00"></div>
       <div class="modal-field"><label for="plan-point-end">Время окончания *</label><input id="plan-point-end" type="time" value="13:30"></div>
       <div class="modal-field"><label for="plan-point-cost">Стоимость на человека, ₽</label><input id="plan-point-cost" type="number" min="0" step="50" value="0"></div>
-      <div class="modal-field wide"><label for="plan-point-address">Адрес / музей</label><input id="plan-point-address" placeholder="Адрес или название площадки"></div>
+      <div class="modal-field wide"><label for="plan-point-address">Адрес / музей</label><input id="plan-point-address" list="yandex-address-suggestions" placeholder="Начните вводить адрес или название площадки"></div>
       <div class="modal-field wide" id="plan-point-url-wrap"><label for="plan-point-url">Ссылка на сайт (необязательно)</label><input id="plan-point-url" type="url" placeholder="https://..."></div>
       <div class="modal-note" id="plan-point-note">После подтверждения план будет пересчитан: обязательная точка сохранится, а мероприятия, которые конфликтуют с ней по времени, будут заменены при наличии подходящих вариантов.</div>
     </div>
@@ -423,6 +423,33 @@ input[type=range]{width:100%;accent-color:var(--accent);background:transparent;m
 <script>
 // Можно переопределить адрес API через window.API_BASE_URL перед этим скриптом.
 const API_BASE_URL = window.API_BASE_URL || (window.location.protocol === 'file:' ? 'http://127.0.0.1:8000' : ((window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? window.location.origin : 'https://web-production-02057.up.railway.app'));
+
+// Подсказки адресов через backend: ключ Yandex Suggest не раскрывается в HTML.
+let addressSuggestTimer = null;
+function initAddressSuggestions() {
+    const inputs = [document.getElementById('mandatory-address'), document.getElementById('plan-point-address')].filter(Boolean);
+    const list = document.getElementById('yandex-address-suggestions');
+    if (!list) return;
+    inputs.forEach(input => input.addEventListener('input', () => {
+        clearTimeout(addressSuggestTimer);
+        const query = input.value.trim();
+        if (query.length < 3) { list.replaceChildren(); return; }
+        addressSuggestTimer = setTimeout(async () => {
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/address-suggest?q=${encodeURIComponent(query)}`);
+                if (!response.ok) return;
+                const data = await response.json();
+                if (input.value.trim() !== query) return;
+                list.replaceChildren(...(data.suggestions || []).map(value => {
+                    const option = document.createElement('option');
+                    option.value = value;
+                    return option;
+                }));
+            } catch (_) { /* Подсказки необязательны; адрес можно ввести вручную. */ }
+        }, 250);
+    }));
+}
+
 
 // === ИНИЦИАЛИЗАЦИЯ ДАТ ===
 function initDates() {
@@ -1067,6 +1094,7 @@ function resetForm() {
     renderMandatoryPoints();
     document.getElementById('results-section').classList.remove('show');
     initDates();
+    initAddressSuggestions();
 }
 
 // === ИНИЦИАЛИЗАЦИЯ ===
