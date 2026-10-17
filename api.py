@@ -5,6 +5,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from typing import Optional, List
 from datetime import datetime
+from pathlib import Path
 import hashlib
 import threading
 import schedule
@@ -16,7 +17,7 @@ from recommender import HybridRecommender
 # ─── ИНИЦИАЛИЗАЦИЯ ────────────────────────────────────────
 app = FastAPI(title="Афиша SPB — API", version="1.0")
 
-# CORS — должен быть первым
+# CORS — фронтенд и API могут быть размещены на разных Railway-доменах
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -24,22 +25,79 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Подключаем папку со статическими файлами
-app.mount("/static", StaticFiles(directory="static"), name="static")
+# Абсолютные пути не зависят от рабочей папки, из которой запущен uvicorn.
+APP_DIR = Path(__file__).resolve().parent
+STATIC_DIR = APP_DIR / "static"
+STATIC_DIR.mkdir(exist_ok=True)
+app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
-# Главная страница
+# Главная страница: поддерживаем как структуру static/, так и picker.html в корне.
 @app.get("/")
 def root():
-    return FileResponse("static/index.html")
+    for candidate in (STATIC_DIR / "index.html", STATIC_DIR / "picker.html", APP_DIR / "picker.html"):
+        if candidate.is_file():
+            return FileResponse(str(candidate))
+    return {"service": "afisha-spb-api", "status": "ok", "hint": "Откройте /docs или /api/health"}
 
-# Любой HTML файл по имени
 @app.get("/{page}.html")
 def get_page(page: str):
-    import os
-    file_path = f"static/{page}.html"
-    if os.path.exists(file_path):
-        return FileResponse(file_path)
-    return FileResponse("static/index.html")
+    for candidate in (STATIC_DIR / f"{page}.html", APP_DIR / f"{page}.html"):
+        if candidate.is_file():
+            return FileResponse(str(candidate))
+    raise HTTPException(status_code=404, detail=f"Страница {page}.html не найдена")
+
+@app.get("/api/health")
+def health():
+    # Проверка доступности процесса без подключения к БД и модели рекомендаций.
+    return {"status": "ok", "service": "afisha-spb-api"}
+
+
+@app.get("/api/address-suggest")
+def address_suggest(q: str = ""):
+    """Подсказки адресов Яндекса. Ключ остаётся на сервере."""
+    query = (q or "").strip()
+    api_key = os.getenv("YANDEX_SUGGEST_API_KEY", "").strip()
+    if len(query) < 3 or not api_key:
+        return {"success": True, "suggestions": []}
+    params = urllib.parse.urlencode({
+        "apikey": api_key,
+        "text": query,
+        "lang": "ru_RU",
+        "results": 5,
+        "print_address": 1,
+    })
+    request = urllib.request.Request(
+        "https://suggest-maps.yandex.ru/v1/suggest?" + params,
+        headers={"User-Agent": "AfishaSPBPlanner/1.0"},
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=4) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+        suggestions = []
+        for item in payload.get("results", []):
+            title = (item.get("title") or {}).get("text", "").strip()
+            subtitle = (item.get("subtitle") or {}).get("text", "").strip()
+            value = ", ".join(part for part in (title, subtitle) if part)
+            if value and value not in suggestions:
+                suggestions.append(value)
+        return {"success": True, "suggestions": suggestions[:5]}
+    except Exception:
+        # Подсказки необязательны: ввод адреса вручную продолжает работать.
+        return {"success": False, "suggestions": []}
+
+
+@app.post("/api/geocode")
+def geocode_api(data: AddressRequest):
+    """Проверяет адрес и возвращает координаты, не раскрывая API-ключ браузеру."""
+    from smart_planner import geocode_address
+    address = data.address.strip()
+    if not address:
+        raise HTTPException(status_code=422, detail="Введите адрес.")
+    coordinates = geocode_address(address)
+    if not coordinates:
+        return {"success": False, "message": "Адрес не найден. Уточните улицу, дом и город."}
+    lat, lon = coordinates
+    return {"success": True, "address": address, "latitude": lat, "longitude": lon}
 
 # Глобальная модель — обучается один раз при старте
 # и переобучается по расписанию
@@ -65,6 +123,32 @@ class InteractionRequest(BaseModel):
     interaction_type: str  # view / favorite / attended / rated
     rating: Optional[float] = None
 
+class EventCreateRequest(BaseModel):
+    title: str = Field(..., min_length=1, max_length=500)
+    short_title: Optional[str] = None
+    description: Optional[str] = None
+    category: str = "other"
+    tags: Optional[str] = None
+    start_datetime: Optional[str] = None
+    end_datetime: Optional[str] = None
+    duration_minutes: Optional[int] = Field(None, ge=1, le=1440)
+    venue_title: Optional[str] = None
+    venue_address: Optional[str] = None
+    venue_lat: Optional[float] = Field(None, ge=-90, le=90)
+    venue_lon: Optional[float] = Field(None, ge=-180, le=180)
+    price_min: Optional[int] = Field(None, ge=0)
+    price_raw: Optional[str] = None
+    is_free: bool = False
+    age_restriction: str = "0+"
+    benefits: Optional[str] = None
+    image_url: Optional[str] = None
+    site_url: Optional[str] = None
+    is_private: bool = False
+    max_participants: Optional[int] = Field(None, ge=1)
+
+class AddressRequest(BaseModel):
+    address: str = Field(..., min_length=3, max_length=500)
+
 class SmartPlanRequest(BaseModel):
     user_id: Optional[int] = None
     date_from: str
@@ -76,11 +160,10 @@ class SmartPlanRequest(BaseModel):
     time_slots: Optional[dict] = None
     district: Optional[str] = None
     max_events_per_day: int = 3
-    benefits_filter: Optional[str] = None
     age_group: Optional[str] = None
     mandatory_points: List[dict] = Field(default_factory=list)
-    travel_mode: str = "transit"
-    travel_buffer_minutes: int = 10
+    travel_mode: str = Field("transit", regex="^(walk|transit|car|flexible)$")
+    travel_buffer_minutes: int = Field(10, ge=0, le=60)
 
 
 # ─── ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ──────────────────────────────
@@ -281,11 +364,13 @@ def get_events(
             "category": e.category or "Другое",
             "benefits": e.benefits or "",
             "start_datetime": e.start_datetime or "",
+            "end_datetime": e.end_datetime or "",
+            "duration_minutes": e.duration_minutes,
             "venue_title": e.venue_title or "Не указано",
             "venue_address": e.venue_address or "",
             "venue_lat": e.venue_lat,
             "venue_lon": e.venue_lon,
-            "price_min": e.price_min or 0,
+            "price_min": e.price_min,
             "is_free": bool(e.is_free),
             "age_restriction": e.age_restriction or "0+",
             "image_url": e.image_url or "",
@@ -311,6 +396,7 @@ def get_event(event_id: int, db=Depends(get_db)):
         "tags": event.tags,
         "start_datetime": event.start_datetime,
         "end_datetime": event.end_datetime,
+        "duration_minutes": event.duration_minutes,
         "venue_title": event.venue_title,
         "venue_address": event.venue_address,
         "venue_lat": event.venue_lat,
@@ -322,6 +408,84 @@ def get_event(event_id: int, db=Depends(get_db)):
         "image_url": event.image_url,
         "site_url": event.site_url,
         "is_private": event.is_private,
+    }
+
+
+@app.post("/api/events")
+def create_event(data: EventCreateRequest, db=Depends(get_db)):
+    """Добавляет мероприятие вручную. Бесплатные события всегда имеют цену 0."""
+    title = data.title.strip()
+    if not title:
+        raise HTTPException(status_code=422, detail="Название мероприятия не может быть пустым")
+
+    def normalize_datetime(value):
+        if not value or not value.strip():
+            return None
+        raw = value.strip()
+        try:
+            parsed = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+            # В БД и текущем планировщике используется локальная строка без timezone.
+            if parsed.tzinfo is not None:
+                parsed = parsed.replace(tzinfo=None)
+            return parsed.strftime("%Y-%m-%d %H:%M:%S")
+        except ValueError:
+            raise HTTPException(status_code=422, detail=f"Неверный формат даты: {value}. Используй YYYY-MM-DD HH:MM")
+
+    start_dt = normalize_datetime(data.start_datetime)
+    end_dt = normalize_datetime(data.end_datetime)
+    duration = data.duration_minutes
+    if duration is None and start_dt and end_dt:
+        start_obj = datetime.strptime(start_dt, "%Y-%m-%d %H:%M:%S")
+        end_obj = datetime.strptime(end_dt, "%Y-%m-%d %H:%M:%S")
+        minutes = int((end_obj - start_obj).total_seconds() // 60)
+        duration = minutes if minutes > 0 else None
+    is_free = bool(data.is_free)
+    price = 0 if is_free else data.price_min
+    event = Event(
+        title=title,
+        short_title=(data.short_title or "").strip() or None,
+        description=data.description,
+        category=(data.category or "other").strip() or "other",
+        tags=data.tags,
+        start_datetime=start_dt,
+        end_datetime=end_dt,
+        duration_minutes=duration,
+        venue_title=data.venue_title,
+        venue_address=data.venue_address,
+        venue_lat=data.venue_lat,
+        venue_lon=data.venue_lon,
+        price_min=price,
+        price_raw=("Бесплатно" if is_free and not data.price_raw else data.price_raw),
+        is_free=is_free,
+        age_restriction=data.age_restriction or "0+",
+        benefits=data.benefits or "",
+        image_url=data.image_url,
+        site_url=data.site_url,
+        source="manual",
+        is_private=data.is_private,
+        max_participants=data.max_participants,
+    )
+    db.add(event)
+    db.commit()
+    db.refresh(event)
+    return {
+        "message": "Мероприятие добавлено",
+        "event": {
+            "id": event.id,
+            "title": event.title,
+            "category": event.category,
+            "start_datetime": event.start_datetime or "",
+            "end_datetime": event.end_datetime or "",
+            "duration_minutes": event.duration_minutes,
+            "venue_title": event.venue_title or "",
+            "venue_address": event.venue_address or "",
+            "venue_lat": event.venue_lat,
+            "venue_lon": event.venue_lon,
+            "price_min": event.price_min,
+            "is_free": event.is_free,
+            "age_restriction": event.age_restriction,
+            "source": event.source,
+        },
     }
 
 
@@ -496,7 +660,6 @@ def create_smart_plan(data: SmartPlanRequest, db=Depends(get_db)):
         time_slots=data.time_slots,
         district=data.district,
         max_events_per_day=data.max_events_per_day or 3,
-        benefits_filter=data.benefits_filter,
         user_id=data.user_id,
         age_group=data.age_group,
         mandatory_points=data.mandatory_points,
