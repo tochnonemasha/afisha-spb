@@ -3,6 +3,7 @@ import json
 import urllib.parse
 import urllib.request
 import time
+import os
 from pathlib import Path
 from datetime import datetime, timedelta
 from database import SessionLocal, Event
@@ -242,67 +243,161 @@ _GEOCODE_CACHE = {}
 _GEOCODE_LAST_REQUEST_AT = 0.0
 
 
+def _geocode_yandex(address):
+    """Ищет координаты через Yandex Geocoder API. Ключ хранится только в Railway env."""
+    api_key = os.getenv("YANDEX_GEOCODER_API_KEY", "").strip()
+    if not api_key:
+        return None
+
+    query = urllib.parse.urlencode({
+        "apikey": api_key,
+        "geocode": address,
+        "format": "json",
+        "results": 1,
+        "lang": "ru_RU",
+    })
+    request = urllib.request.Request(
+        "https://geocode-maps.yandex.ru/v1/?" + query,
+        headers={"User-Agent": "AfishaSPBPlanner/1.0"},
+    )
+    with urllib.request.urlopen(request, timeout=5) as response:
+        payload = json.loads(response.read().decode("utf-8"))
+
+    members = (
+        payload.get("response", {})
+        .get("GeoObjectCollection", {})
+        .get("featureMember", [])
+    )
+    if not members:
+        return None
+    pos = members[0].get("GeoObject", {}).get("Point", {}).get("pos", "")
+    parts = pos.split()
+    if len(parts) != 2:
+        return None
+    lon, lat = map(float, parts)  # Яндекс возвращает «долгота широта»
+    if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+        return None
+    return lat, lon
+
+
+def _geocode_nominatim(address):
+    """Резервный геокодер OSM, если ключ Яндекса не задан или сервис недоступен."""
+    global _GEOCODE_LAST_REQUEST_AT
+    wait = 1.0 - (time.time() - _GEOCODE_LAST_REQUEST_AT)
+    if wait > 0:
+        time.sleep(wait)
+    query = urllib.parse.urlencode({
+        "q": address, "format": "jsonv2", "limit": 1, "countrycodes": "ru"
+    })
+    request = urllib.request.Request(
+        "https://nominatim.openstreetmap.org/search?" + query,
+        headers={"User-Agent": "AfishaSPBPlanner/1.0 (event itinerary planning)"},
+    )
+    with urllib.request.urlopen(request, timeout=5) as response:
+        _GEOCODE_LAST_REQUEST_AT = time.time()
+        payload = json.loads(response.read().decode("utf-8"))
+    if payload:
+        return float(payload[0]["lat"]), float(payload[0]["lon"])
+    return None
+
+
 def geocode_address(address):
-    """Best-effort geocoding of a user-entered address via OpenStreetMap Nominatim."""
+    """Возвращает (широта, долгота): сначала Яндекс, затем резервный OSM."""
     address = str(address or "").strip()
     if not address:
         return None
     cache_key = address.casefold()
     if cache_key in _GEOCODE_CACHE:
         return _GEOCODE_CACHE[cache_key]
+
     result = None
-    global _GEOCODE_LAST_REQUEST_AT
     try:
-        # Соблюдаем лимит публичного Nominatim: не чаще одного запроса в секунду.
-        wait = 1.0 - (time.time() - _GEOCODE_LAST_REQUEST_AT)
-        if wait > 0:
-            time.sleep(wait)
-        query = urllib.parse.urlencode({"q": address, "format": "jsonv2", "limit": 1, "countrycodes": "ru"})
-        request = urllib.request.Request(
-            "https://nominatim.openstreetmap.org/search?" + query,
-            headers={"User-Agent": "AfishaSPBPlanner/1.0 (event itinerary planning)"},
-        )
-        with urllib.request.urlopen(request, timeout=4) as response:
-            _GEOCODE_LAST_REQUEST_AT = time.time()
-            payload = json.loads(response.read().decode("utf-8"))
-        if payload:
-            result = (float(payload[0]["lat"]), float(payload[0]["lon"]))
+        result = _geocode_yandex(address)
     except Exception:
+        # Не ломаем составление плана при недоступности/ошибке Yandex API.
         result = None
+    if result is None:
+        try:
+            result = _geocode_nominatim(address)
+        except Exception:
+            result = None
+
     _GEOCODE_CACHE[cache_key] = result
     return result
 
 
 _ROUTE_CACHE = {}
+_ROUTE_LAST_REQUEST_AT = 0.0
 
-def _osrm_driving_route(a_lat, a_lon, b_lat, b_lon):
-    """Real road distance/duration from the public OSRM demo, for car mode only."""
-    key = tuple(round(float(v), 5) for v in (a_lat, a_lon, b_lat, b_lon))
-    if key in _ROUTE_CACHE:
-        return _ROUTE_CACHE[key]
+
+def _route_request(url, cache_key):
+    """Запрашивает публичный OSRM-совместимый роутер с кэшированием.
+
+    Публичные демонстрационные серверы не гарантируют доступность; при ошибке
+    вызывающий код использует явно помеченную расчётную оценку.
+    """
+    global _ROUTE_LAST_REQUEST_AT
+    if cache_key in _ROUTE_CACHE:
+        return _ROUTE_CACHE[cache_key]
     result = None
     try:
-        url = (f"https://router.project-osrm.org/route/v1/driving/"
-               f"{key[1]},{key[0]};{key[3]},{key[2]}?overview=false")
-        request = urllib.request.Request(url, headers={"User-Agent": "AfishaSPBPlanner/1.0"})
-        with urllib.request.urlopen(request, timeout=2.5) as response:
+        # Не чаще одного запроса в секунду к публичным роутерам.
+        wait = 1.0 - (time.time() - _ROUTE_LAST_REQUEST_AT)
+        if wait > 0:
+            time.sleep(wait)
+        request = urllib.request.Request(
+            url,
+            headers={"User-Agent": "AfishaSPBPlanner/1.0 (event itinerary planning)"},
+        )
+        with urllib.request.urlopen(request, timeout=4) as response:
+            _ROUTE_LAST_REQUEST_AT = time.time()
             payload = json.loads(response.read().decode("utf-8"))
         route = (payload.get("routes") or [None])[0]
-        if route and route.get("distance") is not None and route.get("duration") is not None:
-            result = {"distance_km": round(float(route["distance"]) / 1000, 2),
-                      "minutes": max(5, int(math.ceil(float(route["duration"]) / 60 / 5) * 5)),
-                      "method": "osrm_driving_route"}
+        if payload.get("code") == "Ok" and route and route.get("distance") is not None and route.get("duration") is not None:
+            result = {
+                "distance_km": round(float(route["distance"]) / 1000, 2),
+                "minutes": max(5, int(math.ceil(float(route["duration"]) / 60 / 5) * 5)),
+            }
     except Exception:
         result = None
-    _ROUTE_CACHE[key] = result
+    _ROUTE_CACHE[cache_key] = result
     return result
 
 
-def estimate_travel(origin, destination, mode="transit", use_router=True):
-    """Приблизительная оценка времени между двумя точками без внешнего роутера.
+def _osrm_route(a_lat, a_lon, b_lat, b_lon, mode):
+    """Маршруты по дорогам/пешеходным дорожкам через публичные OSM-сервисы.
 
-    Расстояние по прямой преобразуется в оценку дорожного пути. Это эвристика,
-    не фактический маршрут и не учитывает расписание транспорта/пробки.
+    car: официальный публичный OSRM demo endpoint (автомобильный профиль).
+    walk: публичный OSRM-совместимый foot endpoint routing.openstreetmap.de.
+    Для общественного транспорта общедоступный стабильный роутер без ключа
+    не используется — в этом случае ниже применяется приблизительная оценка.
+    """
+    coords = tuple(round(float(v), 5) for v in (a_lat, a_lon, b_lat, b_lon))
+    if mode == "car":
+        base = "https://router.project-osrm.org/route/v1/driving/"
+        profile = "osrm_driving_route"
+    elif mode == "walk":
+        base = "https://routing.openstreetmap.de/routed-foot/route/v1/driving/"
+        profile = "osm_foot_route"
+    else:
+        return None
+
+    cache_key = (mode,) + coords
+    url = (f"{base}{coords[1]},{coords[0]};{coords[3]},{coords[2]}"
+           "?overview=false&alternatives=false&steps=false")
+    route = _route_request(url, cache_key)
+    if route:
+        return {**route, "method": profile}
+    return None
+
+
+def estimate_travel(origin, destination, mode="transit", use_router=True):
+    """Оценивает перемещение между точками.
+
+    Для автомобиля и пешего маршрута пытается получить дорожный путь из OSM.
+    Если публичный сервис недоступен, а также для общественного транспорта,
+    возвращает эвристическую оценку по прямой линии. Это не расписание и не
+    полноценный маршрут общественного транспорта.
     """
     try:
         a_lat, a_lon = origin.get("venue_lat"), origin.get("venue_lon")
@@ -312,27 +407,40 @@ def estimate_travel(origin, destination, mode="transit", use_router=True):
                     "method": "fallback_no_coordinates"}
         a_lat, a_lon, b_lat, b_lon = map(float, (a_lat, a_lon, b_lat, b_lon))
         direct_km = haversine(a_lat, a_lon, b_lat, b_lon)
-        if mode == "car" and use_router:
-            routed = _osrm_driving_route(a_lat, a_lon, b_lat, b_lon)
+        if use_router and mode in ("car", "walk"):
+            routed = _osrm_route(a_lat, a_lon, b_lat, b_lon, mode)
             if routed:
                 return {**routed, "known_coordinates": True}
     except (TypeError, ValueError):
         return {"minutes": 30, "distance_km": None, "known_coordinates": False,
                 "method": "fallback_no_coordinates"}
 
-    # Коэффициенты учитывают, что реальный путь обычно длиннее прямой линии.
-    walk_minutes = direct_km * 1.30 / 4.5 * 60 + 3
-    transit_minutes = direct_km * 1.55 / 22 * 60 + 15  # подход, ожидание, пересадки
-    car_minutes = direct_km * 1.35 / 25 * 60 + 10      # посадка/высадка; без пробок
-    estimates = {"walk": walk_minutes, "transit": transit_minutes, "car": car_minutes}
+    # Оценки по прямой линии. Расстояние приблизительно увеличивается с учётом
+    # типичной непрямолинейности пути; транзит дополнительно учитывает ожидание.
+    walk_distance = direct_km * 1.30
+    transit_distance = direct_km * 1.55
+    car_distance = direct_km * 1.35
+    walk_minutes = walk_distance / 4.5 * 60 + 3
+    transit_minutes = transit_distance / 22 * 60 + 15
+    car_minutes = car_distance / 25 * 60 + 10
+    estimates = {
+        "walk": (walk_minutes, walk_distance),
+        "transit": (transit_minutes, transit_distance),
+        "car": (car_minutes, car_distance),
+    }
     if mode == "flexible":
-        minutes = min(estimates.values())
+        selected_mode = min(estimates, key=lambda item: estimates[item][0])
+        minutes_raw, distance = estimates[selected_mode]
     else:
-        minutes = estimates.get(mode, transit_minutes)
-    # Даже для близких точек закладываем несколько минут на выход/вход.
-    minutes = max(5, int(math.ceil(minutes / 5.0) * 5))
-    return {"minutes": minutes, "distance_km": round(direct_km, 2),
-            "known_coordinates": True, "method": "straight_line_estimate"}
+        minutes_raw, distance = estimates.get(mode, estimates["transit"])
+    minutes = max(5, int(math.ceil(minutes_raw / 5.0) * 5))
+    method = "straight_line_estimate"
+    if mode == "transit":
+        method = "transit_estimate_no_live_route_api"
+    elif mode in ("walk", "car"):
+        method = f"{mode}_estimate_router_unavailable"
+    return {"minutes": minutes, "distance_km": round(distance, 2),
+            "known_coordinates": True, "method": method}
 
 
 def travel_mode_label(mode):
@@ -651,7 +759,7 @@ class SmartPlanner:
             "travel_mode_label": travel_mode_label(travel_mode),
             "travel_buffer_minutes": travel_buffer_minutes,
             "estimated_total_travel_minutes": total_travel_minutes,
-            "travel_estimate_note": "Пешком и на общественном транспорте используется оценка по координатам по прямой; для автомобиля пробуется маршрут OSRM по дорогам. Если геокодирование/роутер недоступны, используется резервная оценка. Расписание общественного транспорта и пробки не учитываются.",
+            "travel_estimate_note": "Для пеших переходов пробуется маршрут по данным OpenStreetMap; для автомобиля — маршрут OSRM по дорогам. Если публичный роутер недоступен, используется приблизительная оценка по координатам. Для общественного транспорта показывается только оценка времени и расстояния: реальный маршрут, расписание и пересадки не рассчитываются; пробки не учитываются.",
             "remaining_budget": max(0, total_budget - total_cost) if total_budget is not None else None,
             "budget_exceeded": total_budget is not None and total_cost > total_budget,
             "coverage": round(total_events / (len(days) * max_events_per_day) * 100) if days and max_events_per_day else 0,
