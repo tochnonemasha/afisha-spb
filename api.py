@@ -97,16 +97,34 @@ def address_suggest(q: str = ""):
 
 @app.post("/api/geocode")
 def geocode_api(data: AddressRequest):
-    """Проверяет адрес и возвращает координаты, не раскрывая API-ключ браузеру."""
-    from smart_planner import geocode_address
+    """Проверяет, что адрес действительно распознан геокодером Яндекса."""
     address = data.address.strip()
-    if not address:
-        raise HTTPException(status_code=422, detail="Введите адрес.")
-    coordinates = geocode_address(address)
-    if not coordinates:
-        return {"success": False, "message": "Адрес не найден. Уточните улицу, дом и город."}
-    lat, lon = coordinates
-    return {"success": True, "address": address, "latitude": lat, "longitude": lon}
+    api_key = os.getenv("YANDEX_GEOCODER_API_KEY", "").strip()
+    if len(address) < 3:
+        raise HTTPException(status_code=422, detail="Введите адрес полностью.")
+    if not api_key:
+        raise HTTPException(status_code=503, detail="Не настроен YANDEX_GEOCODER_API_KEY.")
+    params = urllib.parse.urlencode({"apikey": api_key, "geocode": address, "format": "json", "results": 1, "lang": "ru_RU"})
+    request = urllib.request.Request("https://geocode-maps.yandex.ru/1.x/?" + params, headers={"User-Agent": "AfishaSPBPlanner/1.0"})
+    try:
+        with urllib.request.urlopen(request, timeout=6) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+        members = payload.get("response", {}).get("GeoObjectCollection", {}).get("featureMember", [])
+        if not members:
+            return {"success": False, "message": "Такой адрес не найден. Выберите адрес из подсказок Яндекса."}
+        obj = members[0].get("GeoObject", {})
+        meta = obj.get("metaDataProperty", {}).get("GeocoderMetaData", {})
+        precision = (meta.get("precision") or "").lower()
+        # Не принимаем запросы, распознанные только как страна/город, если пользователь явно ввёл мусор.
+        pos = obj.get("Point", {}).get("pos", "").split()
+        if len(pos) != 2:
+            return {"success": False, "message": "Не удалось определить координаты. Уточните адрес."}
+        lon, lat = map(float, pos)
+        return {"success": True, "address": meta.get("text") or address, "latitude": lat, "longitude": lon, "precision": precision}
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=502, detail="Сервис проверки адреса временно недоступен. Попробуйте ещё раз.")
 
 # Глобальная модель — обучается один раз при старте
 # и переобучается по расписанию
@@ -345,8 +363,8 @@ def get_events(
     category: Optional[str] = None,
     max_price: Optional[int] = None,
     benefits: Optional[str] = None,
-    limit: int = 100,
-    offset: int = 0,
+    limit: int = Field(100, ge=1, le=2000),
+    offset: int = Field(0, ge=0),
     db=Depends(get_db)
 ):
     query = db.query(Event)
@@ -673,6 +691,27 @@ def create_smart_plan(data: SmartPlanRequest, db=Depends(get_db)):
         travel_buffer_minutes=data.travel_buffer_minutes,
     )
 
+    # Полный список для ручного выбора: он не зависит от фильтров интересов/бюджета.
+    try:
+        date_from = datetime.strptime(data.date_from, "%Y-%m-%d").date()
+        date_to = datetime.strptime(data.date_to, "%Y-%m-%d").date()
+        all_events = db.query(Event).order_by(Event.start_datetime.asc(), Event.title.asc()).limit(2000).all()
+        options = []
+        for e in all_events:
+            event_date = (e.start_datetime or "")[:10]
+            if event_date and not (data.date_from <= event_date <= data.date_to):
+                continue
+            options.append({
+                "id": e.id, "title": e.title, "category": e.category or "Другое",
+                "venue_title": e.venue_title or "", "venue_address": e.venue_address or "",
+                "venue_lat": e.venue_lat, "venue_lon": e.venue_lon,
+                "start_datetime": e.start_datetime or "", "duration_minutes": e.duration_minutes or 120,
+                "price_per_person": e.price_min or 0, "is_free": bool(e.is_free),
+                "age_restriction": e.age_restriction or "0+", "image_url": e.image_url or "",
+            })
+        plan["candidate_options"] = options
+    except Exception:
+        plan["candidate_options"] = []
     return {"success": True, "plan": plan}
 
 
