@@ -668,17 +668,18 @@ function openPlanPointModal(mode) {
     if (!currentPlan || !Array.isArray(currentPlan.schedule) || !currentPlan.schedule.length) {
         alert('Сначала составьте расписание.'); return;
     }
-    planPointModalMode = mode === 'exhibition' ? 'exhibition' : 'mandatory';
+    planPointModalMode = ['exhibition','custom'].includes(mode) ? mode : 'mandatory';
     const exhibition = planPointModalMode === 'exhibition';
-    document.getElementById('plan-point-kicker').textContent = exhibition ? 'Постоянная коллекция · музей' : 'Ваш маршрут · обязательная точка';
-    document.getElementById('plan-point-modal-title').textContent = exhibition ? 'Добавить постоянную экспозицию' : 'Добавить обязательную точку';
+    const customPoint = planPointModalMode === 'custom';
+    document.getElementById('plan-point-kicker').textContent = exhibition ? 'Постоянная коллекция · музей' : (customPoint ? 'Ваш маршрут · новая точка' : 'Ваш маршрут · обязательная точка');
+    document.getElementById('plan-point-modal-title').textContent = exhibition ? 'Добавить постоянную экспозицию' : (customPoint ? 'Добавить свою точку' : 'Добавить обязательную точку');
     document.getElementById('plan-point-subtitle').textContent = exhibition
       ? 'Укажите экспозицию и выберите, в какой день и время встроить посещение.'
-      : 'Точка останется в расписании. После подтверждения система подберёт события вокруг неё.';
-    document.getElementById('plan-point-submit').textContent = exhibition ? 'Добавить экспозицию в план' : 'Добавить и перестроить план';
+      : (customPoint ? 'Добавьте собственное место или занятие в расписание.' : 'Точка останется в расписании. После подтверждения система подберёт события вокруг неё.');
+    document.getElementById('plan-point-submit').textContent = exhibition ? 'Добавить экспозицию в план' : (customPoint ? 'Добавить точку в план' : 'Добавить и перестроить план');
     document.getElementById('plan-point-note').textContent = exhibition
-      ? 'Постоянная экспозиция не обязана иметь дату проведения в афише: вы сами выбираете день посещения. Система закрепит выбранное время и заново подберёт мероприятия.'
-      : 'Если выбранное время занято, сайт предупредит о конфликте. После подтверждения обязательная точка получит приоритет, а план будет перестроен.';
+      ? 'Постоянная экспозиция не обязана иметь дату проведения в афише: вы сами выбираете день посещения. Система закрепит выбранное время.'
+      : (customPoint ? 'Если время занято, сайт предложит заменить конфликтующее событие или выбрать другое время.' : 'Если время занято, сайт предложит заменить конфликтующее событие или выбрать другое время.');
     const dateSelect = document.getElementById('plan-point-date');
     dateSelect.innerHTML = currentPlan.schedule.map(day => `<option value="${escapeHtml(day.date)}">${escapeHtml(day.date_label || day.date)}</option>`).join('');
     const today = currentPlan.schedule[0]?.date;
@@ -689,7 +690,7 @@ function openPlanPointModal(mode) {
     document.getElementById('plan-point-cost').value = '0';
     document.getElementById('plan-point-address').value = '';
     document.getElementById('plan-point-url').value = '';
-    document.getElementById('plan-point-url-wrap').hidden = !exhibition;
+    document.getElementById('plan-point-url-wrap').hidden = !exhibition && !customPoint;
     document.getElementById('plan-point-modal').classList.add('open');
     document.body.style.overflow = 'hidden';
     setTimeout(() => document.getElementById('plan-point-title').focus(), 50);
@@ -718,22 +719,20 @@ async function submitPlanPointModal() {
     const day = currentPlan?.schedule?.find(d => d.date === date);
     if (!day) { alert('Не удалось найти выбранный день плана.'); return; }
     // Не допускаем пересечения двух точек, которые пользователь уже закрепил вручную.
-    const fixedConflict = mandatoryPoints.find(p => p.date === date && start_time < p.end_time && end_time > p.start_time);
-    if (fixedConflict) {
-        alert(`В это время уже закреплена обязательная точка «${fixedConflict.title}». Измените время новой точки или существующей.`);
-        return;
-    }
-    const scheduleConflict = (day.events || []).find(e => {
+    const scheduleConflicts = (day.events || []).filter(e => {
         const es = e.planned_start || String(e.start_datetime || '').slice(11,16);
         const ee = e.planned_end || (es ? calculateMandatoryEnd(es, Number(e.duration_minutes || 120)) : '');
         return es && ee && start_time < ee && end_time > es;
     });
-    if (scheduleConflict) {
-        alert(`В это время уже запланировано «${scheduleConflict.title}» (${scheduleConflict.planned_start || ''}–${scheduleConflict.planned_end || ''}). Выберите свободный интервал: существующие точки не будут удалены автоматически.`);
-        return;
+    if (scheduleConflicts.length) {
+        const names = scheduleConflicts.map(e => `«${e.title}» (${e.planned_start || String(e.start_datetime || '').slice(11,16)}–${e.planned_end || ''})`).join(', ');
+        if (!window.confirm(`Выбранное время пересекается с: ${names}. Заменить ${scheduleConflicts.length === 1 ? 'это мероприятие' : 'эти мероприятия'} новой точкой? Отмена сохранит план без изменений.`)) return;
+        const ids = new Set(scheduleConflicts.map(e => String(e.id)));
+        day.events = day.events.filter(e => !ids.has(String(e.id)));
+        mandatoryPoints = mandatoryPoints.filter(p => !ids.has(String(p.id)));
     }
     const point = {
-        id: (planPointModalMode === 'exhibition' ? 'exhibition-' : 'mandatory-') + Date.now(),
+        id: (planPointModalMode === 'exhibition' ? 'exhibition-' : (planPointModalMode === 'custom' ? 'custom-' : 'mandatory-')) + Date.now(),
         title, date, start_time, end_time, address, venue_title: address,
         price_per_person: price, duration_minutes: duration,
         category: planPointModalMode === 'exhibition' ? 'Постоянная экспозиция' : 'Личная точка',
@@ -821,27 +820,12 @@ function removePlanEvent(dayDate, eventId) {
 }
 
 function addCustomPlanPoint(dayDate) {
-    const title = prompt('Название собственной точки:');
-    if (!title || !title.trim()) return;
-    const start = prompt('Время начала (ЧЧ:ММ):', '12:00');
-    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(start || '')) { alert('Укажите время в формате ЧЧ:ММ'); return; }
-    const address = prompt('Адрес (необязательно):', '') || '';
-    const price = Number(prompt('Цена на человека, ₽:', '0') || 0);
-    const duration = Math.max(15, Number(prompt('Длительность, минут:', '60') || 60));
-    const url = prompt('Ссылка на сайт (необязательно):', '') || '';
-    const day = currentPlan?.schedule?.find(d => d.date === dayDate);
-    if (!day) return;
-    const endMins = Number(start.slice(0,2))*60 + Number(start.slice(3,5)) + duration;
-    const end = String(Math.floor(endMins/60)%24).padStart(2,'0') + ':' + String(endMins%60).padStart(2,'0');
-    if (day.events.some(e => e.planned_start && e.planned_end && start < e.planned_end && end > e.planned_start)) {
-        alert('Эта точка пересекается по времени с уже запланированным мероприятием. Выберите другое время.'); return;
-    }
-    day.events.push({id:'custom-' + Date.now(), title:title.trim(), category:'Личная точка', venue_address:address,
-        planned_start:start, planned_end:end, start_datetime:dayDate+' '+start, duration_minutes:duration, url,
-        price_per_person:Math.max(0,price), is_free:price<=0, price_total:Math.max(0,price)*Number(currentPlan.group_size||1),
-        mandatory:false, custom:true, slot_label:'Своя точка', score:1});
-    day.events.sort((a,b)=>(a.planned_start||'00:00').localeCompare(b.planned_start||'00:00'));
-    recalculateEditedPlan();
+    if (!currentPlan?.schedule?.some(d => d.date === dayDate)) return;
+    openPlanPointModal('custom');
+    const select = document.getElementById('plan-point-date');
+    select.value = dayDate;
+    document.getElementById('plan-point-start').value = '12:00';
+    document.getElementById('plan-point-end').value = '13:00';
 }
 
 let databaseModalDay = null;
@@ -901,7 +885,7 @@ function selectDatabaseEvent(candidateId) {
     const datePart = String(candidate.start_datetime || '').slice(0,10);
     if (datePart && datePart !== databaseModalDay) { alert('Это мероприятие проходит в другую дату.'); return; }
     const publishedTime = String(candidate.start_datetime || '').slice(11,16);
-    const start = publishedTime || document.getElementById('db-event-time').value || '12:00';
+    const start = document.getElementById('db-event-time').value || publishedTime || '12:00';
     const duration = Math.max(15, Number(candidate.duration_minutes || 120));
     const endMins = Number(start.slice(0,2))*60 + Number(start.slice(3,5)) + duration;
     if (endMins > 24*60) { alert('Мероприятие не помещается в выбранный день.'); return; }
@@ -923,7 +907,8 @@ function selectDatabaseEvent(candidateId) {
     }
     const price = Number(candidate.price_per_person ?? candidate.price_min ?? 0);
     day.events.push({...candidate, planned_start:start, planned_end:end,
-        slot_label: publishedTime ? 'По времени афиши' : 'Добавлено в план',
+        slot_label: 'Добавлено в план',
+        original_start_datetime: candidate.start_datetime || null,
         price_per_person:price, price_total:candidate.is_free?0:price*Number(currentPlan.group_size||1),
         mandatory:false, custom:false});
     day.events.sort((a,b)=>(a.planned_start||'00:00').localeCompare(b.planned_start||'00:00'));
