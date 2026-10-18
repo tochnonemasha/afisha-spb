@@ -1,7 +1,7 @@
-from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from fastapi import FastAPI, HTTPException, Depends, Query
 from pydantic import BaseModel, Field
 from typing import Optional, List
 from datetime import datetime
@@ -357,14 +357,13 @@ def update_user(user_id: int, data: dict, db=Depends(get_db)):
     return {"success": True, "user": {"id": user.id, "name": user.name, "email": user.email}}
 
 # ─── ЭНДПОИНТЫ: МЕРОПРИЯТИЯ ───────────────────────────────
-
 @app.get("/api/events")
 def get_events(
     category: Optional[str] = None,
     max_price: Optional[int] = None,
     benefits: Optional[str] = None,
-    limit: int = Field(100, ge=1, le=2000),
-    offset: int = Field(0, ge=0),
+    limit: int = Query(default=100, ge=1, le=2000),
+    offset: int = Query(default=0, ge=0),
     db=Depends(get_db)
 ):
     query = db.query(Event)
