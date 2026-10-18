@@ -97,10 +97,14 @@ class SmartPlanner:
         budget_per_day: int = None,
         time_slots: dict = None,      # {"2025-07-15": ["morning", "evening"], ...}
         district: str = None,
+        age_group: str = None,
         group_size: int = 1,
         user_id: int = None,
         max_events_per_day: int = 3,
         benefits_filter: str = None,
+        mandatory_points: list = None,
+        travel_mode: str = "transit",
+        travel_buffer_minutes: int = 10,
     ) -> dict:
         """
         Составляет персонализированное расписание.
