@@ -451,6 +451,18 @@ function initAddressSuggestions() {
 }
 
 
+async function validateRealAddress(address) {
+    if (!address) return true;
+    const response = await fetch(`${API_BASE_URL}/api/geocode`, {
+        method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({address})
+    });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.detail || 'Не удалось проверить адрес');
+    if (!data.success) { alert(data.message || 'Выберите реальный адрес из подсказок.'); return false; }
+    return true;
+}
+
+
 // === ИНИЦИАЛИЗАЦИЯ ДАТ ===
 function initDates() {
     // Даты по умолчанию совпадают с периодом демонстрационной базы. Их можно изменить вручную.
@@ -657,7 +669,7 @@ function closePlanPointModal() {
     document.body.style.overflow = '';
 }
 
-function submitPlanPointModal() {
+async function submitPlanPointModal() {
     const title = document.getElementById('plan-point-title').value.trim();
     const date = document.getElementById('plan-point-date').value;
     const start_time = document.getElementById('plan-point-start').value;
@@ -670,6 +682,7 @@ function submitPlanPointModal() {
     if (!duration || duration < 15 || duration > 720) { alert('Время окончания должно быть позже начала, а длительность — от 15 до 720 минут.'); return; }
     if (!Number.isFinite(price) || price < 0) { alert('Стоимость не может быть отрицательной.'); return; }
     if (url && !/^https?:\/\//i.test(url)) { alert('Ссылка должна начинаться с https:// или http://.'); return; }
+    if (address) { try { if (!(await validateRealAddress(address))) return; } catch (err) { alert(err.message); return; } }
 
     const day = currentPlan?.schedule?.find(d => d.date === date);
     if (!day) { alert('Не удалось найти выбранный день плана.'); return; }
@@ -791,6 +804,45 @@ function addCustomPlanPoint(dayDate) {
         planned_start:start, planned_end:end, start_datetime:dayDate+' '+start, duration_minutes:duration, url,
         price_per_person:Math.max(0,price), is_free:price<=0, price_total:Math.max(0,price)*Number(currentPlan.group_size||1),
         mandatory:false, custom:true, slot_label:'Своя точка', score:1});
+    day.events.sort((a,b)=>(a.planned_start||'00:00').localeCompare(b.planned_start||'00:00'));
+    recalculateEditedPlan();
+}
+
+async function addDatabaseEventToDay(dayDate) {
+    const day = currentPlan?.schedule?.find(d => d.date === dayDate);
+    if (!day) return;
+    let options = (currentPlan.candidate_options || []).filter(c => !c.start_datetime || String(c.start_datetime).slice(0,10) === dayDate);
+    if (!options.length) {
+        try {
+            const response = await fetch(`${API_BASE_URL}/api/events?limit=2000`);
+            const payload = await response.json();
+            options = (payload.events || []).filter(c => !c.start_datetime || String(c.start_datetime).slice(0,10) === dayDate).map(c => ({...c, price_per_person:c.price_min || 0, duration_minutes:c.duration_minutes || 120}));
+        } catch (_) { alert('Не удалось загрузить мероприятия из базы.'); return; }
+    }
+    const existing = new Set((day.events || []).map(e => String(e.id)));
+    options = options.filter(c => !existing.has(String(c.id)));
+    if (!options.length) { alert('В базе нет других мероприятий на выбранный день.'); return; }
+    const lines = options.map((e,i) => `${i+1}. ${e.title} — ${e.start_datetime || 'время не указано'}; ${e.is_free ? 'бесплатно' : (Number(e.price_per_person || e.price_min || 0).toLocaleString('ru') + ' ₽')}`).join('\n');
+    const answer = prompt('Выберите мероприятие из общей базы, введя его номер:\n\n' + lines);
+    if (answer === null) return;
+    const index = Number(answer) - 1;
+    if (!Number.isInteger(index) || index < 0 || index >= options.length) { alert('Укажите номер мероприятия из списка.'); return; }
+    const candidate = options[index];
+    const datePart = String(candidate.start_datetime || '').slice(0,10);
+    if (datePart && datePart !== dayDate) { alert('Это мероприятие проходит в другую дату.'); return; }
+    const start = String(candidate.start_datetime || '').slice(11,16) || '12:00';
+    const duration = Number(candidate.duration_minutes || 120);
+    const endMins = Number(start.slice(0,2))*60 + Number(start.slice(3,5)) + duration;
+    const end = String(Math.floor(endMins/60)%24).padStart(2,'0') + ':' + String(endMins%60).padStart(2,'0');
+    const overlaps = (day.events || []).filter(e => {
+        const es = e.planned_start || String(e.start_datetime || '').slice(11,16);
+        const ee = e.planned_end || (es ? calculateMandatoryEnd(es, Number(e.duration_minutes || 120)) : '');
+        return es && ee && start < ee && end > es;
+    });
+    if (overlaps.length && !window.confirm(`«${candidate.title}» добавляется с высоким приоритетом на ${start}–${end}. На это время уже есть: ${overlaps.map(e=>`«${e.title}»`).join(', ')}. Удалить конфликтующие мероприятия из плана и продолжить?`)) return;
+    const conflictIds = new Set(overlaps.map(e=>String(e.id)));
+    day.events = (day.events || []).filter(e => !conflictIds.has(String(e.id)));
+    day.events.push({...candidate, planned_start:start, planned_end:end, slot_label:'Выбрано вами · высокий приоритет', price_per_person:Number(candidate.price_per_person ?? candidate.price_min ?? 0), price_total:candidate.is_free?0:Number(candidate.price_per_person ?? candidate.price_min ?? 0)*Number(currentPlan.group_size||1), mandatory:false, custom:false});
     day.events.sort((a,b)=>(a.planned_start||'00:00').localeCompare(b.planned_start||'00:00'));
     recalculateEditedPlan();
 }
@@ -978,7 +1030,7 @@ function renderResults(plan, params, isEditRender = false) {
             <div class="day-schedule">
                 <div class="day-header">
                     <div class="day-title">${day.date_label || day.date}</div>
-                    ${day.day_cost > 0 ? `<div class="day-cost">День: ${day.day_cost.toLocaleString('ru')} ₽</div>` : '<div class="day-cost" style="color:var(--accent)">Бесплатно</div>'}<div class="day-cost">≈ ${Number(day.distance_km||0).toLocaleString('ru')} км</div><button class="day-add-btn" onclick="addCustomPlanPoint('${day.date}')">＋ Добавить точку</button>
+                    ${day.day_cost > 0 ? `<div class="day-cost">День: ${day.day_cost.toLocaleString('ru')} ₽</div>` : '<div class="day-cost" style="color:var(--accent)">Бесплатно</div>'}<div class="day-cost">≈ ${Number(day.distance_km||0).toLocaleString('ru')} км</div><button class="day-add-btn" onclick="addCustomPlanPoint('${day.date}')">＋ Добавить точку</button><button class="day-add-btn" onclick="addDatabaseEventToDay('${day.date}')">＋ Мероприятие из базы</button>
                 </div>
                 <div class="day-events">`;
 
@@ -1007,7 +1059,7 @@ function renderResults(plan, params, isEditRender = false) {
                           <button onclick="removePlanEvent('${day.date}','${e.id}')">Удалить</button>
                           <select aria-label="Заменить мероприятие" onchange="replacePlanEvent('${day.date}','${e.id}',this.value)">
                             <option value="">Заменить на...</option>
-                            ${(plan.candidate_options || []).filter(c => String(c.id) !== String(e.id) && (!c.start_datetime || String(c.start_datetime).slice(0,10) === day.date)).slice(0,50).map(c => `<option value="${c.id}">${escapeHtml(c.title)} · ${c.is_free ? 'бесплатно' : Number(c.price_per_person||0).toLocaleString('ru')+' ₽'}</option>`).join('')}
+                            ${(plan.candidate_options || []).filter(c => String(c.id) !== String(e.id) && (!c.start_datetime || String(c.start_datetime).slice(0,10) === day.date)).map(c => `<option value="${c.id}">${escapeHtml(c.title)} · ${c.is_free ? 'бесплатно' : Number(c.price_per_person||0).toLocaleString('ru')+' ₽'}</option>`).join('')}
                           </select>
                         </div>
                     </div>`;
