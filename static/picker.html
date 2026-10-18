@@ -156,6 +156,23 @@ header{border-bottom:1px solid var(--border);padding:0 48px;display:flex;align-i
 @media(max-width:600px){.modal-body{grid-template-columns:1fr;padding:20px}.modal-field.wide,.modal-note{grid-column:auto}.modal-head,.modal-footer{padding-left:20px;padding-right:20px}.plan-modal{max-height:95vh}.results-section{padding:24px}}
 @media(max-width:700px){.mandatory-form{grid-template-columns:1fr}.mandatory-form .wide{grid-column:auto}}
 
+
+/* Окно выбора мероприятия из базы */
+.db-modal{width:min(900px,100%);max-height:92vh;overflow:hidden;background:var(--surface);border:1px solid var(--accent);box-shadow:0 24px 90px rgba(0,0,0,.55);display:flex;flex-direction:column}
+.db-toolbar{padding:18px 24px;border-bottom:1px solid var(--border);display:grid;grid-template-columns:minmax(0,1fr) 150px;gap:12px}
+.db-toolbar input{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:12px;font-size:13px;outline:none}
+.db-toolbar input:focus{border-color:var(--accent)}
+.db-list{padding:16px 24px;overflow:auto;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.db-event-card{border:1px solid var(--border);background:var(--bg);padding:14px;display:grid;grid-template-columns:64px minmax(0,1fr);gap:12px;min-width:0}
+.db-event-card img,.db-event-placeholder{width:64px;height:76px;object-fit:cover;background:var(--surface2);display:flex;align-items:center;justify-content:center;color:var(--accent);font:italic 24px 'Playfair Display',serif}
+.db-event-info{min-width:0;display:flex;flex-direction:column;gap:6px}
+.db-event-title{font:700 16px 'Playfair Display',serif;line-height:1.25;overflow-wrap:anywhere}
+.db-event-meta{font:10px 'IBM Plex Mono',monospace;color:var(--muted);line-height:1.5}
+.db-event-price{font:11px 'IBM Plex Mono',monospace;color:var(--accent)}
+.db-event-add{margin-top:5px;align-self:flex-start;background:var(--accent);border:1px solid var(--accent);color:#111;padding:8px 12px;font:10px 'IBM Plex Mono',monospace;letter-spacing:.05em;text-transform:uppercase;cursor:pointer}
+.db-empty{grid-column:1/-1;padding:28px;text-align:center;color:var(--muted);font-size:12px}
+@media(max-width:650px){.db-toolbar{grid-template-columns:1fr}.db-list{grid-template-columns:1fr;padding:12px}.db-modal{max-height:95vh}}
+
 /* Нет результатов */
 .no-results{padding:60px 48px;text-align:center;border-bottom:1px solid var(--border)}
 .no-results-icon{font-family:'Playfair Display',serif;font-size:64px;color:rgba(200,169,110,0.15);margin-bottom:16px}
@@ -412,6 +429,20 @@ input[type=range]{width:100%;accent-color:var(--accent);background:transparent;m
       <div class="modal-note" id="plan-point-note">После подтверждения план будет пересчитан: обязательная точка сохранится, а мероприятия, которые конфликтуют с ней по времени, будут заменены при наличии подходящих вариантов.</div>
     </div>
     <div class="modal-footer"><button type="button" class="modal-secondary" onclick="closePlanPointModal()">Отмена</button><button type="button" class="modal-primary" id="plan-point-submit" onclick="submitPlanPointModal()">Добавить и перестроить план</button></div>
+  </div>
+</div>
+
+
+<!-- Красивое окно выбора мероприятия из базы -->
+<div class="modal-backdrop" id="database-event-modal" role="dialog" aria-modal="true" aria-labelledby="db-modal-title" onclick="if(event.target===this)closeDatabaseEventModal()">
+  <div class="db-modal">
+    <div class="modal-head">
+      <div><div class="modal-kicker">Афиша SPB · база мероприятий</div><div class="modal-title" id="db-modal-title">Добавить мероприятие</div><div class="modal-subtitle" id="db-modal-subtitle">Выберите событие для выбранного дня. Занятые интервалы будут защищены от пересечений.</div></div>
+      <button type="button" class="modal-close" aria-label="Закрыть" onclick="closeDatabaseEventModal()">×</button>
+    </div>
+    <div class="db-toolbar"><input id="db-event-search" type="search" placeholder="Поиск по названию, категории или месту…" oninput="renderDatabaseEventOptions()"><input id="db-event-time" type="time" value="12:00" aria-label="Время начала для события без фиксированного времени"></div>
+    <div class="db-list" id="db-event-list"><div class="db-empty">Загрузка мероприятий…</div></div>
+    <div class="modal-footer"><button type="button" class="modal-secondary" onclick="closeDatabaseEventModal()">Закрыть</button></div>
   </div>
 </div>
 
@@ -686,35 +717,40 @@ async function submitPlanPointModal() {
 
     const day = currentPlan?.schedule?.find(d => d.date === date);
     if (!day) { alert('Не удалось найти выбранный день плана.'); return; }
-    const overlaps = (day.events || []).filter(e => {
-        const start = e.planned_start || String(e.start_datetime || '').slice(11,16);
-        let end = e.planned_end;
-        if (!end && start) end = calculateMandatoryEnd(start, Number(e.duration_minutes || 90));
-        return start && end && start_time < end && end_time > start;
-    });
-    const conflictText = overlaps.length
-      ? `\n\nНа это время уже запланировано: ${overlaps.map(e => `«${e.title}» (${e.planned_start || ''}–${e.planned_end || ''})`).join(', ')}.\nЕсли продолжить, план будет пересчитан, а конфликтующие обычные мероприятия не будут сохраняться любой ценой.`
-      : '';
-    if (overlaps.length && !window.confirm((planPointModalMode === 'exhibition' ? 'Добавить экспозицию на занятое время?' : 'Добавить обязательную точку на занятое время?') + conflictText + '\n\nПродолжить?')) return;
-
     // Не допускаем пересечения двух точек, которые пользователь уже закрепил вручную.
     const fixedConflict = mandatoryPoints.find(p => p.date === date && start_time < p.end_time && end_time > p.start_time);
     if (fixedConflict) {
         alert(`В это время уже закреплена обязательная точка «${fixedConflict.title}». Измените время новой точки или существующей.`);
         return;
     }
-    mandatoryPoints.push({
+    const scheduleConflict = (day.events || []).find(e => {
+        const es = e.planned_start || String(e.start_datetime || '').slice(11,16);
+        const ee = e.planned_end || (es ? calculateMandatoryEnd(es, Number(e.duration_minutes || 120)) : '');
+        return es && ee && start_time < ee && end_time > es;
+    });
+    if (scheduleConflict) {
+        alert(`В это время уже запланировано «${scheduleConflict.title}» (${scheduleConflict.planned_start || ''}–${scheduleConflict.planned_end || ''}). Выберите свободный интервал: существующие точки не будут удалены автоматически.`);
+        return;
+    }
+    const point = {
         id: (planPointModalMode === 'exhibition' ? 'exhibition-' : 'mandatory-') + Date.now(),
-        title, date, start_time, end_time, address,
-        venue_title: address,
-        price_per_person: price,
-        duration_minutes: duration,
+        title, date, start_time, end_time, address, venue_title: address,
+        price_per_person: price, duration_minutes: duration,
         category: planPointModalMode === 'exhibition' ? 'Постоянная экспозиция' : 'Личная точка',
         url, mandatory: true, permanent_exhibition: planPointModalMode === 'exhibition'
+    };
+    mandatoryPoints.push(point);
+    day.events.push({
+        id: point.id, title, category: point.category, venue_title: address, venue_address: address,
+        planned_start: start_time, planned_end: end_time, start_datetime: `${date} ${start_time}`,
+        duration_minutes: duration, price_per_person: price, price_total: price * Number(currentPlan.group_size || 1),
+        is_free: price === 0, image_url: '', url, mandatory: true, custom: true,
+        permanent_exhibition: point.permanent_exhibition, slot_label: 'Постоянная экспозиция'
     });
+    day.events.sort((a,b) => String(a.planned_start || '00:00').localeCompare(String(b.planned_start || '00:00')));
     renderMandatoryPoints();
     closePlanPointModal();
-    generatePlan();
+    recalculateEditedPlan();
 }
 
 function escapeHtml(value) {
@@ -808,42 +844,90 @@ function addCustomPlanPoint(dayDate) {
     recalculateEditedPlan();
 }
 
+let databaseModalDay = null;
+let databaseModalOptions = [];
+
 async function addDatabaseEventToDay(dayDate) {
     const day = currentPlan?.schedule?.find(d => d.date === dayDate);
     if (!day) return;
+    databaseModalDay = dayDate;
     let options = (currentPlan.candidate_options || []).filter(c => !c.start_datetime || String(c.start_datetime).slice(0,10) === dayDate);
     if (!options.length) {
         try {
             const response = await fetch(`${API_BASE_URL}/api/events?limit=2000`);
             const payload = await response.json();
-            options = (payload.events || []).filter(c => !c.start_datetime || String(c.start_datetime).slice(0,10) === dayDate).map(c => ({...c, price_per_person:c.price_min || 0, duration_minutes:c.duration_minutes || 120}));
-        } catch (_) { alert('Не удалось загрузить мероприятия из базы.'); return; }
+            if (!response.ok) throw new Error(payload.detail || 'Не удалось загрузить базу');
+            options = (payload.events || []).filter(c => !c.start_datetime || String(c.start_datetime).slice(0,10) === dayDate)
+                .map(c => ({...c, price_per_person:c.price_min || 0, duration_minutes:c.duration_minutes || 120}));
+        } catch (err) { alert('Не удалось загрузить мероприятия из базы: ' + err.message); return; }
     }
     const existing = new Set((day.events || []).map(e => String(e.id)));
-    options = options.filter(c => !existing.has(String(c.id)));
-    if (!options.length) { alert('В базе нет других мероприятий на выбранный день.'); return; }
-    const lines = options.map((e,i) => `${i+1}. ${e.title} — ${e.start_datetime || 'время не указано'}; ${e.is_free ? 'бесплатно' : (Number(e.price_per_person || e.price_min || 0).toLocaleString('ru') + ' ₽')}`).join('\n');
-    const answer = prompt('Выберите мероприятие из общей базы, введя его номер:\n\n' + lines);
-    if (answer === null) return;
-    const index = Number(answer) - 1;
-    if (!Number.isInteger(index) || index < 0 || index >= options.length) { alert('Укажите номер мероприятия из списка.'); return; }
-    const candidate = options[index];
+    databaseModalOptions = options.filter(c => !existing.has(String(c.id)));
+    if (!databaseModalOptions.length) { alert('В базе нет других мероприятий на выбранный день.'); return; }
+    document.getElementById('db-event-search').value = '';
+    document.getElementById('db-event-time').value = '12:00';
+    document.getElementById('database-event-modal').classList.add('open');
+    document.body.style.overflow = 'hidden';
+    renderDatabaseEventOptions();
+    setTimeout(() => document.getElementById('db-event-search').focus(), 50);
+}
+
+function closeDatabaseEventModal() {
+    document.getElementById('database-event-modal')?.classList.remove('open');
+    document.body.style.overflow = '';
+    databaseModalDay = null;
+}
+
+function renderDatabaseEventOptions() {
+    const list = document.getElementById('db-event-list');
+    if (!list) return;
+    const q = (document.getElementById('db-event-search')?.value || '').trim().toLocaleLowerCase('ru');
+    const options = databaseModalOptions.filter(e => [e.title,e.category,e.venue_title,e.venue_address]
+        .some(v => String(v || '').toLocaleLowerCase('ru').includes(q)));
+    if (!options.length) { list.innerHTML = '<div class="db-empty">Ничего не найдено. Попробуйте изменить запрос.</div>'; return; }
+    list.innerHTML = options.map(e => {
+        const price = e.is_free ? 'Бесплатно' : (Number(e.price_per_person ?? e.price_min ?? 0) > 0 ? `от ${Number(e.price_per_person ?? e.price_min).toLocaleString('ru')} ₽` : 'Цена не указана');
+        const time = String(e.start_datetime || '').slice(11,16);
+        const image = e.image_url ? `<img src="${escapeHtml(e.image_url)}" alt="" loading="lazy">` : '<div class="db-event-placeholder">✦</div>';
+        return `<article class="db-event-card">${image}<div class="db-event-info"><div class="db-event-title">${escapeHtml(e.title || 'Без названия')}</div><div class="db-event-meta">${escapeHtml(e.category || 'Мероприятие')}<br>${escapeHtml(e.venue_title || e.venue_address || 'Место уточняется')}<br>${time ? 'Начало по афише: ' + escapeHtml(time) : 'Время можно выбрать'} · ${escapeHtml(e.age_restriction || '0+')}</div><div class="db-event-price">${price}</div><button type="button" class="db-event-add" onclick="selectDatabaseEvent('${String(e.id).replace(/'/g, '')}')">Добавить в план</button></div></article>`;
+    }).join('');
+}
+
+function selectDatabaseEvent(candidateId) {
+    const day = currentPlan?.schedule?.find(d => d.date === databaseModalDay);
+    const candidate = databaseModalOptions.find(c => String(c.id) === String(candidateId));
+    if (!day || !candidate) return;
+    if ((day.events || []).some(e => String(e.id) === String(candidate.id))) { alert('Это мероприятие уже есть в плане.'); return; }
     const datePart = String(candidate.start_datetime || '').slice(0,10);
-    if (datePart && datePart !== dayDate) { alert('Это мероприятие проходит в другую дату.'); return; }
-    const start = String(candidate.start_datetime || '').slice(11,16) || '12:00';
-    const duration = Number(candidate.duration_minutes || 120);
+    if (datePart && datePart !== databaseModalDay) { alert('Это мероприятие проходит в другую дату.'); return; }
+    const publishedTime = String(candidate.start_datetime || '').slice(11,16);
+    const start = publishedTime || document.getElementById('db-event-time').value || '12:00';
+    const duration = Math.max(15, Number(candidate.duration_minutes || 120));
     const endMins = Number(start.slice(0,2))*60 + Number(start.slice(3,5)) + duration;
-    const end = String(Math.floor(endMins/60)%24).padStart(2,'0') + ':' + String(endMins%60).padStart(2,'0');
+    if (endMins > 24*60) { alert('Мероприятие не помещается в выбранный день.'); return; }
+    const end = String(Math.floor(endMins/60)).padStart(2,'0') + ':' + String(endMins%60).padStart(2,'0');
     const overlaps = (day.events || []).filter(e => {
         const es = e.planned_start || String(e.start_datetime || '').slice(11,16);
         const ee = e.planned_end || (es ? calculateMandatoryEnd(es, Number(e.duration_minutes || 120)) : '');
         return es && ee && start < ee && end > es;
     });
-    if (overlaps.length && !window.confirm(`«${candidate.title}» добавляется с высоким приоритетом на ${start}–${end}. На это время уже есть: ${overlaps.map(e=>`«${e.title}»`).join(', ')}. Удалить конфликтующие мероприятия из плана и продолжить?`)) return;
-    const conflictIds = new Set(overlaps.map(e=>String(e.id)));
-    day.events = (day.events || []).filter(e => !conflictIds.has(String(e.id)));
-    day.events.push({...candidate, planned_start:start, planned_end:end, slot_label:'Выбрано вами · высокий приоритет', price_per_person:Number(candidate.price_per_person ?? candidate.price_min ?? 0), price_total:candidate.is_free?0:Number(candidate.price_per_person ?? candidate.price_min ?? 0)*Number(currentPlan.group_size||1), mandatory:false, custom:false});
+    if (overlaps.length) {
+        const protectedEvents = overlaps.filter(e => e.mandatory || e.permanent_exhibition || String(e.id).startsWith('exhibition-'));
+        if (protectedEvents.length) {
+            alert(`«${candidate.title}» пересекается с обязательной точкой «${protectedEvents[0].title}» (${protectedEvents[0].planned_start || ''}–${protectedEvents[0].planned_end || ''}). Эта точка сохранена. Выберите другое мероприятие или освободите время.`);
+            return;
+        }
+        if (!window.confirm(`«${candidate.title}» (${start}–${end}) пересекается с ${overlaps.map(e=>`«${e.title}»`).join(', ')}. Удалить только конфликтующие обычные мероприятия и добавить выбранное?`)) return;
+        const ids = new Set(overlaps.map(e => String(e.id)));
+        day.events = day.events.filter(e => !ids.has(String(e.id)));
+    }
+    const price = Number(candidate.price_per_person ?? candidate.price_min ?? 0);
+    day.events.push({...candidate, planned_start:start, planned_end:end,
+        slot_label: publishedTime ? 'По времени афиши' : 'Добавлено в план',
+        price_per_person:price, price_total:candidate.is_free?0:price*Number(currentPlan.group_size||1),
+        mandatory:false, custom:false});
     day.events.sort((a,b)=>(a.planned_start||'00:00').localeCompare(b.planned_start||'00:00'));
+    closeDatabaseEventModal();
     recalculateEditedPlan();
 }
 
