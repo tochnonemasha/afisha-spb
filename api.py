@@ -10,12 +10,21 @@ import hashlib
 import threading
 import schedule
 import time
+import os
+import json
+import urllib.parse
+import urllib.request
 
 from database import SessionLocal, init_db, User, UserInteraction, Event
 from recommender import HybridRecommender
 
 # ─── ИНИЦИАЛИЗАЦИЯ ────────────────────────────────────────
 app = FastAPI(title="Афиша SPB — API", version="1.0")
+
+
+class AddressRequest(BaseModel):
+    address: str = Field(..., min_length=3, max_length=500)
+
 
 # CORS — фронтенд и API могут быть размещены на разных Railway-доменах
 app.add_middleware(
@@ -145,9 +154,6 @@ class EventCreateRequest(BaseModel):
     site_url: Optional[str] = None
     is_private: bool = False
     max_participants: Optional[int] = Field(None, ge=1)
-
-class AddressRequest(BaseModel):
-    address: str = Field(..., min_length=3, max_length=500)
 
 class SmartPlanRequest(BaseModel):
     user_id: Optional[int] = None
