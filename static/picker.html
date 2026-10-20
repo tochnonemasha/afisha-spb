@@ -5,9 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Умный подбор — АФИША SPB</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{--bg:#0C0C0E;--surface:#141416;--surface2:#1C1C1F;--border:#2A2A2E;--accent:#C8A96E;--accent2:#E8C88E;--text:#F0EDE8;--muted:#888580;--red:#D64040}
+.day-map{height:300px;width:100%;border-top:1px solid var(--border);background:#202024;z-index:1}.map-status{padding:10px 14px;font-size:11px;color:var(--muted);border-top:1px solid var(--border)}.map-status a{color:var(--accent);text-decoration:underline}
 body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',sans-serif;min-height:100vh}
 a{color:inherit;text-decoration:none}
 button,input,select,textarea{font-family:inherit}
@@ -483,16 +486,17 @@ function initAddressSuggestions() {
 
 
 async function validateRealAddress(address) {
-    if (!address) return true;
+    if (!address) return null;
     const response = await fetch(`${API_BASE_URL}/api/geocode`, {
         method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({address})
     });
     const data = await response.json();
     if (!response.ok) throw new Error(data.detail || 'Не удалось проверить адрес');
-    if (!data.success) { alert(data.message || 'Выберите реальный адрес из подсказок.'); return false; }
-    return true;
+    if (!data.success || !Number.isFinite(Number(data.latitude)) || !Number.isFinite(Number(data.longitude))) {
+        throw new Error(data.message || 'Адрес не подтверждён. Выберите точку из подсказок или уточните адрес.');
+    }
+    return data;
 }
-
 
 // === ИНИЦИАЛИЗАЦИЯ ДАТ ===
 function initDates() {
@@ -616,7 +620,7 @@ function updateMandatoryEndPreview() {
       : 'Время окончания должно быть позже времени начала.';
 }
 
-function addMandatoryPointFromForm() {
+async function addMandatoryPointFromForm() {
     const title = document.getElementById('mandatory-title').value.trim();
     const date = document.getElementById('mandatory-date').value;
     const start_time = document.getElementById('mandatory-start').value;
@@ -626,9 +630,14 @@ function addMandatoryPointFromForm() {
     if (!title || !date || !start_time || !end_time) { alert('Укажите название, дату, время начала и окончания.'); return; }
     if (!duration || duration < 15 || duration > 1440) { alert('Время окончания должно быть позже начала, длительность — от 15 минут до 24 часов.'); return; }
     if (costInput !== '' && Number(costInput) < 0) { alert('Стоимость не может быть отрицательной'); return; }
+    const address = document.getElementById('mandatory-address').value.trim();
+    let geocoded = null;
+    if (address) { try { geocoded = await validateRealAddress(address); } catch (err) { alert(err.message); return; } }
     mandatoryPoints.push({
         id: 'mandatory-' + Date.now(), title, date, start_time, end_time,
-        address: document.getElementById('mandatory-address').value.trim(),
+        address: geocoded?.address || address,
+        venue_address: geocoded?.address || address,
+        venue_lat: geocoded?.latitude ?? null, venue_lon: geocoded?.longitude ?? null,
         price_per_person: Number(costInput || 0), duration_minutes: duration,
         category: 'Личная точка', url: ''
     });
@@ -714,7 +723,9 @@ async function submitPlanPointModal() {
     if (!duration || duration < 15 || duration > 720) { alert('Время окончания должно быть позже начала, а длительность — от 15 до 720 минут.'); return; }
     if (!Number.isFinite(price) || price < 0) { alert('Стоимость не может быть отрицательной.'); return; }
     if (url && !/^https?:\/\//i.test(url)) { alert('Ссылка должна начинаться с https:// или http://.'); return; }
-    if (address) { try { if (!(await validateRealAddress(address))) return; } catch (err) { alert(err.message); return; } }
+    let geocoded = null;
+    if (address) { try { geocoded = await validateRealAddress(address); } catch (err) { alert(err.message); return; } }
+    const verifiedAddress = geocoded?.address || address;
 
     const day = currentPlan?.schedule?.find(d => d.date === date);
     if (!day) { alert('Не удалось найти выбранный день плана.'); return; }
@@ -733,14 +744,16 @@ async function submitPlanPointModal() {
     }
     const point = {
         id: (planPointModalMode === 'exhibition' ? 'exhibition-' : (planPointModalMode === 'custom' ? 'custom-' : 'mandatory-')) + Date.now(),
-        title, date, start_time, end_time, address, venue_title: address,
+        title, date, start_time, end_time, address: verifiedAddress, venue_title: verifiedAddress,
+        venue_lat: geocoded?.latitude ?? null, venue_lon: geocoded?.longitude ?? null,
         price_per_person: price, duration_minutes: duration,
         category: planPointModalMode === 'exhibition' ? 'Постоянная экспозиция' : 'Личная точка',
         url, mandatory: true, permanent_exhibition: planPointModalMode === 'exhibition'
     };
     mandatoryPoints.push(point);
     day.events.push({
-        id: point.id, title, category: point.category, venue_title: address, venue_address: address,
+        id: point.id, title, category: point.category, venue_title: verifiedAddress, venue_address: verifiedAddress,
+        venue_lat: point.venue_lat, venue_lon: point.venue_lon,
         planned_start: start_time, planned_end: end_time, start_datetime: `${date} ${start_time}`,
         duration_minutes: duration, price_per_person: price, price_total: price * Number(currentPlan.group_size || 1),
         is_free: price === 0, image_url: '', url, mandatory: true, custom: true,
@@ -1146,7 +1159,7 @@ function renderResults(plan, params, isEditRender = false) {
             </div>`;
         }
 
-        html += `</div></div>`;
+        html += `</div><div class="day-map" id="day-map-${String(day.date).replace(/[^0-9]/g,'')}"></div><div class="map-status" id="map-status-${String(day.date).replace(/[^0-9]/g,'')}">Загружаем карту и проверяем координаты точек…</div></div>`;
     });
 
     // Итоговая сводка
@@ -1179,7 +1192,72 @@ function renderResults(plan, params, isEditRender = false) {
     }
 
     content.innerHTML = html;
+    initDayMaps(schedule, currentPlanParams?.travel_mode || 'walk');
     section.scrollIntoView({ behavior: 'smooth' });
+}
+
+
+// Карты: маркеры строятся только по подтверждённым координатам. Дорожная линия
+// запрашивается с OSM-роутера; если он недоступен, не выдаём прямую линию за маршрут.
+const renderedDayMaps = new Map();
+async function initDayMaps(schedule, requestedMode) {
+    if (!window.L) {
+        document.querySelectorAll('.map-status').forEach(el => el.textContent = 'Не загрузилась библиотека карты. Обновите страницу.');
+        return;
+    }
+    for (const day of (schedule || [])) {
+        const key = String(day.date || '').replace(/[^0-9]/g, '');
+        const mapEl = document.getElementById(`day-map-${key}`);
+        const statusEl = document.getElementById(`map-status-${key}`);
+        if (!mapEl || !statusEl) continue;
+        const points = (day.events || []).filter(e => Number.isFinite(Number(e.venue_lat)) && Number.isFinite(Number(e.venue_lon)) && e.venue_lat !== '' && e.venue_lon !== '');
+        if (!points.length) {
+            statusEl.textContent = 'На этот день нет подтверждённых координат. Для точек из базы укажите/проверьте адрес площадки.';
+            continue;
+        }
+        let map = renderedDayMaps.get(mapEl.id);
+        if (map) { map.remove(); renderedDayMaps.delete(mapEl.id); }
+        map = L.map(mapEl, {scrollWheelZoom:false}).setView([Number(points[0].venue_lat), Number(points[0].venue_lon)], 13);
+        renderedDayMaps.set(mapEl.id, map);
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19, attribution:'&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a>'}).addTo(map);
+        const latlngs = [];
+        points.forEach((point, idx) => {
+            const ll = [Number(point.venue_lat), Number(point.venue_lon)]; latlngs.push(ll);
+            const time = point.planned_start || (point.start_datetime || '').slice(11,16) || '';
+            L.marker(ll).addTo(map).bindPopup(`<strong>${escapeHtml(point.title || 'Точка')}</strong><br>${escapeHtml(time)}<br>${escapeHtml(point.venue_address || point.venue_title || '')}`);
+        });
+        if (points.length === 1) {
+            map.setView(latlngs[0], 15);
+            statusEl.textContent = `На карте отмечена точка: ${points[0].venue_address || points[0].venue_title || points[0].title}.`;
+            setTimeout(() => map.invalidateSize(), 100);
+            continue;
+        }
+        map.fitBounds(L.latLngBounds(latlngs).pad(0.15));
+        const mode = requestedMode === 'car' ? 'car' : (requestedMode === 'walk' ? 'walk' : 'transit');
+        if (mode === 'transit') {
+            L.polyline(latlngs, {color:'#C8A96E',weight:3,dashArray:'7 8',opacity:.9}).addTo(map);
+            statusEl.textContent = 'Общественный транспорт: пунктир соединяет точки по порядку, это НЕ маршрут метро/автобуса. Дорожный роутер для этого режима не используется.';
+        } else {
+            statusEl.textContent = 'Строим маршрут по дорожной сети…';
+            try {
+                const response = await fetch(`${API_BASE_URL}/api/route`, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode,points:points.map(p=>({venue_lat:Number(p.venue_lat),venue_lon:Number(p.venue_lon)}))})});
+                const route = await response.json();
+                if (response.ok && route.success && Array.isArray(route.geometry) && route.geometry.length) {
+                    const routeLatLngs = route.geometry.map(c => [c[1],c[0]]);
+                    L.polyline(routeLatLngs,{color:'#C8A96E',weight:4,opacity:.9}).addTo(map);
+                    map.fitBounds(L.latLngBounds(routeLatLngs).pad(0.12));
+                    statusEl.textContent = `Маршрут по дорожной сети OpenStreetMap/OSRM: ${route.distance_km} км, около ${route.duration_minutes} мин. Время не учитывает пробки и остановки.`;
+                } else {
+                    L.polyline(latlngs,{color:'#C8A96E',weight:3,dashArray:'7 8',opacity:.9}).addTo(map);
+                    statusEl.textContent = (route.message || 'Не удалось построить дорожный маршрут.') + ' Пунктир — только порядок точек, не путь по дорогам.';
+                }
+            } catch (_) {
+                L.polyline(latlngs,{color:'#C8A96E',weight:3,dashArray:'7 8',opacity:.9}).addTo(map);
+                statusEl.textContent = 'Роутер временно недоступен. Пунктир — только порядок точек, не путь по дорогам.';
+            }
+        }
+        setTimeout(() => map.invalidateSize(), 100);
+    }
 }
 
 function mapCat(cat) {
@@ -1220,6 +1298,7 @@ function resetForm() {
 
 // === ИНИЦИАЛИЗАЦИЯ ===
 initDates();
+initAddressSuggestions();
 toggleBudgetFields();
 const mandatoryDateInput = document.getElementById('mandatory-date');
 if (mandatoryDateInput) { mandatoryDateInput.value = document.getElementById('date-from').value || '2026-12-01'; }
