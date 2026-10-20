@@ -1,7 +1,7 @@
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-from fastapi import FastAPI, HTTPException, Depends, Query
 from pydantic import BaseModel, Field
 from typing import Optional, List
 from datetime import datetime
@@ -24,6 +24,11 @@ app = FastAPI(title="Афиша SPB — API", version="1.0")
 
 class AddressRequest(BaseModel):
     address: str = Field(..., min_length=3, max_length=500)
+
+
+class RouteRequest(BaseModel):
+    points: List[dict] = Field(..., min_items=2, max_items=20)
+    mode: str = "walk"
 
 
 # CORS — фронтенд и API могут быть размещены на разных Railway-доменах
@@ -120,11 +125,48 @@ def geocode_api(data: AddressRequest):
         if len(pos) != 2:
             return {"success": False, "message": "Не удалось определить координаты. Уточните адрес."}
         lon, lat = map(float, pos)
-        return {"success": True, "address": meta.get("text") or address, "latitude": lat, "longitude": lon, "precision": precision}
+        canonical = (meta.get("text") or address).strip()
+        # Не считаем произвольный текст валидным только потому, что геокодер
+        # подобрал для него город/регион. Для маршрута нужна точка конкретного места.
+        if precision in ("other", "country", "province", "locality"):
+            return {"success": False, "message": "Найден только город или регион. Уточните улицу, номер дома или название конкретного места.", "precision": precision}
+        return {"success": True, "address": canonical, "latitude": lat, "longitude": lon, "precision": precision}
     except HTTPException:
         raise
     except Exception:
         raise HTTPException(status_code=502, detail="Сервис проверки адреса временно недоступен. Попробуйте ещё раз.")
+
+
+@app.post("/api/route")
+def route_api(data: RouteRequest):
+    """Строит реальный пеший/автомобильный маршрут по OSM; transit не имитируем."""
+    mode = (data.mode or "walk").lower()
+    if mode not in ("walk", "car"):
+        raise HTTPException(status_code=422, detail="Реальный маршрут доступен для пешего и автомобильного режимов. Для общественного транспорта пока показывается оценка.")
+    coords = []
+    for point in data.points:
+        try:
+            lat = float(point.get("venue_lat", point.get("latitude", point.get("lat"))))
+            lon = float(point.get("venue_lon", point.get("longitude", point.get("lon"))))
+            if not (-90 <= lat <= 90 and -180 <= lon <= 180): raise ValueError()
+            coords.append((lat, lon))
+        except (TypeError, ValueError):
+            raise HTTPException(status_code=422, detail="У одной из точек нет корректных координат. Проверьте адреса.")
+    # OSM-compatible router supports the route geometry for all stops in one request.
+    profile = "driving" if mode == "car" else "driving"
+    base = "https://router.project-osrm.org/route/v1/" if mode == "car" else "https://routing.openstreetmap.de/routed-foot/route/v1/"
+    coord_path = ";".join(f"{lon},{lat}" for lat, lon in coords)
+    url = base + profile + "/" + coord_path + "?overview=full&geometries=geojson&steps=false"
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "AfishaSPBPlanner/1.0"})
+        with urllib.request.urlopen(req, timeout=12) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+        route = (payload.get("routes") or [None])[0]
+        if payload.get("code") != "Ok" or not route:
+            return {"success": False, "message": "Роутер не смог построить путь по этим точкам."}
+        return {"success": True, "distance_km": round(route["distance"] / 1000, 2), "duration_minutes": round(route["duration"] / 60), "geometry": route.get("geometry", {}).get("coordinates", []), "source": "OpenStreetMap / OSRM", "mode": mode}
+    except Exception:
+        return {"success": False, "message": "Сервис маршрутов временно недоступен. На карте останутся отметки точек без дорожного маршрута."}
 
 # Глобальная модель — обучается один раз при старте
 # и переобучается по расписанию
@@ -357,13 +399,14 @@ def update_user(user_id: int, data: dict, db=Depends(get_db)):
     return {"success": True, "user": {"id": user.id, "name": user.name, "email": user.email}}
 
 # ─── ЭНДПОИНТЫ: МЕРОПРИЯТИЯ ───────────────────────────────
+
 @app.get("/api/events")
 def get_events(
     category: Optional[str] = None,
     max_price: Optional[int] = None,
     benefits: Optional[str] = None,
-    limit: int = Query(default=100, ge=1, le=2000),
-    offset: int = Query(default=0, ge=0),
+    limit: int = Field(100, ge=1, le=2000),
+    offset: int = Field(0, ge=0),
     db=Depends(get_db)
 ):
     query = db.query(Event)
