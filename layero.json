@@ -1,5 +1,5 @@
 {
-  "framework": "generic",
+  "framework": "static",
   "buildCommand": "pip install -r requirements.txt",
-  "outputDirectory": "."
+  "outputDirectory": "static"
 }
