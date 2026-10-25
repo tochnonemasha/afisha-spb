@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>АФИША — Санкт-Петербург</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0C0C0E;--surface:#141416;--surface2:#1C1C1F;--border:#2A2A2E;
+  --accent:#C8A96E;--accent2:#E8C88E;--text:#F0EDE8;--muted:#888580;--red:#D64040;
+}
+body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',sans-serif;min-height:100vh}
+a{color:inherit;text-decoration:none}
+button,input,select,textarea{font-family:inherit}
+
+/* ── HEADER ── */
+header{border-bottom:1px solid var(--border);padding:0 48px;display:flex;align-items:center;justify-content:space-between;height:64px;position:sticky;top:0;z-index:100;background:rgba(12,12,14,0.96);backdrop-filter:blur(12px)}
+.logo{font-family:'Playfair Display',serif;font-size:22px;font-weight:900;letter-spacing:0.08em;color:var(--accent)}
+.logo span{color:var(--text);font-weight:400;font-size:13px;font-family:'IBM Plex Mono',monospace;margin-left:10px;opacity:0.45;letter-spacing:0.15em}
+nav{display:flex;gap:28px;align-items:center}
+nav a{color:var(--muted);font-size:12px;letter-spacing:0.08em;text-transform:uppercase;transition:color 0.2s}
+nav a:hover{color:var(--text)}
+nav a.active{color:var(--accent)}
+.header-right{display:flex;gap:10px;align-items:center}
+.btn-login{background:none;border:1px solid var(--border);color:var(--muted);padding:8px 18px;font-size:12px;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;font-family:'IBM Plex Mono',monospace;transition:all 0.2s}
+.btn-login:hover{border-color:var(--muted);color:var(--text)}
+.btn-reg{background:var(--accent);border:1px solid var(--accent);color:#000;padding:8px 18px;font-size:12px;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;font-family:'IBM Plex Mono',monospace;font-weight:500;transition:all 0.2s}
+.btn-reg:hover{background:var(--accent2)}
+.btn-fav-h{background:none;border:none;color:var(--muted);padding:8px 12px;font-size:14px;cursor:pointer;transition:color 0.2s;letter-spacing:0}
+.btn-fav-h:hover{color:var(--accent)}
+
+/* ── HERO ── */
+.hero{padding:72px 48px 56px;display:grid;grid-template-columns:1fr 1fr;gap:64px;align-items:end;border-bottom:1px solid var(--border)}
+.hero-text h1{font-family:'Playfair Display',serif;font-size:68px;line-height:1;font-weight:900;letter-spacing:-0.02em;margin-bottom:20px}
+.hero-text h1 em{font-style:italic;color:var(--accent)}
+.hero-sub{color:var(--muted);font-size:14px;line-height:1.75;max-width:400px;font-weight:300}
+.hero-stats{display:flex;gap:40px;margin-top:40px}
+.stat{border-left:2px solid var(--accent);padding-left:14px}
+.stat-num{font-family:'Playfair Display',serif;font-size:30px;font-weight:700;color:var(--accent)}
+.stat-label{font-size:10px;letter-spacing:0.12em;text-transform:uppercase;color:var(--muted);margin-top:3px}
+
+/* SMART PICKER CTA */
+.picker-cta{margin-top:36px;background:var(--surface);border:1px solid var(--border);padding:20px 24px;display:flex;align-items:center;gap:20px;cursor:pointer;transition:border-color 0.25s;position:relative;overflow:hidden}
+.picker-cta::before{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(200,169,110,0.04));opacity:0}
+.picker-cta:hover{border-color:var(--accent)}
+.picker-cta:hover::before{opacity:1}
+.picker-icon{width:44px;height:44px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.picker-text-block{flex:1}
+.picker-label{font-size:10px;font-family:'IBM Plex Mono',monospace;letter-spacing:0.2em;text-transform:uppercase;color:var(--accent);margin-bottom:4px}
+.picker-title{font-size:15px;font-weight:500;line-height:1.3}
+.picker-sub{font-size:12px;color:var(--muted);margin-top:3px;font-weight:300}
+.picker-arrow{font-size:18px;color:var(--border);transition:color 0.2s}
+.picker-cta:hover .picker-arrow{color:var(--accent)}
+
+/* HERO VISUAL */
+.hero-visual{position:relative;height:300px}
+.hero-card-preview{position:absolute;background:var(--surface);border:1px solid var(--border);width:240px;overflow:hidden}
+.hero-card-preview:nth-child(1){top:0;left:20px;transform:rotate(-2deg)}
+.hero-card-preview:nth-child(2){top:80px;left:150px;transform:rotate(1.5deg);z-index:2;border-color:var(--accent)}
+.hcp-img{height:100px;background:var(--surface2);position:relative;overflow:hidden}
+.hcp-img img{width:100%;height:100%;object-fit:cover;opacity:0.8}
+.hcp-body{padding:14px}
+.hcp-cat{font-size:9px;letter-spacing:0.2em;text-transform:uppercase;color:var(--accent);margin-bottom:6px;font-family:'IBM Plex Mono',monospace}
+.hcp-title{font-family:'Playfair Display',serif;font-size:15px;font-weight:700;line-height:1.2;margin-bottom:8px}
+.hcp-info{font-size:10px;color:var(--muted);font-family:'IBM Plex Mono',monospace}
+
+/* ── FILTERS ── */
+.filters-section{padding:20px 48px;border-bottom:1px solid var(--border);background:var(--surface)}
+.filters-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.filter-label{font-size:10px;letter-spacing:0.15em;text-transform:uppercase;color:var(--muted);font-family:'IBM Plex Mono',monospace;margin-right:4px;flex-shrink:0}
+.filter-wrapper{position:relative}
+.filter-select{background:var(--bg);border:1px solid var(--border);color:var(--text);padding:8px 34px 8px 12px;font-size:12px;cursor:pointer;appearance:none;-webkit-appearance:none;outline:none;transition:border-color 0.2s;min-width:130px}
+.filter-select:hover,.filter-select:focus{border-color:var(--accent)}
+.filter-arrow{position:absolute;right:10px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--muted);font-size:9px}
+.cal-wrapper{position:relative}
+.cal-btn{background:var(--bg);border:1px solid var(--border);color:var(--text);padding:8px 12px;font-size:12px;font-family:'IBM Plex Mono',monospace;cursor:pointer;display:flex;align-items:center;gap:7px;transition:border-color 0.2s;min-width:150px}
+.cal-btn:hover{border-color:var(--accent)}
+.cal-icon{color:var(--accent);font-size:11px}
+.calendar-popup{display:none;position:absolute;top:calc(100% + 4px);left:0;background:var(--surface);border:1px solid var(--border);z-index:200;padding:14px;width:252px}
+.calendar-popup.open{display:block}
+.cal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.cal-month{font-family:'Playfair Display',serif;font-size:15px;font-weight:700}
+.cal-nav{background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;padding:4px 8px;transition:color 0.2s}
+.cal-nav:hover{color:var(--accent)}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:1px}
+.cal-day-name{font-size:9px;letter-spacing:0.1em;color:var(--muted);text-align:center;padding:3px 0;font-family:'IBM Plex Mono',monospace}
+.cal-day{font-size:11px;text-align:center;padding:5px 1px;cursor:pointer;transition:all 0.15s;font-family:'IBM Plex Mono',monospace;border:1px solid transparent}
+.cal-day:hover{color:var(--accent);border-color:var(--accent)}
+.cal-day.today{color:var(--accent);font-weight:500}
+.cal-day.selected{background:var(--accent);color:#000}
+.cal-day.empty{opacity:0;cursor:default}
+.price-wrapper{position:relative}
+.price-btn{background:var(--bg);border:1px solid var(--border);color:var(--text);padding:8px 12px;font-size:12px;font-family:'IBM Plex Mono',monospace;cursor:pointer;display:flex;align-items:center;gap:7px;transition:border-color 0.2s;min-width:150px}
+.price-btn:hover{border-color:var(--accent)}
+.price-popup{display:none;position:absolute;top:calc(100% + 4px);left:0;background:var(--surface);border:1px solid var(--border);z-index:200;padding:18px;width:250px}
+.price-popup.open{display:block}
+.price-range-label{font-size:11px;font-family:'IBM Plex Mono',monospace;color:var(--muted);margin-bottom:10px;display:flex;justify-content:space-between}
+input[type=range]{width:100%;accent-color:var(--accent);background:transparent}
+.benefit-wrapper{position:relative}
+.benefit-btn{background:var(--bg);border:1px solid var(--border);color:var(--text);padding:8px 12px;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:7px;transition:border-color 0.2s;min-width:140px}
+.benefit-btn:hover{border-color:var(--accent)}
+.benefit-popup{display:none;position:absolute;top:calc(100% + 4px);left:0;background:var(--surface);border:1px solid var(--border);z-index:200;padding:14px;width:210px}
+.benefit-popup.open{display:block}
+.benefit-item{display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:1px solid var(--border)}
+.benefit-item:last-child{border-bottom:none}
+.benefit-item input{accent-color:var(--accent)}
+.benefit-item label{font-size:12px;cursor:pointer}
+.age-filter-wrapper{position:relative}
+.age-filter-btn{background:var(--bg);border:1px solid var(--border);color:var(--text);padding:8px 34px 8px 12px;font-size:12px;cursor:pointer;font-family:'IBM Plex Mono',monospace;min-width:100px}
+.age-filter-wrapper .filter-arrow{position:absolute;right:10px;top:50%;transform:translateY(-50%);pointer-events:none}
+.age-popup{display:none;position:absolute;top:calc(100% + 4px);left:0;background:var(--surface);border:1px solid var(--border);z-index:200;padding:10px;width:180px}
+.age-popup.open{display:block}
+.age-option{padding:8px 12px;cursor:pointer;font-size:12px;transition:background 0.2s}
+.age-option:hover{background:var(--surface2);color:var(--accent)}
+.age-option.selected{color:var(--accent);background:rgba(200,169,110,0.1)}
+.filter-divider{width:1px;height:28px;background:var(--border);margin:0 2px;flex-shrink:0}
+.btn-reset{background:none;border:none;color:var(--muted);font-size:11px;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;font-family:'IBM Plex Mono',monospace;padding:8px 10px;transition:color 0.2s}
+.btn-reset:hover{color:var(--red)}
+
+/* ── CONTENT ── */
+.content{padding:48px}
+.section-header{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:28px}
+.section-title{font-family:'Playfair Display',serif;font-size:30px;font-weight:700}
+.section-count{font-size:11px;font-family:'IBM Plex Mono',monospace;color:var(--muted)}
+.cat-strip{display:flex;gap:6px;margin-bottom:36px;overflow-x:auto;padding-bottom:4px}
+.cat-strip::-webkit-scrollbar{height:2px}
+.cat-strip::-webkit-scrollbar-track{background:var(--border)}
+.cat-strip::-webkit-scrollbar-thumb{background:var(--accent)}
+.cat-chip{background:none;border:1px solid var(--border);color:var(--muted);padding:7px 18px;font-size:11px;letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;font-family:'IBM Plex Mono',monospace;white-space:nowrap;transition:all 0.2s;flex-shrink:0}
+.cat-chip:hover{border-color:var(--text);color:var(--text)}
+.cat-chip.active{background:var(--accent);border-color:var(--accent);color:#000}
+.card-rating{font-size:12px;color:var(--accent);white-space:nowrap;font-family:'IBM Plex Mono',monospace}.card-rating small{color:var(--muted)}
+.attended-btn{background:transparent;border:1px solid var(--border);color:var(--muted);font-size:9px;padding:5px 8px;cursor:pointer;white-space:nowrap}.attended-btn:hover,.attended-btn.is-attended{border-color:var(--accent);color:var(--accent)}
+
+/* ── CARDS ── */
+.cards-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border)}
+.event-card{background:var(--bg);overflow:hidden;cursor:pointer;transition:background 0.2s;position:relative;display:flex;flex-direction:column}
+.event-card:hover{background:var(--surface2)}
+.card-img-wrap{position:relative;height:200px;overflow:hidden;flex-shrink:0}
+.card-img-wrap img{width:100%;height:100%;object-fit:cover;display:block;transition:transform 0.4s ease;filter:brightness(0.85)}
+.event-card:hover .card-img-wrap img{transform:scale(1.04)}
+.card-img-placeholder{width:100%;height:200px;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative}
+.card-img-placeholder::before{content:'';position:absolute;inset:0;background:repeating-linear-gradient(-45deg,transparent,transparent 40px,rgba(200,169,110,0.03) 40px,rgba(200,169,110,0.03) 80px)}
+.card-img-placeholder::after{content:attr(data-letter);position:absolute;font-family:'Playfair Display',serif;font-size:100px;font-weight:900;font-style:italic;color:rgba(200,169,110,0.18);line-height:1;user-select:none;pointer-events:none}
+.card-img-placeholder .cat-placeholder-label{position:absolute;bottom:12px;left:12px;font-size:9px;font-family:'IBM Plex Mono',monospace;letter-spacing:0.2em;text-transform:uppercase;color:rgba(200,169,110,0.5)}
+.card-badges{position:absolute;top:10px;left:10px;right:10px;display:flex;justify-content:space-between;align-items:flex-start;z-index:2}
+.badges-left{display:flex;flex-direction:column;gap:4px}
+.badge-age{background:rgba(12,12,14,0.82);border:1px solid rgba(200,169,110,0.3);color:var(--text);font-size:9px;font-family:'IBM Plex Mono',monospace;padding:3px 7px;letter-spacing:0.1em;display:inline-block}
+.badge-cat{background:var(--accent);color:#000;font-size:9px;font-family:'IBM Plex Mono',monospace;padding:3px 7px;letter-spacing:0.12em;font-weight:500;display:inline-block}
+.badge-private{background:var(--surface2);border:1px solid var(--border);color:var(--muted);font-size:9px;font-family:'IBM Plex Mono',monospace;padding:3px 7px;letter-spacing:0.1em;display:inline-block}
+.btn-fav-card{background:rgba(12,12,14,0.82);border:1px solid rgba(255,255,255,0.1);color:var(--muted);width:30px;height:30px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all 0.2s;font-size:13px;flex-shrink:0}
+.btn-fav-card:hover,.btn-fav-card.active{border-color:var(--accent);color:var(--accent)}
+.card-body{padding:18px;flex:1;display:flex;flex-direction:column}
+.card-date{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--accent);letter-spacing:0.12em;text-transform:uppercase;margin-bottom:7px}
+.card-title{font-family:'Playfair Display',serif;font-size:18px;font-weight:700;line-height:1.25;margin-bottom:8px;letter-spacing:-0.01em;flex:1}
+.card-venue{font-size:11px;color:var(--muted);margin-bottom:14px;display:flex;align-items:center;gap:5px}
+.card-venue::before{content:'';display:inline-block;width:3px;height:3px;background:var(--accent);border-radius:50%;flex-shrink:0}
+.benefit-tags{display:flex;gap:4px;margin-bottom:10px;flex-wrap:wrap}
+.benefit-tag{font-size:8px;font-family:'IBM Plex Mono',monospace;letter-spacing:0.08em;color:#000;background:var(--accent);padding:2px 5px;font-weight:500}
+.card-footer{display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--border);padding-top:12px;margin-top:auto}
+.card-price{font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--text);font-weight:500}
+.card-price em{font-style:normal;font-size:10px;color:var(--muted);margin-right:3px}
+.card-price.free{color:var(--accent)}
+.card-tags{display:flex;gap:5px}
+.tag{font-size:9px;font-family:'IBM Plex Mono',monospace;letter-spacing:0.06em;color:var(--muted);border:1px solid var(--border);padding:2px 7px}
+.card-participants{font-size:10px;font-family:'IBM Plex Mono',monospace;color:var(--muted);display:flex;align-items:center;gap:5px}
+.card-participants::before{content:'●';color:var(--accent2);font-size:7px}
+
+/* ── LOAD MORE ── */
+.load-more-section{padding:40px 48px;text-align:center;border-top:1px solid var(--border)}
+.btn-load{background:none;border:1px solid var(--border);color:var(--muted);padding:12px 44px;font-size:11px;letter-spacing:0.2em;text-transform:uppercase;cursor:pointer;font-family:'IBM Plex Mono',monospace;transition:all 0.3s}
+.btn-load:hover{border-color:var(--accent);color:var(--accent)}
+
+/* ── FOOTER ── */
+footer{border-top:1px solid var(--border);padding:28px 48px;display:flex;justify-content:space-between;align-items:center}
+.footer-logo{font-family:'Playfair Display',serif;font-size:17px;font-weight:900;color:var(--accent);letter-spacing:0.08em}
+.footer-links{display:flex;gap:24px}
+.footer-links a{font-size:11px;font-family:'IBM Plex Mono',monospace;color:var(--muted);transition:color 0.2s}
+.footer-links a:hover{color:var(--text)}
+.footer-copy{font-size:10px;font-family:'IBM Plex Mono',monospace;color:rgba(136,133,128,0.5)}
+
+/* ── LOADING ── */
+.loading-spinner{display:flex;justify-content:center;align-items:center;padding:60px 0;grid-column:1/-1}
+.spinner{width:40px;height:40px;border:2px solid var(--border);border-top:2px solid var(--accent);border-radius:50%;animation:spin 0.8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.error-message{grid-column:1/-1;text-align:center;padding:60px 0;color:var(--muted)}
+.error-message .retry-btn{margin-top:16px;background:none;border:1px solid var(--border);color:var(--text);padding:10px 24px;cursor:pointer;font-family:'IBM Plex Mono',monospace;transition:all 0.2s}
+.error-message .retry-btn:hover{border-color:var(--accent);color:var(--accent)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">АФИША <span>SPB</span></div>
+
+<div class="header-right" id="header-auth">
+    <button class="btn-fav-h" title="Избранное" onclick="window.location.href='/lk.html'">⚑</button>
+    <button class="btn-login" id="btn-login" onclick="window.location.href='/login.html'">Войти</button>
+    <button class="btn-reg" id="btn-reg" onclick="window.location.href='/register.html'">Регистрация</button>
+</div>
+</header>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-text">
+    <h1>Все события<br><em>Петербурга</em><br>в одном месте</h1>
+    <p class="hero-sub">Концерты, театр, спорт, выставки, вечеринки, мастер-классы — находите интересное рядом с вами каждый день.</p>
+    <div class="hero-stats">
+      <div class="stat">
+        <div class="stat-num" id="stat-events">—</div>
+        <div class="stat-label">Событий в базе</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num" id="stat-places">—</div>
+        <div class="stat-label">Площадок</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num" id="stat-free">—</div>
+        <div class="stat-label">Бесплатных</div>
+      </div>
+    </div>
+
+    <!-- SMART PICKER -->
+    <div class="picker-cta" onclick="window.location.href='picker.html'">
+      <div class="picker-icon">✦</div>
+      <div class="picker-text-block">
+        <div class="picker-label">Новое · Умный подбор</div>
+        <div class="picker-title">Подбор мероприятий для вас</div>
+        <div class="picker-sub">Укажите даты и интересы — составим программу автоматически</div>
+      </div>
+      <div class="picker-arrow">→</div>
+    </div>
+  </div>
+
+  <div class="hero-visual">
+    <div class="hero-card-preview">
+      <div class="hcp-img">
+        <img src="https://images.unsplash.com/photo-1507676184212-d03ab07a01bf?w=400&q=60" alt="">
+      </div>
+      <div class="hcp-body">
+        <div class="hcp-cat">Театр</div>
+        <div class="hcp-title">Чайка. Режиссёрская версия</div>
+        <div class="hcp-info">3 мая · БДТ им. Товстоногова</div>
+      </div>
+    </div>
+    <div class="hero-card-preview">
+      <div class="hcp-img"><img src="https://images.unsplash.com/photo-1511192336575-5a79af67a629?w=700&q=80" alt="Джазовый концерт" loading="lazy"></div>
+      <div class="hcp-body">
+        <div class="hcp-cat">Концерт</div>
+        <div class="hcp-title">Джазовый вечер у Аркадия</div>
+        <div class="hcp-info">17 мая · Петроградский р-н</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FILTERS -->
+<section class="filters-section">
+  <div class="filters-row">
+    <span class="filter-label">Фильтры:</span>
+
+    <div class="filter-wrapper">
+      <select class="filter-select" id="district-filter">
+        <option value="">Район</option>
+        <option>Центральный</option><option>Петроградский</option>
+        <option>Василеостровский</option><option>Адмиралтейский</option>
+        <option>Московский</option><option>Выборгский</option><option>Невский</option>
+      </select>
+      <span class="filter-arrow">▾</span>
+    </div>
+
+    <!-- ВОЗРАСТНОЙ ФИЛЬТР -->
+    <div class="age-filter-wrapper" id="age-wrapper">
+      <button class="age-filter-btn" id="age-filter-btn" onclick="toggleAgePopup()">Возраст ▾</button>
+      <div class="age-popup" id="age-popup">
+        <div class="age-option" data-age="0+">0+ · Для всех</div>
+        <div class="age-option" data-age="6+">6+ · Детям</div>
+        <div class="age-option" data-age="12+">12+ · Подросткам</div>
+        <div class="age-option" data-age="16+">16+ · Старше 16</div>
+        <div class="age-option" data-age="18+">18+ · Взрослым</div>
+      </div>
+    </div>
+
+    <div class="cal-wrapper" id="cal-wrapper">
+      <button class="cal-btn" onclick="toggleCal()">
+        <span class="cal-icon">▦</span>
+        <span id="cal-display">Выберите дату</span>
+      </button>
+      <div class="calendar-popup" id="cal-popup">
+        <div class="cal-header">
+          <button class="cal-nav" onclick="prevMonth()">◀</button>
+          <span class="cal-month" id="cal-month-label"></span>
+          <button class="cal-nav" onclick="nextMonth()">▶</button>
+        </div>
+        <div class="cal-grid" id="cal-grid"></div>
+      </div>
+    </div>
+
+    <div class="price-wrapper" id="price-wrapper">
+      <button class="price-btn" onclick="togglePrice()">₽ <span id="price-display">Цена</span></button>
+      <div class="price-popup" id="price-popup">
+        <div class="price-range-label">
+          <span>0 ₽</span>
+          <span id="price-val" style="color:var(--accent)">до 5 000 ₽</span>
+        </div>
+        <input type="range" min="0" max="10000" value="5000" step="500" id="price-slider" oninput="updatePrice(this.value)">
+        <div style="margin-top:10px;font-size:10px;color:var(--muted);font-family:'IBM Plex Mono',monospace">Включая бесплатные</div>
+      </div>
+    </div>
+
+    <div class="filter-divider"></div>
+    <button class="btn-reset" onclick="resetFilters()">Сбросить</button>
+  </div>
+</section>
+
+<!-- MAIN -->
+<main class="content">
+  <div class="section-header">
+    <h2 class="section-title">Ближайшие события</h2>
+    <span class="section-count" id="events-count">Загрузка...</span>
+  </div>
+
+  <div class="cat-strip">
+    <button class="cat-chip active" data-cat="all">Все</button>
+    <button class="cat-chip" data-cat="Театр">Театр</button>
+    <button class="cat-chip" data-cat="Концерт">Концерты</button>
+    <button class="cat-chip" data-cat="Выставка">Выставки</button>
+    <button class="cat-chip" data-cat="Кино">Кино</button>
+    <button class="cat-chip" data-cat="Лекция">Лекции</button>
+    <button class="cat-chip" data-cat="Спорт">Спорт</button>
+    <button class="cat-chip" data-cat="Мастер-класс">Мастер-классы</button>
+    <button class="cat-chip" data-cat="Фестиваль">Фестивали</button>
+    <button class="cat-chip" data-cat="Стендап">Стендап</button>
+    <button class="cat-chip" data-cat="Экскурсия">Экскурсии</button>
+    <button class="cat-chip" data-cat="Частное">Частные</button>
+  </div>
+
+  <div class="cards-grid" id="cards-grid">
+    <div class="loading-spinner"><div class="spinner"></div></div>
+  </div>
+</main>
+
+<div class="load-more-section">
+  <button class="btn-load" id="load-more-btn" style="display:none">Загрузить ещё</button>
+</div>
+
+<footer>
+  <div class="footer-logo">АФИША · SPB</div>
+  <div class="footer-links">
+    <a href="#">О проекте</a>
+    <a href="#">Разместить событие</a>
+    <a href="#">Для организаторов</a>
+    <a href="#">Контакты</a>
+  </div>
+  <div class="footer-copy">© 2026</div>
+</footer>
+
+<script>
+// === КОНФИГУРАЦИЯ ===
+// Для Railway используем тот же домен, где лежит index.html
+const API_BASE_URL = window.location.origin;
+
+// === ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ===
+let events = [];
+let allEvents = [];
+let activeFilter = 'all';
+let selectedAge = null;
+let maxPrice = 1000000;
+let selectedBenefits = [];
+let selectedDate = null;
+let isLoading = false;
+let currentLimit = 15;
+const LOAD_STEP = 15;
+
+// === ЗАГРУЗКА ДАННЫХ С СЕРВЕРА ===
+// Приводим категории из API к русским названиям для фильтров
+function mapCategory(cat) {
+    if (!cat) return 'Другое';
+    const c = cat.toLowerCase();
+    if (c.includes('concert') || c.includes('концерт') || c.includes('music')) return 'Концерт';
+    if (c.includes('theater') || c.includes('театр') || c.includes('спектакл')) return 'Театр';
+    if (c.includes('exhibition') || c.includes('выставк')) return 'Выставка';
+    if (c.includes('education') || c.includes('лекци') || c.includes('семинар')) return 'Лекция';
+    if (c.includes('festival') || c.includes('фестивал')) return 'Фестиваль';
+    if (c.includes('sport') || c.includes('спорт')) return 'Спорт';
+    if (c.includes('stand') || c.includes('стендап')) return 'Стендап';
+    if (c.includes('excursion') || c.includes('экскурси')) return 'Экскурсия';
+    if (c.includes('party') || c.includes('вечеринк')) return 'Вечеринка';
+    if (c.includes('master') || c.includes('мастер')) return 'Мастер-класс';
+    if (c.includes('cinema') || c.includes('кино')) return 'Кино';
+    if (c.includes('kid') || c.includes('child') || c.includes('дет')) return 'Для детей';
+    if (c.includes('private') || c.includes('частн')) return 'Частное';
+    return cat;
+}
+
+function mapTag(tag) {
+    const raw = String(tag || '').trim();
+    const key = raw.toLowerCase().replace(/[_-]+/g, ' ');
+    const translations = {kids:'Для детей', kid:'Для детей', children:'Для детей', family:'Семейное', cinema:'Кино', movie:'Кино', concert:'Концерт', music:'Музыка', theater:'Театр', theatre:'Театр', exhibition:'Выставка', museum:'Музей', lecture:'Лекция', sport:'Спорт', festival:'Фестиваль', excursion:'Экскурсия', tour:'Экскурсия', workshop:'Мастер-класс', masterclass:'Мастер-класс', standup:'Стендап', free:'Бесплатно', party:'Вечеринка', online:'Онлайн'};
+    return translations[key] || raw;
+}
+
+// Форматируем дату для отображения
+function formatDate(dateStr) {
+    if (!dateStr) return 'Дата не указана';
+    try {
+        const months = ['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
+        const d = new Date(dateStr);
+        if (isNaN(d.getTime())) return dateStr;
+        return d.getDate() + ' ' + months[d.getMonth()] + ', ' + 
+               String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+    } catch {
+        return dateStr;
+    }
+}
+// Символы и градиенты для категорий
+function getCatSymbol(cat) {
+    const map = {
+        'Концерт': '♪', 'Театр': '❧', 'Выставка': '◈',
+        'Лекция': '✦', 'Фестиваль': '❋', 'Спорт': '◆',
+        'Стендап': '◉', 'Экскурсия': '◎', 'Вечеринка': '✶',
+        'Кино': '◇', 'Мастер-класс': '∴', 'Другое': '·',
+        'Частное': '⬡',
+    };
+    return map[cat] || (cat ? cat.charAt(0) : '?');
+}
+
+function getCatGradient(cat) {
+    const map = {
+        'Концерт':     'linear-gradient(135deg,#1a1020,#2d1f3d)',
+        'Театр':       'linear-gradient(135deg,#0f1a14,#1e2f1a)',
+        'Выставка':    'linear-gradient(135deg,#1a1510,#2f2315)',
+        'Лекция':      'linear-gradient(135deg,#101520,#15202f)',
+        'Фестиваль':   'linear-gradient(135deg,#1a1020,#2a1535)',
+        'Спорт':       'linear-gradient(135deg,#101a10,#152a20)',
+        'Стендап':     'linear-gradient(135deg,#1a1510,#2a2010)',
+        'Экскурсия':   'linear-gradient(135deg,#101518,#152025)',
+        'Вечеринка':   'linear-gradient(135deg,#18101a,#25152f)',
+        'Кино':        'linear-gradient(135deg,#0f0f18,#18182a)',
+        'Мастер-класс':'linear-gradient(135deg,#131a10,#20281a)',
+    };
+    return map[cat] || 'linear-gradient(135deg,#141416,#1C1C1F)';
+}
+
+async function loadEventsFromAPI() {
+    const grid = document.getElementById('cards-grid');
+    grid.innerHTML = '<div class="loading-spinner"><div class="spinner"></div></div>';
+    document.getElementById('events-count').textContent = 'Загрузка...';
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/events?limit=1000`);
+        if (response.ok) {
+            const data = await response.json();
+            allEvents = data.events.map(e => ({
+    id: e.id || 0,
+    title: e.title || 'Без названия',
+    cat: mapCategory(e.category || 'Другое'),
+    rawCategory: e.category || '',
+    venue: e.venue_title || 'Не указано',
+    date: formatDate(e.start_datetime || ''),
+    rawDate: e.start_datetime || '',
+    price: e.price_min || 0,
+    age: e.age_restriction || '0+',
+    benefits: e.benefits || '',
+    tags: e.tags ? e.tags.split(/[,;|]/).map(mapTag).filter(Boolean) : [],
+    img: e.image_url || '',
+    private: e.is_private || false,
+    is_free: e.is_free || e.price_min === 0,
+    venue_address: e.venue_address || '',
+    district: e.venue_address || '',
+    venue_lat: e.venue_lat, venue_lon: e.venue_lon,
+    average_rating: e.average_rating, review_count: e.review_count || 0,
+    attended: false, source: e.source || 'kudago'
+}));
+            events = allEvents.slice(0, currentLimit);
+            const userId = localStorage.getItem('user_id');
+            if (userId) {
+                try {
+                    const attendedResponse = await fetch(`${API_BASE_URL}/api/interactions/attended/${encodeURIComponent(userId)}`);
+                    if (attendedResponse.ok) {
+                        const attendedData = await attendedResponse.json();
+                        const attendedIds = new Set((attendedData.events || attendedData || []).map(x => Number(x.id ?? x.event_id)));
+                        allEvents.forEach(e => e.attended = attendedIds.has(Number(e.id)));
+                    }
+                } catch (err) { console.warn('Не удалось загрузить посещённые события', err); }
+            }
+            
+            // Обновляем статистику в hero
+            updateStats(allEvents);
+            
+            renderCards();
+            document.getElementById('load-more-btn').style.display = 
+                allEvents.length > currentLimit ? 'block' : 'none';
+        } else {
+            showError(`Ошибка сервера: ${response.status}`);
+        }
+    } catch (error) {
+        console.error('Ошибка загрузки:', error);
+        showError('Не удалось загрузить данные с сервера. Проверьте интернет-соединение.');
+    }
+}
+
+function updateStats(eventsData) {
+    const total = eventsData.length;
+    const places = new Set(eventsData.map(e => e.venue)).size;
+    const free = eventsData.filter(e => e.is_free || e.price === 0).length;
+    
+    document.getElementById('stat-events').textContent = total;
+    document.getElementById('stat-places').textContent = places;
+    document.getElementById('stat-free').textContent = free;
+}
+
+function showError(message) {
+    const grid = document.getElementById('cards-grid');
+    grid.innerHTML = `
+        <div class="error-message">
+            <div>⚠️ ${message}</div>
+            <button class="retry-btn" onclick="loadEventsFromAPI()">Повторить попытку</button>
+        </div>
+    `;
+    document.getElementById('events-count').textContent = 'Ошибка загрузки';
+}
+
+// === ФИЛЬТРАЦИЯ ===
+function getAgeNumber(ageStr) {
+    if (ageStr === null || ageStr === undefined || ageStr === '') return 0;
+    const normalized = String(ageStr).toLowerCase().replace(/для всех|all ages|без ограничений/g, '0+');
+    const match = normalized.match(/(?:^|\D)(\d{1,2})\s*\+/) || normalized.match(/(\d{1,2})/);
+    return match ? Number(match[1]) : 0;
+}
+
+function filterEvents() {
+    let filtered = allEvents;
+
+    // Категории выбираются несколькими чипами одновременно.
+    if (selectedCategories.size > 0) {
+        filtered = filtered.filter(e => selectedCategories.has(e.cat));
+    }
+
+    // Район определяется по координатам события внутри полигонов districts.json.
+    const districtVal = document.getElementById('district-filter')?.value;
+    if (districtVal) {
+        filtered = filtered.filter(e => {
+            if (e.districtName) return e.districtName === districtVal;
+            const addr = (e.venue_address || '').toLowerCase();
+            const venue = (e.venue || '').toLowerCase();
+            return addr.includes(districtVal.toLowerCase()) || venue.includes(districtVal.toLowerCase());
+        });
+    }
+
+    // Фильтр по цене
+    filtered = filtered.filter(e => e.is_free || e.price <= maxPrice);
+
+    // Фильтр по возрасту — показываем события с ограничением <= выбранного
+    // Например выбрали 12+ — показываем 0+, 6+, 12+, но не 16+ и 18+
+    if (selectedAge) {
+        const selectedNum = getAgeNumber(selectedAge);
+        filtered = filtered.filter(e => {
+            const eventNum = getAgeNumber(e.age);
+            return eventNum <= selectedNum;
+        });
+    }
+
+    // Фильтр по дате — точное совпадение даты (день + месяц + год)
+    if (selectedDate) {
+        filtered = filtered.filter(e => {
+            if (!e.rawDate) return false;
+            try {
+                // rawDate в формате "2025-07-30 19:00" или "30 июля 2025"
+                const raw = e.rawDate.trim();
+                if (raw.match(/^\d{4}-\d{2}-\d{2}/)) {
+                    // ISO формат
+                    const eventDate = new Date(raw.substring(0, 10));
+                    return eventDate.getFullYear() === selectedDate.getFullYear() &&
+                           eventDate.getMonth() === selectedDate.getMonth() &&
+                           eventDate.getDate() === selectedDate.getDate();
+                }
+                // Текстовый формат — сравниваем отформатированную дату
+                const eventDateStr = e.date || '';
+                const selDay = selectedDate.getDate();
+                const selMonth = ['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'][selectedDate.getMonth()];
+                return eventDateStr.includes(selDay + ' ' + selMonth);
+            } catch {
+                return false;
+            }
+        });
+    }
+
+    return filtered;
+}
+
+function renderCards() {
+    const filtered = filterEvents();
+    const totalFiltered = filtered.length;
+    
+    document.getElementById('events-count').textContent = 
+        `${totalFiltered} мероприятий${totalFiltered < allEvents.length ? ` (из ${allEvents.length})` : ''}`;
+    
+    const grid = document.getElementById('cards-grid');
+    
+    if (totalFiltered === 0) {
+        grid.innerHTML = `
+            <div class="error-message" style="grid-column:1/-1">
+                <div>🔍 По вашему запросу ничего не найдено</div>
+                <button class="retry-btn" onclick="resetFilters()">Сбросить фильтры</button>
+            </div>
+        `;
+        return;
+    }
+    
+    const displayEvents = filtered.slice(0, currentLimit);
+    
+    grid.innerHTML = displayEvents.map(e => {
+        const hasImage = e.img && e.img.length > 0;
+        const firstLetter = e.cat ? e.cat.charAt(0) : '?';
+        const priceDisplay = (e.is_free || e.price === 0) ? 'Бесплатно' : 
+            `<em>от</em> ${e.price.toLocaleString('ru')} ₽`;
+        const priceClass = (e.is_free || e.price === 0) ? 'free' : '';
+        
+        return `
+        <div class="event-card" onclick="window.open('/event.html?id=${e.id}','_blank')">
+            <div class="card-img-wrap">
+                ${hasImage ? 
+                    `<img src="${e.img}" alt="${e.title}" loading="lazy">` : 
+                    `<div class="card-img-placeholder" data-letter="${getCatSymbol(e.cat)}" style="background:${getCatGradient(e.cat)}">
+                        <span class="cat-placeholder-label">${e.cat}</span>
+                    </div>`
+                }
+                <div class="card-badges">
+                    <div class="badges-left">
+                        <span class="badge-cat">${e.cat || 'Другое'}</span>
+                        ${e.private ? '<span class="badge-private">Частное</span>' : ''}
+                    </div>
+                    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px">
+                        <span class="badge-age">${e.age || '0+'}</span>
+                        <button class="btn-fav-card" onclick="toggleFav(event,${e.id})" id="fav-${e.id}" title="В избранное">⚑</button>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="card-date">${e.date || 'Дата не указана'}</div>
+                <div class="card-title">${e.title}</div>
+                <div class="card-venue">${e.venue}</div>
+                ${e.venue_address ? `<div style="font-size:10px;color:var(--muted);margin-bottom:8px">${e.venue_address}</div>` : ''}
+                ${e.benefits && e.benefits.length ? 
+                    `<div class="benefit-tags">${e.benefits.map(b => `<span class="benefit-tag">${b}</span>`).join('')}</div>` : ''}
+                <div class="card-footer">
+                    <div class="card-price ${priceClass}">${priceDisplay}</div>
+                    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+                        <div class="card-tags">${e.tags && e.tags.length ? e.tags.slice(0, 2).map(t => `<span class="tag">${t}</span>`).join('') : ''}</div>
+                        <span class="card-rating" title="Средняя оценка">★ ${e.average_rating != null ? Number(e.average_rating).toFixed(1) : '—'}${e.review_count ? ` <small>(${e.review_count})</small>` : ''}</span>
+                        <button class="attended-btn ${e.attended ? 'is-attended' : ''}" onclick="event.stopPropagation();toggleAttended(${e.id}, this)" data-event-id="${e.id}">${e.attended ? '✓ Посещено' : '+ Посещено'}</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `}).join('');
+    
+    // === КНОПКА "ЗАГРУЗИТЬ ЕЩЁ" ===
+    const loadMoreBtn = document.getElementById('load-more-btn');
+    const filteredCount = filtered.length;
+    if (filteredCount > currentLimit) {
+        loadMoreBtn.style.display = 'block';
+        loadMoreBtn.textContent = `Загрузить ещё (${currentLimit}/${filteredCount})`;
+    } else {
+        loadMoreBtn.style.display = 'none';
+    }
+    
+    // === ПЛЕЙСХОЛДЕРЫ ===
+    document.querySelectorAll('.card-img-placeholder').forEach(el => {
+        const parentCard = el.closest('.event-card');
+        const catBadge = parentCard?.querySelector('.badge-cat')?.innerText || '?';
+        const letter = catBadge.charAt(0);
+        el.setAttribute('data-letter', letter);
+    });
+} 
+// === ЗАГРУЗКА ЕЩЁ ===
+document.getElementById('load-more-btn').addEventListener('click', function() {
+    const filtered = filterEvents();
+    if (currentLimit < filtered.length) {
+        currentLimit += LOAD_STEP;
+        if (currentLimit > filtered.length) {
+            currentLimit = filtered.length;
+        }
+        renderCards();
+    } else {
+        this.style.display = 'none';
+    }
+});
+// === TOGGLE FAV ===
+async function toggleFav(e, id) {
+    e.stopPropagation();
+    const userId = localStorage.getItem('user_id');
+    if (!userId) {
+        if (confirm('Чтобы сохранить в избранное нужно войти. Перейти?')) {
+            location.href = '/login.html';
+        }
+        return;
+    }
+    const btn = document.getElementById('fav-' + id);
+    if (!btn) return;
+    const isActive = btn.classList.toggle('active');
+    const interactionType = isActive ? 'favorite' : 'view';
+    try {
+        await fetch(API_BASE_URL + '/api/interactions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                user_id: parseInt(userId),
+                event_id: id,
+                interaction_type: interactionType
+            })
+        });
+        showToast(isActive ? '⚑ Добавлено в избранное' : 'Удалено из избранного');
+    } catch(err) {}
+}
+
+// === ВОЗРАСТНОЙ ФИЛЬТР ===
+function toggleAgePopup() {
+    const popup = document.getElementById('age-popup');
+    if (!popup) return;
+    popup.classList.toggle('open');
+    document.getElementById('cal-popup')?.classList.remove('open');
+    document.getElementById('price-popup')?.classList.remove('open');
+    document.getElementById('benefit-popup')?.classList.remove('open');
+}
+
+document.querySelectorAll('.age-option').forEach(opt => {
+    opt.addEventListener('click', () => {
+        const age = opt.dataset.age;
+        if (selectedAge === age) {
+            selectedAge = null;
+            opt.classList.remove('selected');
+            document.getElementById('age-filter-btn').innerHTML = 'Возраст ▾';
+        } else {
+            document.querySelectorAll('.age-option').forEach(o => o.classList.remove('selected'));
+            selectedAge = age;
+            opt.classList.add('selected');
+            document.getElementById('age-filter-btn').innerHTML = `${age} ▾`;
+        }
+        document.getElementById('age-popup')?.classList.remove('open');
+        currentLimit = LOAD_STEP;
+        renderCards();
+    });
+});
+
+// === КАЛЕНДАРЬ ===
+let calDate = new Date();
+calDate.setDate(1);
+
+function renderCal() {
+    const months = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+    const monthLabel = document.getElementById('cal-month-label');
+    if (!monthLabel) return;
+    monthLabel.textContent = months[calDate.getMonth()] + ' ' + calDate.getFullYear();
+    
+    const grid = document.getElementById('cal-grid');
+    if (!grid) return;
+    
+    const days = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+    let html = days.map(d => `<div class="cal-day-name">${d}</div>`).join('');
+    
+    let start = new Date(calDate.getFullYear(), calDate.getMonth(), 1).getDay();
+    if (start === 0) start = 7;
+    for (let i = 1; i < start; i++) html += `<div class="cal-day empty"></div>`;
+    
+    const dim = new Date(calDate.getFullYear(), calDate.getMonth() + 1, 0).getDate();
+    const today = new Date();
+    
+    for (let d = 1; d <= dim; d++) {
+        const isToday = today.getDate() === d && today.getMonth() === calDate.getMonth() && today.getFullYear() === calDate.getFullYear();
+        const isSelected = selectedDate && selectedDate.getDate() === d && selectedDate.getMonth() === calDate.getMonth();
+        html += `<div class="cal-day${isToday ? ' today' : ''}${isSelected ? ' selected' : ''}" onclick="selectDate(${d})">${d}</div>`;
+    }
+    grid.innerHTML = html;
+}
+
+function selectDate(d) {
+    selectedDate = new Date(calDate.getFullYear(), calDate.getMonth(), d);
+    const m = ['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
+    document.getElementById('cal-display').textContent = d + ' ' + m[calDate.getMonth()];
+    document.getElementById('cal-popup')?.classList.remove('open');
+    renderCal();
+    currentLimit = LOAD_STEP;
+    renderCards();
+}
+
+function prevMonth() {
+    calDate = new Date(calDate.getFullYear(), calDate.getMonth() - 1, 1);
+    renderCal();
+}
+function nextMonth() {
+    calDate = new Date(calDate.getFullYear(), calDate.getMonth() + 1, 1);
+    renderCal();
+}
+
+function toggleCal() {
+    document.getElementById('cal-popup')?.classList.toggle('open');
+    document.getElementById('price-popup')?.classList.remove('open');
+    document.getElementById('benefit-popup')?.classList.remove('open');
+    document.getElementById('age-popup')?.classList.remove('open');
+    renderCal();
+}
+
+// === ЦЕНА ===
+function togglePrice() {
+    document.getElementById('price-popup')?.classList.toggle('open');
+    document.getElementById('cal-popup')?.classList.remove('open');
+    document.getElementById('benefit-popup')?.classList.remove('open');
+    document.getElementById('age-popup')?.classList.remove('open');
+}
+
+function updatePrice(v) {
+    const val = parseInt(v);
+    document.getElementById('price-val').textContent = 'до ' + val.toLocaleString('ru') + ' ₽';
+    document.getElementById('price-display').textContent = 'до ' + val.toLocaleString('ru') + ' ₽';
+    maxPrice = val;
+    currentLimit = LOAD_STEP;
+    renderCards();
+}
+
+// === СБРОС ФИЛЬТРОВ ===
+function resetFilters() {
+    selectedAge = null;
+    selectedDate = null;
+    maxPrice = 10000;
+    currentLimit = LOAD_STEP;
+    
+    document.getElementById('age-filter-btn').innerHTML = 'Возраст ▾';
+    document.getElementById('price-slider').value = 10000;
+    document.getElementById('price-val').textContent = 'до 10 000 ₽';
+    document.getElementById('price-display').textContent = 'Цена';
+    document.getElementById('cal-display').textContent = 'Выберите дату';
+    document.querySelectorAll('.age-option').forEach(o => o.classList.remove('selected'));
+    document.getElementById('district-filter').value = '';
+    
+    // Сбрасываем активную категорию
+    selectedCategories.clear();
+    document.querySelectorAll('.cat-chip').forEach(c => c.classList.toggle('active', c.dataset.cat === 'all'));
+
+    renderCards();
+}
+
+// === КЛИК ВНЕ ПОПАПОВ ===
+document.addEventListener('click', e => {
+    if (!e.target.closest('#cal-wrapper')) document.getElementById('cal-popup')?.classList.remove('open');
+    if (!e.target.closest('#price-wrapper')) document.getElementById('price-popup')?.classList.remove('open');
+    if (!e.target.closest('#age-wrapper')) document.getElementById('age-popup')?.classList.remove('open');
+});
+
+// === МНОЖЕСТВЕННЫЙ ВЫБОР КАТЕГОРИЙ ===
+const selectedCategories = new Set();
+document.querySelectorAll('.cat-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+        const category = chip.dataset.cat;
+        if (category === 'all') {
+            selectedCategories.clear();
+        } else {
+            if (selectedCategories.has(category)) selectedCategories.delete(category);
+            else selectedCategories.add(category);
+        }
+        document.querySelectorAll('.cat-chip').forEach(c => {
+            c.classList.toggle('active', c.dataset.cat === 'all' ? selectedCategories.size === 0 : selectedCategories.has(c.dataset.cat));
+        });
+        currentLimit = LOAD_STEP;
+        renderCards();
+    });
+});
+
+// Заполняем список районов из GeoJSON
+async function loadDistrictsGeoJSON() {
+    try {
+        const response = await fetch('/static/districts.json');
+        if (!response.ok) throw new Error('districts.json unavailable');
+        districtsGeoJSON = await response.json();
+        const select = document.getElementById('district-filter');
+        const names = [...new Set((districtsGeoJSON.features || []).map(f => f.properties?.NAME).filter(Boolean))].sort((a,b) => a.localeCompare(b, 'ru'));
+        select.innerHTML = '<option value="">Все районы</option>' + names.map(n => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');
+        allEvents.forEach(e => { e.districtName = findDistrictForEvent(e); });
+        renderCards();
+    } catch (error) { console.warn('Не удалось загрузить GeoJSON районов:', error); }
+}
+let districtsGeoJSON = null;
+function pointInRing(lon, lat, ring) {
+    let inside = false;
+    for (let i=0, j=ring.length-1; i<ring.length; j=i++) {
+        const xi=ring[i][0], yi=ring[i][1], xj=ring[j][0], yj=ring[j][1];
+        const intersects=((yi>lat)!==(yj>lat)) && (lon < (xj-xi)*(lat-yi)/((yj-yi)||1e-12)+xi);
+        if (intersects) inside=!inside;
+    }
+    return inside;
+}
+function findDistrictForEvent(e) {
+    if (!districtsGeoJSON || e.venue_lat == null || e.venue_lon == null) return '';
+    const lon=Number(e.venue_lon), lat=Number(e.venue_lat);
+    if (!Number.isFinite(lon) || !Number.isFinite(lat)) return '';
+    for (const f of districtsGeoJSON.features || []) {
+        const g=f.geometry; if (!g) continue;
+        const polygons = g.type === 'Polygon' ? [g.coordinates] : g.type === 'MultiPolygon' ? g.coordinates : [];
+        for (const polygon of polygons) if (polygon[0] && pointInRing(lon, lat, polygon[0])) return f.properties?.NAME || '';
+    }
+    return '';
+}
+function escapeHtml(value) { return String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+// === ИНИЦИАЛИЗАЦИЯ ===
+renderCal();
+loadEventsFromAPI().then(() => loadDistrictsGeoJSON());
+
+
+async function toggleAttended(eventId, button) {
+    const userId = localStorage.getItem('user_id');
+    if (!userId) { if (confirm('Чтобы отметить посещение, войдите в аккаунт. Перейти ко входу?')) location.href='/login.html'; return; }
+    const wasAttended = button.classList.contains('is-attended');
+    if (wasAttended) { alert('Это мероприятие уже отмечено как посещённое.'); return; }
+    button.disabled = true;
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/interactions`, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:Number(userId),event_id:Number(eventId),interaction_type:'attended'})});
+        if (!response.ok) throw new Error('Не удалось сохранить посещение');
+        button.classList.add('is-attended'); button.textContent='✓ Посещено';
+        const ev=allEvents.find(x=>Number(x.id)===Number(eventId)); if(ev) ev.attended=true;
+    } catch(err) { alert('Не удалось отметить посещение. Попробуйте ещё раз.'); }
+    finally { button.disabled=false; }
+}
+
+// === АВТОРИЗАЦИЯ В ХЕДЕРЕ ===
+function updateHeader() {
+    const userId = localStorage.getItem('user_id');
+    const userName = localStorage.getItem('user_name');
+    const loginBtn = document.getElementById('btn-login');
+    const regBtn = document.getElementById('btn-reg');
+
+    if (userId && userName) {
+        // Пользователь залогинен — показываем имя вместо кнопок
+        loginBtn.textContent = userName.split(' ')[0]; // только имя
+        loginBtn.onclick = () => window.location.href = '/lk.html';
+        loginBtn.style.borderColor = 'var(--accent)';
+        loginBtn.style.color = 'var(--accent)';
+        regBtn.textContent = 'Выйти';
+        regBtn.style.background = 'none';
+        regBtn.style.border = '1px solid var(--border)';
+        regBtn.style.color = 'var(--muted)';
+        regBtn.onclick = () => {
+            localStorage.removeItem('user_id');
+            localStorage.removeItem('user_name');
+            localStorage.removeItem('user_email');
+            localStorage.removeItem('user_type');
+            location.reload();
+        };
+    }
+}
+
+updateHeader();
+  function buyTicket(eventData) {
+  const userId = localStorage.getItem('user_id');
+  if (!userId) {
+    if (confirm('Чтобы купить билет нужно войти. Перейти к входу?')) {
+      location.href = '/login.html';
+    }
+    return;
+  }
+  const tickets = JSON.parse(localStorage.getItem('user_tickets_' + userId) || '[]');
+  if (tickets.find(t => t.event_id === eventData.id)) {
+    showToast('Билет уже куплен!');
+    return;
+  }
+  const ticket = {
+    ...eventData,
+    event_id: eventData.id,
+    ticket_num: Math.floor(Math.random() * 90000) + 10000,
+    bought_at: new Date().toISOString()
+  };
+  tickets.push(ticket);
+  localStorage.setItem('user_tickets_' + userId, JSON.stringify(tickets));
+
+  // Записываем в API
+  fetch(API_BASE_URL + '/api/interactions', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ user_id: parseInt(userId), event_id: eventData.id, interaction_type: 'attended' })
+  }).catch(() => {});
+
+  showToast('Билет #' + ticket.ticket_num + ' добавлен в ЛК!');
+}
+
+function showToast(msg) {
+  const existing = document.querySelector('.toast-msg');
+  if (existing) existing.remove();
+  const t = document.createElement('div');
+  t.className = 'toast-msg';
+  t.textContent = msg;
+  t.style.cssText = 'position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:var(--accent);color:#000;padding:10px 24px;font-family:IBM Plex Mono,monospace;font-size:11px;z-index:2000;';
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3000);
+}
+</script>
+</body>
+</html>
