@@ -309,7 +309,7 @@ input[type=range]{width:100%;accent-color:var(--accent);background:transparent;m
       <div class="field">
         <label for="travel-mode">Предпочтительный способ</label>
         <select id="travel-mode">
-          <option value="transit" selected>Метро и наземный транспорт (оценка)</option>
+          <option value="transit" selected>Метро и наземный транспорт</option>
           <option value="walk">Пешком</option>
           <option value="car">Такси / автомобиль</option>
           <option value="flexible">Любой — самый быстрый расчётный вариант</option>
@@ -327,7 +327,7 @@ input[type=range]{width:100%;accent-color:var(--accent);background:transparent;m
         </select>
       </div>
       <p style="font-size:11px;color:var(--muted);margin-top:10px;font-weight:300">
-        Время рассчитывается приблизительно по координатам. Реальные маршруты, расписание метро и пробки пока не подключены.
+        Время рассчитывается приблизительно.
       </p>
     </div>
 
@@ -378,17 +378,17 @@ input[type=range]{width:100%;accent-color:var(--accent);background:transparent;m
 
     <!-- ОБЯЗАТЕЛЬНЫЕ ТОЧКИ -->
     <div class="form-section">
-      <div class="section-label">Обязательные точки</div>
+      <div class="section-label">Запланированные мероприятия</div>
       <p style="font-size:11px;color:var(--muted);margin-bottom:12px">Укажите места и время, которые нужно сохранить в расписании. Остальные мероприятия будут подбираться вокруг них.</p>
       <div class="mandatory-form">
         <div class="wide"><label for="mandatory-title">Название / место</label><input id="mandatory-title" placeholder="Например, встреча в музее"></div>
         <div><label for="mandatory-date">Дата</label><input id="mandatory-date" type="date"></div>
-        <div><label for="mandatory-address">Адрес (необязательно)</label><input id="mandatory-address" list="yandex-address-suggestions" placeholder="Начните вводить адрес места"><datalist id="yandex-address-suggestions"></datalist></div>
+        <div><label for="mandatory-address">Адрес</label><input id="mandatory-address" list="yandex-address-suggestions" placeholder="Начните вводить адрес места"><datalist id="yandex-address-suggestions"></datalist></div>
         <div><label for="mandatory-start">Начало</label><input id="mandatory-start" type="time" value="10:00"></div>
         <div><label for="mandatory-end">Время окончания</label><input id="mandatory-end" type="time" value="11:00" required></div>
         <div><label for="mandatory-cost">Цена на человека, ₽</label><input id="mandatory-cost" type="number" min="0" value="0"></div>
         <div class="wide" id="mandatory-end-preview" style="font-size:11px;color:var(--muted)">Укажите начало и окончание посещения. Продолжительность рассчитается автоматически.</div>
-        <div class="wide"><button type="button" class="day-add-btn" onclick="addMandatoryPointFromForm()">＋ Добавить обязательную точку</button></div>
+        <div class="wide"><button type="button" class="day-add-btn" onclick="addMandatoryPointFromForm()">＋ Добавить запланированное мероприятие</button></div>
       </div>
       <div class="mandatory-list" id="mandatory-list"></div>
     </div>
@@ -418,7 +418,7 @@ input[type=range]{width:100%;accent-color:var(--accent);background:transparent;m
 <div class="modal-backdrop" id="plan-point-modal" role="dialog" aria-modal="true" aria-labelledby="plan-point-modal-title" onclick="if(event.target===this)closePlanPointModal()">
   <div class="plan-modal">
     <div class="modal-head">
-      <div><div class="modal-kicker" id="plan-point-kicker">Ваш маршрут · настройка</div><div class="modal-title" id="plan-point-modal-title">Добавить обязательную точку</div><div class="modal-subtitle" id="plan-point-subtitle">Точка останется в расписании, а подбор событий будет выполнен заново.</div></div>
+      <div><div class="modal-kicker" id="plan-point-kicker">Ваш маршрут · настройка</div><div class="modal-title" id="plan-point-modal-title">Добавить запланированное мероприятие</div><div class="modal-subtitle" id="plan-point-subtitle">Точка останется в расписании, а подбор событий будет выполнен заново.</div></div>
       <button type="button" class="modal-close" aria-label="Закрыть" onclick="closePlanPointModal()">×</button>
     </div>
     <div class="modal-body">
@@ -429,7 +429,7 @@ input[type=range]{width:100%;accent-color:var(--accent);background:transparent;m
       <div class="modal-field"><label for="plan-point-cost">Стоимость на человека, ₽</label><input id="plan-point-cost" type="number" min="0" step="50" value="0"></div>
       <div class="modal-field wide"><label for="plan-point-address">Адрес / музей</label><input id="plan-point-address" list="yandex-address-suggestions" placeholder="Начните вводить адрес или название площадки"></div>
       <div class="modal-field wide" id="plan-point-url-wrap"><label for="plan-point-url">Ссылка на сайт (необязательно)</label><input id="plan-point-url" type="url" placeholder="https://..."></div>
-      <div class="modal-note" id="plan-point-note">После подтверждения план будет пересчитан: обязательная точка сохранится, а мероприятия, которые конфликтуют с ней по времени, будут заменены при наличии подходящих вариантов.</div>
+      <div class="modal-note" id="plan-point-note">После подтверждения план будет пересчитан: запланированное мероприятие сохранится, а мероприятия, которые конфликтуют с ней по времени, будут заменены при наличии подходящих вариантов.</div>
     </div>
     <div class="modal-footer"><button type="button" class="modal-secondary" onclick="closePlanPointModal()">Отмена</button><button type="button" class="modal-primary" id="plan-point-submit" onclick="submitPlanPointModal()">Добавить и перестроить план</button></div>
   </div>
@@ -680,8 +680,8 @@ function openPlanPointModal(mode) {
     planPointModalMode = ['exhibition','custom'].includes(mode) ? mode : 'mandatory';
     const exhibition = planPointModalMode === 'exhibition';
     const customPoint = planPointModalMode === 'custom';
-    document.getElementById('plan-point-kicker').textContent = exhibition ? 'Постоянная коллекция · музей' : (customPoint ? 'Ваш маршрут · новая точка' : 'Ваш маршрут · обязательная точка');
-    document.getElementById('plan-point-modal-title').textContent = exhibition ? 'Добавить постоянную экспозицию' : (customPoint ? 'Добавить свою точку' : 'Добавить обязательную точку');
+    document.getElementById('plan-point-kicker').textContent = exhibition ? 'Постоянная коллекция · музей' : (customPoint ? 'Ваш маршрут · новая точка' : 'Ваш маршрут · запланированное мероприятие');
+    document.getElementById('plan-point-modal-title').textContent = exhibition ? 'Добавить постоянную экспозицию' : (customPoint ? 'Добавить свою точку' : 'Добавить запланированное мероприятие');
     document.getElementById('plan-point-subtitle').textContent = exhibition
       ? 'Укажите экспозицию и выберите, в какой день и время встроить посещение.'
       : (customPoint ? 'Добавьте собственное место или занятие в расписание.' : 'Точка останется в расписании. После подтверждения система подберёт события вокруг неё.');
@@ -911,7 +911,7 @@ function selectDatabaseEvent(candidateId) {
     if (overlaps.length) {
         const protectedEvents = overlaps.filter(e => e.mandatory || e.permanent_exhibition || String(e.id).startsWith('exhibition-'));
         if (protectedEvents.length) {
-            alert(`«${candidate.title}» пересекается с обязательной точкой «${protectedEvents[0].title}» (${protectedEvents[0].planned_start || ''}–${protectedEvents[0].planned_end || ''}). Эта точка сохранена. Выберите другое мероприятие или освободите время.`);
+            alert(`«${candidate.title}» пересекается с запланированным мероприятием «${protectedEvents[0].title}» (${protectedEvents[0].planned_start || ''}–${protectedEvents[0].planned_end || ''}). Эта точка сохранена. Выберите другое мероприятие или освободите время.`);
             return;
         }
         if (!window.confirm(`«${candidate.title}» (${start}–${end}) пересекается с ${overlaps.map(e=>`«${e.title}»`).join(', ')}. Удалить только конфликтующие обычные мероприятия и добавить выбранное?`)) return;
@@ -1094,7 +1094,7 @@ function renderResults(plan, params, isEditRender = false) {
         </div>`;
 
     html += `<div class="plan-actions">
-      <button class="plan-action-btn" onclick="openPlanPointModal('mandatory')">＋ Добавить обязательную точку</button>
+      <button class="plan-action-btn" onclick="openPlanPointModal('mandatory')">＋ Добавить запланированное мероприятие</button>
       <button class="plan-action-btn" onclick="openPlanPointModal('exhibition')">＋ Добавить постоянную экспозицию</button>
     </div>`;
     html += `<section class="permanent-section">
@@ -1212,7 +1212,7 @@ async function initDayMaps(schedule, requestedMode) {
         if (!mapEl || !statusEl) continue;
         const points = (day.events || []).filter(e => Number.isFinite(Number(e.venue_lat)) && Number.isFinite(Number(e.venue_lon)) && e.venue_lat !== '' && e.venue_lon !== '');
         if (!points.length) {
-            statusEl.textContent = 'На этот день нет подтверждённых координат. Для точек из базы укажите/проверьте адрес площадки.';
+            statusEl.textContent = 'На этот день нет подходящих мероприятий. Вы можете самостоятельно выбрать понравившиеся события';
             continue;
         }
         let map = renderedDayMaps.get(mapEl.id);
