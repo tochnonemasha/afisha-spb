@@ -11,12 +11,15 @@ warnings.filterwarnings("ignore")
 
 
 # ─── ВЕСА ТИПОВ ВЗАИМОДЕЙСТВИЙ ────────────────────────────
+# Положительные сигналы. Оценки 1–5 переводятся в signed feedback:
+# 1 -> -2, 2 -> -1, 3 -> 0, 4 -> +1, 5 -> +2.
 INTERACTION_WEIGHTS = {
-    "view":     1.0,
-    "favorite": 3.0,
-    "attended": 5.0,
-    "rated":    None,  # используется само значение оценки
+    "view": 0.5,
+    "favorite": 2.5,
+    "attended": 2.0,
 }
+RATING_MIN = 1.0
+RATING_MAX = 5.0
 
 
 class HybridRecommender:
@@ -77,7 +80,10 @@ class HybridRecommender:
                 "is_free": e.is_free or False,
                 "age_restriction": e.age_restriction or "0+",
                 "start_datetime": e.start_datetime or "",
-            } for e in events])
+            } for e in events], columns=[
+                "id", "title", "description", "category", "tags", "venue_title",
+                "venue_lat", "venue_lon", "price_min", "is_free", "age_restriction", "start_datetime"
+            ])
 
             # Пользователи
             users = db.query(User).all()
@@ -85,7 +91,7 @@ class HybridRecommender:
                 "id": u.id,
                 "name": u.name,
                 "user_type": u.user_type,
-            } for u in users])
+            } for u in users], columns=["id", "name", "user_type"])
 
             # Взаимодействия
             interactions = db.query(UserInteraction).all()
@@ -95,7 +101,7 @@ class HybridRecommender:
                 "interaction_type": i.interaction_type,
                 "rating": i.rating,
                 "timestamp": i.timestamp,
-            } for i in interactions])
+            } for i in interactions], columns=["user_id", "event_id", "interaction_type", "rating", "timestamp"])
 
             print(f"   Мероприятий: {len(self.events_df)}")
             print(f"   Пользователей: {len(self.users_df)}")
@@ -105,25 +111,50 @@ class HybridRecommender:
             db.close()
 
     # ─── ВЫЧИСЛЕНИЕ ВЕСОВ ВЗАИМОДЕЙСТВИЙ ──────────────────
-    def compute_interaction_weights(self):
+    @staticmethod
+    def interaction_signal(interaction_type, rating=None):
+        """Преобразует действие в signed feedback; отрицательная оценка не становится интересом."""
+        if interaction_type == "rated":
+            if rating is None:
+                return 0.0
+            try:
+                rating = float(rating)
+            except (TypeError, ValueError):
+                return 0.0
+            rating = min(RATING_MAX, max(RATING_MIN, rating))
+            return rating - 3.0
+        return float(INTERACTION_WEIGHTS.get(interaction_type, 0.0))
+
+    def compute_interaction_weights(self, interactions_df=None):
+        """Одна итоговая обратная связь на пару пользователь–мероприятие.
+
+        Повторные просмотры не накапливаются бесконечно. Для рейтинга сохраняется
+        последний выставленный рейтинг, а другие действия учитываются по одному.
         """
-        Переводит типы взаимодействий в числовые веса.
-        view=1, favorite=3, attended=5, rated=значение_оценки
-        """
-        df = self.interactions_df.copy()
+        columns = ["user_id", "event_id", "interaction_type", "rating", "timestamp"]
+        source_df = self.interactions_df if interactions_df is None else interactions_df
+        if source_df is None or source_df.empty:
+            return pd.DataFrame(columns=["user_id", "event_id", "weight"])
 
-        def get_weight(row):
-            itype = row["interaction_type"]
-            if itype == "rated" and row["rating"] is not None:
-                return float(row["rating"])
-            return INTERACTION_WEIGHTS.get(itype, 1.0)
-
-        df["weight"] = df.apply(get_weight, axis=1)
-
-        # Если один пользователь взаимодействовал с одним
-        # мероприятием несколько раз — берём максимальный вес
-        df = df.groupby(["user_id", "event_id"])["weight"].max().reset_index()
-        return df
+        df = source_df.copy()
+        for col in columns:
+            if col not in df.columns:
+                df[col] = None
+        df["timestamp"] = pd.to_datetime(df["timestamp"], errors="coerce", utc=True)
+        rows = []
+        for (uid, eid), group in df.groupby(["user_id", "event_id"], dropna=False):
+            score = 0.0
+            for kind, kind_group in group.groupby("interaction_type", dropna=False):
+                if kind == "rated":
+                    rated = kind_group.sort_values("timestamp", na_position="first")
+                    signal = self.interaction_signal("rated", rated.iloc[-1]["rating"])
+                else:
+                    signal = self.interaction_signal(kind)
+                score += signal
+            # Ограничиваем вклад одной пары, чтобы много разных действий не доминировали.
+            score = float(np.clip(score, -3.0, 5.0))
+            rows.append({"user_id": uid, "event_id": eid, "weight": score})
+        return pd.DataFrame(rows, columns=["user_id", "event_id", "weight"])
 
     # ─── ОБУЧЕНИЕ: КОЛЛАБОРАТИВНАЯ ФИЛЬТРАЦИЯ (SVD) ───────
     def train_collaborative(self, n_factors=50):
@@ -133,8 +164,10 @@ class HybridRecommender:
         """
         print("\n🔧 Обучаю коллаборативный компонент (SVD)...")
 
-        if len(self.interactions_df) < 10:
-            print("   ⚠️  Мало взаимодействий для SVD — пропускаю")
+        if (self.interactions_df is None or len(self.interactions_df) < 10
+                or self.users_df is None or self.users_df.empty
+                or self.events_df is None or self.events_df.empty):
+            print("   ⚠️  Недостаточно данных для SVD — использую контентную модель")
             return
 
         weighted = self.compute_interaction_weights()
@@ -171,7 +204,14 @@ class HybridRecommender:
             return
 
         sparse_matrix = csr_matrix(matrix)
-        U, sigma, Vt = svds(sparse_matrix, k=k)
+        try:
+            U, sigma, Vt = svds(sparse_matrix, k=k)
+        except (ValueError, RuntimeError) as exc:
+            print(f"   ⚠️  SVD не обучен: {exc}")
+            self.predicted_matrix = None
+            return
+        order = np.argsort(sigma)[::-1]
+        U, sigma, Vt = U[:, order], sigma[order], Vt[order, :]
 
         # Сохраняем факторы
         self.user_factors = U
@@ -194,6 +234,11 @@ class HybridRecommender:
         print("\n🔧 Строю контентный компонент (TF-IDF)...")
 
         df = self.events_df.copy()
+        if df.empty:
+            self.tfidf_matrix = None
+            self.content_features = np.empty((0, 2))
+            print("   ⚠️  Каталог мероприятий пуст")
+            return
 
         # Текстовый признак: объединяем название + описание + теги + категорию
         df["text_features"] = (
@@ -250,21 +295,16 @@ class HybridRecommender:
 
     # ─── ДИНАМИЧЕСКИЙ КОЭФФИЦИЕНТ α ───────────────────────
     def get_alpha(self, user_id: int) -> float:
-        """
-        Вычисляет коэффициент α для пользователя.
-        α = 0 для новых пользователей (только контент)
-        α → 0.6 по мере накопления истории (гибрид)
-        """
-        if self.interactions_df is None or len(self.interactions_df) == 0:
+        """Плавно повышает долю CF по мере накопления уникальных взаимодействий."""
+        if self.interactions_df is None or self.interactions_df.empty:
             return 0.0
-
-        n_interactions = len(
-            self.interactions_df[self.interactions_df["user_id"] == user_id]
-        )
-
-        # Логистическая функция: плавный рост от 0 до 0.6
-        alpha = 0.6 / (1 + np.exp(-0.1 * (n_interactions - 20)))
-        return round(alpha, 3)
+        user_rows = self.interactions_df[self.interactions_df["user_id"] == user_id]
+        n_interactions = user_rows[["event_id", "interaction_type"]].drop_duplicates().shape[0]
+        if n_interactions == 0:
+            return 0.0
+        # Достигает около 0.6 примерно после 30 уникальных взаимодействий.
+        alpha = 0.6 * (1.0 - np.exp(-n_interactions / 12.0))
+        return round(float(min(0.6, alpha)), 3)
 
     # ─── КОЛЛАБОРАТИВНЫЕ ОЦЕНКИ ───────────────────────────
     def get_cf_scores(self, user_id: int) -> dict:
@@ -290,113 +330,100 @@ class HybridRecommender:
         return {self.event_ids[i]: float(scores[i]) for i in range(len(scores))}
 
     # ─── КОНТЕНТНЫЕ ОЦЕНКИ ────────────────────────────────
-    def get_cbf_scores(self, user_id: int) -> dict:
-        """
-        Возвращает оценки контентной фильтрации.
-        Строит профиль пользователя как взвешенное среднее
-        векторов мероприятий с которыми он взаимодействовал.
-        """
-        if self.tfidf_matrix is None:
+    def _content_scores_from_interactions(self, interactions_df):
+        """Считает профиль как позитивные признаки минус негативные."""
+        if self.tfidf_matrix is None or self.events_df is None or self.events_df.empty:
             return {}
-
-        # Взаимодействия пользователя
-        user_ints = self.interactions_df[
-            self.interactions_df["user_id"] == user_id
-        ]
-
-        if len(user_ints) == 0:
-            # Новый пользователь — возвращаем равные оценки
-            n = len(self.events_df)
-            return {eid: 0.5 for eid in self.events_df["id"].tolist()}
-
-        # Вычисляем веса взаимодействий
-        weighted = self.compute_interaction_weights()
-        user_weighted = weighted[weighted["user_id"] == user_id]
-
-        # Строим профиль пользователя
-        profile_vector = np.zeros(self.tfidf_matrix.shape[1])
-        total_weight = 0
-
-        event_id_to_idx = {eid: i for i, eid in enumerate(self.events_df["id"].tolist())}
-
-        for _, row in user_weighted.iterrows():
-            eid = int(row["event_id"])
-            e_idx = event_id_to_idx.get(eid)
-            if e_idx is not None:
-                weight = row["weight"]
-                profile_vector += weight * self.tfidf_matrix[e_idx].toarray()[0]
-                total_weight += weight
-
-        if total_weight > 0:
-            profile_vector /= total_weight
-
-        # Косинусное подобие профиля со всеми мероприятиями
-        profile_sparse = csr_matrix(profile_vector)
-        similarities = cosine_similarity(
-            profile_sparse, self.tfidf_matrix
-        )[0]
-
-        # Нормализуем
-        if similarities.max() > similarities.min():
-            similarities = (
-                (similarities - similarities.min()) /
-                (similarities.max() - similarities.min())
-            )
-
         event_ids = self.events_df["id"].tolist()
-        return {event_ids[i]: float(similarities[i]) for i in range(len(similarities))}
+        event_id_to_idx = {eid: i for i, eid in enumerate(event_ids)}
+        if interactions_df is None or interactions_df.empty:
+            return self.get_cold_start_scores()
+
+        temp = interactions_df.copy()
+        if "weight" not in temp.columns:
+            temp["weight"] = temp.apply(
+                lambda r: self.interaction_signal(r.get("interaction_type"), r.get("rating")), axis=1
+            )
+        # Суммируем положительные и отрицательные сигналы отдельно, чтобы низкий рейтинг
+        # отталкивал от похожих событий, а не усиливал их.
+        profile = np.zeros(self.tfidf_matrix.shape[1], dtype=float)
+        total_abs_weight = 0.0
+        for _, row in temp.iterrows():
+            idx = event_id_to_idx.get(row.get("event_id"))
+            weight = float(row.get("weight", 0.0) or 0.0)
+            if idx is None or weight == 0:
+                continue
+            profile += weight * self.tfidf_matrix[idx].toarray().ravel()
+            total_abs_weight += abs(weight)
+        if total_abs_weight == 0 or np.linalg.norm(profile) == 0:
+            return self.get_cold_start_scores()
+
+        similarities = cosine_similarity(csr_matrix(profile.reshape(1, -1)), self.tfidf_matrix)[0]
+        # cosine находится в [-1, 1]; переводим в [0, 1] без min-max растягивания каждого пользователя.
+        similarities = np.clip((similarities + 1.0) / 2.0, 0.0, 1.0)
+        return {event_ids[i]: float(similarities[i]) for i in range(len(event_ids))}
+
+    def get_cbf_scores(self, user_id: int) -> dict:
+        """Контентные оценки по истории, сохранённой при последней загрузке данных."""
+        if self.interactions_df is None:
+            return self.get_cold_start_scores()
+        user_ints = self.interactions_df[self.interactions_df["user_id"] == user_id]
+        return self._content_scores_from_interactions(user_ints)
+
+    def get_cold_start_scores(self) -> dict:
+        """Ранжирование без истории: популярность по положительным сигналам + небольшая новизна.
+
+        Если данных о взаимодействиях ещё нет, возвращает одинаковый нейтральный балл;
+        в таком случае персонализировать порядок объективно не по чему.
+        """
+        if self.events_df is None or self.events_df.empty:
+            return {}
+        event_ids = self.events_df["id"].tolist()
+        popularity = {eid: 0.0 for eid in event_ids}
+        if self.interactions_df is not None and not self.interactions_df.empty:
+            weighted = self.compute_interaction_weights()
+            for _, row in weighted.iterrows():
+                eid = row["event_id"]
+                if eid in popularity and row["weight"] > 0:
+                    popularity[eid] += float(row["weight"])
+        values = np.array([popularity[eid] for eid in event_ids], dtype=float)
+        if values.max() > values.min():
+            values = (values - values.min()) / (values.max() - values.min())
+        else:
+            values = np.full(len(event_ids), 0.5, dtype=float)
+        # Небольшой бонус мероприятиям с корректной будущей датой, без исключения дат здесь:
+        # строгий фильтр актуальности должен применяться отдельным слоем API/планировщика.
+        return {event_ids[i]: float(values[i]) for i in range(len(event_ids))}
 
     # ─── ОНЛАЙН ОБНОВЛЕНИЕ ПРОФИЛЯ ────────────────────────
     def get_realtime_cbf_scores(self, user_id: int) -> dict:
-        """
-        Получает актуальные взаимодействия из БД прямо сейчас
-        (не из кэша interactions_df) и пересчитывает контентный профиль.
-        Это решает проблему задержки — рекомендации меняются сразу
-        после действия пользователя, не ожидая переобучения.
-        """
+        """Пересчитывает контентный профиль по актуальной истории из БД."""
         if self.tfidf_matrix is None:
             return {}
-
+        db = SessionLocal()
         try:
-            db = SessionLocal()
             interactions = db.query(UserInteraction).filter(
                 UserInteraction.user_id == user_id
-            ).all()
-            db.close()
+            ).order_by(UserInteraction.timestamp.asc()).all()
+            rows = [{
+                "user_id": i.user_id,
+                "event_id": i.event_id,
+                "interaction_type": i.interaction_type,
+                "rating": i.rating,
+                "timestamp": i.timestamp,
+            } for i in interactions]
         except Exception:
+            # Ошибка БД не должна оставлять сессию открытой.
             return self.get_cbf_scores(user_id)
+        finally:
+            db.close()
 
-        if not interactions:
-            n = len(self.events_df)
-            return {eid: 0.5 for eid in self.events_df["id"].tolist()}
-
-        event_id_to_idx = {eid: i for i, eid in enumerate(self.events_df["id"].tolist())}
-        profile_vector = np.zeros(self.tfidf_matrix.shape[1])
-        total_weight = 0
-
-        for interaction in interactions:
-            itype = interaction.interaction_type
-            if itype == "rated" and interaction.rating:
-                weight = float(interaction.rating)
-            else:
-                weight = INTERACTION_WEIGHTS.get(itype, 1.0)
-
-            e_idx = event_id_to_idx.get(interaction.event_id)
-            if e_idx is not None:
-                profile_vector += weight * self.tfidf_matrix[e_idx].toarray()[0]
-                total_weight += weight
-
-        if total_weight > 0:
-            profile_vector /= total_weight
-
-        profile_sparse = csr_matrix(profile_vector)
-        similarities = cosine_similarity(profile_sparse, self.tfidf_matrix)[0]
-
-        if similarities.max() > similarities.min():
-            similarities = (similarities - similarities.min()) / (similarities.max() - similarities.min())
-
-        event_ids = self.events_df["id"].tolist()
-        return {event_ids[i]: float(similarities[i]) for i in range(len(similarities))}
+        if not rows:
+            return self.get_cold_start_scores()
+        fresh_df = pd.DataFrame(rows)
+        # Единая логика агрегации для онлайн- и офлайн-расчёта.
+        weighted = self.compute_interaction_weights(fresh_df)
+        return self._content_scores_from_interactions(weighted)
 
     # ─── ГЛАВНЫЙ МЕТОД: РЕКОМЕНДАЦИИ ──────────────────────
     def recommend(
@@ -421,7 +448,7 @@ class HybridRecommender:
         if not self.is_trained:
             raise RuntimeError("Модель не обучена. Запустите train() сначала.")
 
-        # Определяем α для этого пользователя
+        # Определяем α для этого пользователя. Для нового пользователя CF не применяется.
         alpha = self.get_alpha(user_id)
 
         # Получаем оценки коллаборативного компонента из обученной матрицы
@@ -437,11 +464,10 @@ class HybridRecommender:
         # НЕ просмотры — иначе при маленькой базе рекомендации кончаются
         seen_event_ids = set()
         if exclude_seen and self.interactions_df is not None and len(self.interactions_df) > 0:
-            strong_interactions = self.interactions_df[
-                (self.interactions_df["user_id"] == user_id) &
-                (self.interactions_df["interaction_type"].isin(["favorite", "attended"]))
-            ]["event_id"].tolist()
-            seen_event_ids = set(strong_interactions)
+            user_rows = self.interactions_df[self.interactions_df["user_id"] == user_id]
+            strong_ids = user_rows[user_rows["interaction_type"].isin(["favorite", "attended"])]["event_id"].tolist()
+            low_rated_ids = user_rows[(user_rows["interaction_type"] == "rated") & (pd.to_numeric(user_rows["rating"], errors="coerce") <= 2)]["event_id"].tolist()
+            seen_event_ids = set(strong_ids + low_rated_ids)
 
         # Вычисляем итоговые оценки
         results = []
