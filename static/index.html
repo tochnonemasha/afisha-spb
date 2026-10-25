@@ -540,13 +540,16 @@ function filterEvents() {
     }
 
     // Район определяется по координатам события внутри полигонов districts.json.
-    const districtVal = document.getElementById('district-filter')?.value;
+    const districtVal = normalizeDistrictName(document.getElementById('district-filter')?.value || '');
     if (districtVal) {
         filtered = filtered.filter(e => {
-            if (e.districtName) return e.districtName === districtVal;
-            const addr = (e.venue_address || '').toLowerCase();
-            const venue = (e.venue || '').toLowerCase();
-            return addr.includes(districtVal.toLowerCase()) || venue.includes(districtVal.toLowerCase());
+            // Сначала используем результат географического определения района.
+            const eventDistrict = normalizeDistrictName(e.districtName || '');
+            if (eventDistrict) return eventDistrict === districtVal;
+            // Резервный вариант для событий без координат/района.
+            const addr = normalizeDistrictName(e.venue_address || '');
+            const venue = normalizeDistrictName(e.venue || '');
+            return addr.includes(districtVal) || venue.includes(districtVal);
         });
     }
 
@@ -869,6 +872,16 @@ document.querySelectorAll('.cat-chip').forEach(chip => {
     });
 });
 
+// Нормализуем полные и короткие названия районов, чтобы значения фильтра
+// совпадали с properties.NAME из districts.json.
+function normalizeDistrictName(value) {
+    return String(value || '')
+        .toLocaleLowerCase('ru-RU')
+        .replace(/\s+/g, ' ')
+        .replace(/\s*район\s*$/i, '')
+        .trim();
+}
+
 // Заполняем список районов из GeoJSON
 async function loadDistrictsGeoJSON() {
     try {
@@ -876,8 +889,11 @@ async function loadDistrictsGeoJSON() {
         if (!response.ok) throw new Error('districts.json unavailable');
         districtsGeoJSON = await response.json();
         const select = document.getElementById('district-filter');
+        if (!select) return;
+        const previousValue = select.value;
         const names = [...new Set((districtsGeoJSON.features || []).map(f => f.properties?.NAME).filter(Boolean))].sort((a,b) => a.localeCompare(b, 'ru'));
         select.innerHTML = '<option value="">Все районы</option>' + names.map(n => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');
+        if (names.some(n => normalizeDistrictName(n) === normalizeDistrictName(previousValue))) select.value = names.find(n => normalizeDistrictName(n) === normalizeDistrictName(previousValue));
         allEvents.forEach(e => { e.districtName = findDistrictForEvent(e); });
         renderCards();
     } catch (error) { console.warn('Не удалось загрузить GeoJSON районов:', error); }
@@ -904,6 +920,12 @@ function findDistrictForEvent(e) {
     return '';
 }
 function escapeHtml(value) { return String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+// Изменение района должно немедленно запускать фильтрацию.
+document.getElementById('district-filter')?.addEventListener('change', () => {
+    currentLimit = LOAD_STEP;
+    renderCards();
+});
 
 // === ИНИЦИАЛИЗАЦИЯ ===
 renderCal();
