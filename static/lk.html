@@ -156,6 +156,14 @@ header{border-bottom:1px solid var(--border);padding:0 48px;display:flex;align-i
 .modal-save{flex:1;background:var(--accent);border:none;color:#000;padding:12px;font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:0.1em;font-weight:500}
 .modal-save:hover{background:var(--accent2)}
 
+/* Подтверждение очистки истории */
+.confirm-modal-content{background:var(--surface);border:1px solid var(--border);max-width:430px;width:90%;padding:32px;position:relative;text-align:center;box-shadow:0 24px 80px rgba(0,0,0,.45)}
+.confirm-modal-icon{width:58px;height:58px;border:1px solid rgba(200,169,110,.45);border-radius:50%;display:grid;place-items:center;margin:0 auto 18px;color:var(--accent);font-size:25px}
+.confirm-modal-title{font-family:'Playfair Display',serif;font-size:25px;font-weight:700;margin-bottom:10px}
+.confirm-modal-text{font-size:13px;line-height:1.65;color:var(--muted);margin-bottom:22px}
+.confirm-delete{flex:1;background:#9d4747;border:1px solid #9d4747;color:#fff;padding:12px;font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.08em}
+.confirm-delete:hover{background:#b85a5a}
+
 /* TOAST */
 .toast-message{position:fixed;bottom:30px;left:50%;transform:translateX(-50%);background:var(--accent);color:#000;padding:10px 24px;font-family:'IBM Plex Mono',monospace;font-size:11px;z-index:2000;letter-spacing:0.08em;animation:fadeOut 3s forwards}
 @keyframes fadeOut{0%{opacity:1}70%{opacity:1}100%{opacity:0;visibility:hidden}}
@@ -193,9 +201,10 @@ footer{border-top:1px solid var(--border);padding:32px 48px;display:flex;justify
       <div class="profile-name" id="profile-name-display">Загрузка...</div>
       <div class="profile-email" id="profile-email-display"></div>
       <div class="profile-stats">
-        <div class="stat-item"><span class="stat-num" id="stat-history-count">0</span><span class="stat-label">Посещено</span></div>
         <div class="stat-item"><span class="stat-num" id="stat-fav-count">0</span><span class="stat-label">В избранном</span></div>
-        <div class="stat-item"><span class="stat-num" id="stat-views">0</span><span class="stat-label">Просмотрено</span></div>
+        <div class="stat-item"><span class="stat-num" id="stat-history-count">0</span><span class="stat-label">Посещённые</span></div>
+        <div class="stat-item"><span class="stat-num" id="stat-review-count">0</span><span class="stat-label">Отзывы</span></div>
+        <div class="stat-item"><span class="stat-num" id="stat-views">0</span><span class="stat-label">Просмотренные</span></div>
       </div>
     </div>
   </div>
@@ -289,6 +298,19 @@ footer{border-top:1px solid var(--border);padding:32px 48px;display:flex;justify
   <div class="footer-logo">АФИША · SPB</div>
   <div class="footer-copy">© 2025 · Санкт-Петербург</div>
 </footer>
+
+<!-- MODAL: Подтверждение очистки истории -->
+<div id="clearHistoryModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="clear-history-title">
+  <div class="confirm-modal-content">
+    <div class="confirm-modal-icon">⌫</div>
+    <div class="confirm-modal-title" id="clear-history-title">Очистить историю?</div>
+    <div class="confirm-modal-text">Все мероприятия из списка недавно просмотренных будут удалены. Продолжить?</div>
+    <div class="modal-buttons">
+      <button class="modal-cancel" onclick="closeClearHistoryModal()">Отмена</button>
+      <button class="confirm-delete" id="confirm-clear-history-btn" onclick="confirmClearHistory()">Да, очистить</button>
+    </div>
+  </div>
+</div>
 
 <!-- MODAL: Редактирование профиля -->
 <div id="editProfileModal" class="modal-overlay">
@@ -669,13 +691,8 @@ async function loadRecent() {
     }
   }
 
-  // Скрываем только в личном кабинете просмотры до очистки. Записи в БД не удаляются.
-  const clearedAt = Number(localStorage.getItem('recent_views_cleared_at_' + userId) || 0);
-  events = events.filter(e => {
-    if (!clearedAt) return true;
-    const viewedAt = e.viewed_at ? new Date(e.viewed_at).getTime() : 0;
-    return viewedAt > clearedAt;
-  });
+  // Сервер возвращает актуальную историю. После очистки старые записи удалены,
+  // поэтому новые просмотры снова будут появляться в этом списке.
   events.sort((a, b) => new Date(b.viewed_at || 0).getTime() - new Date(a.viewed_at || 0).getTime());
   renderRecent(events);
 }
@@ -708,12 +725,36 @@ function renderRecent(events) {
 }
 
 function clearHistory() {
-  if (!confirm('Очистить историю просмотров в личном кабинете? Записи в базе данных сохранятся.')) return;
-  localStorage.setItem('recent_views_cleared_at_' + userId, String(Date.now()));
-  // Удаляем только локальный кеш, серверная история и взаимодействия в БД остаются.
-  localStorage.removeItem('recent_views_' + userId);
-  renderRecent([]);
-  showToast('История скрыта в личном кабинете');
+  document.getElementById('clearHistoryModal').style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+}
+
+function closeClearHistoryModal() {
+  document.getElementById('clearHistoryModal').style.display = 'none';
+  document.body.style.overflow = 'auto';
+}
+
+async function confirmClearHistory() {
+  const button = document.getElementById('confirm-clear-history-btn');
+  button.disabled = true;
+  button.textContent = 'ОЧИЩАЕМ…';
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/interactions/views/${userId}`, { method: 'DELETE' });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.detail || 'Не удалось очистить историю');
+    }
+    localStorage.removeItem('recent_views_' + userId);
+    localStorage.removeItem('recent_views_cleared_at_' + userId);
+    closeClearHistoryModal();
+    renderRecent([]);
+    showToast('История просмотров очищена');
+  } catch (e) {
+    showToast(e.message || 'Ошибка очистки истории');
+  } finally {
+    button.disabled = false;
+    button.textContent = 'Да, очистить';
+  }
 }
 
 function formatRelativeTime(isoStr) {
@@ -826,6 +867,8 @@ async function renderUserReviews() {
   const list = document.getElementById('user-reviews-list');
   const empty = document.getElementById('empty-reviews');
   document.getElementById('reviews-count').textContent = reviews.length;
+  const reviewStat = document.getElementById('stat-review-count');
+  if (reviewStat) reviewStat.textContent = reviews.length;
   if (!reviews.length) { list.innerHTML = ''; empty.style.display = 'block'; return; }
   empty.style.display = 'none';
   list.innerHTML = reviews.map(r => `
@@ -878,7 +921,7 @@ async function saveReviewChanges() {
 }
 
 async function deleteReview(id) {
-  if (!confirm('Удалить отзыв?')) return;
+  if (!(await showConfirm('Удалить этот отзыв? Это действие нельзя отменить.', 'Удаление отзыва', true))) return;
   try {
     const res = await fetch(`${API_BASE_URL}/api/reviews/${id}?user_id=${encodeURIComponent(userId)}`, { method: 'DELETE' });
     const data = await res.json().catch(() => ({}));
@@ -922,14 +965,14 @@ function saveProfileChanges() {
 
 // ─── ВЫХОД ────────────────────────────────────────────────
 function logout() {
-  if (confirm('Вы уверены, что хотите выйти?')) {
+  showConfirm('Вы уверены, что хотите выйти из аккаунта?', 'Выход из аккаунта', true).then(ok => { if (ok) {
     localStorage.removeItem('user_id');
     localStorage.removeItem('user_name');
     localStorage.removeItem('user_email');
     localStorage.removeItem('user_type');
     localStorage.removeItem('afisha_user');
     window.location.href = '/login.html';
-  }
+  }});
 }
 
 // ─── ВСПОМОГАТЕЛЬНЫЕ ──────────────────────────────────────
@@ -993,6 +1036,43 @@ loadVisited();
 loadRecommendations();
 renderUserReviews();
 loadRecent();
+
+document.getElementById('clearHistoryModal')?.addEventListener('click', function(e) { if (e.target === this) closeClearHistoryModal(); });
+</script>
+
+
+<style>
+.afisha-dialog-backdrop{position:fixed;inset:0;z-index:100000;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(10,15,25,.62);backdrop-filter:blur(5px)}
+.afisha-dialog-backdrop.open{display:flex;animation:afade .16s ease-out}@keyframes afade{from{opacity:0}to{opacity:1}}
+.afisha-dialog{width:min(440px,100%);background:var(--surface,#fff);color:var(--text,#222);border:1px solid var(--border,#ddd);border-radius:18px;padding:25px;box-shadow:0 24px 80px #0004;font-family:inherit}
+.afisha-dialog-icon{width:42px;height:42px;border-radius:14px;display:grid;place-items:center;background:color-mix(in srgb,var(--accent,#b38b52) 16%,transparent);color:var(--accent,#b38b52);font-size:22px;margin-bottom:15px}
+.afisha-dialog-title{font-size:20px;font-weight:700;margin-bottom:9px}.afisha-dialog-message{font-size:14px;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere;color:var(--muted,#666)}
+.afisha-dialog-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:23px;flex-wrap:wrap}.afisha-dialog-btn{border-radius:10px;padding:10px 16px;border:1px solid var(--border,#ddd);background:transparent;color:inherit;font:inherit;cursor:pointer}.afisha-dialog-btn.primary{background:var(--accent,#b38b52);border-color:var(--accent,#b38b52);color:#fff}.afisha-dialog-btn.danger{background:#b94141;border-color:#b94141;color:#fff}
+.district-multi-hint{font-size:11px;opacity:.72;margin-top:6px}.district-filter-multi{min-width:180px;max-width:260px;height:auto;min-height:38px;padding:8px}
+</style>
+<div class="afisha-dialog-backdrop" id="afisha-dialog" role="dialog" aria-modal="true" aria-labelledby="afisha-dialog-title"><div class="afisha-dialog"><div class="afisha-dialog-icon" id="afisha-dialog-icon">✦</div><div class="afisha-dialog-title" id="afisha-dialog-title">Подтверждение</div><div class="afisha-dialog-message" id="afisha-dialog-message"></div><div class="afisha-dialog-actions" id="afisha-dialog-actions"></div></div></div>
+<script>
+(function(){
+ let resolver=null;
+ window.showAfishaDialog=function({title='Афиша SPB',message='',icon='✦',confirmText='Понятно',cancelText='Отмена',confirm=false,danger=false}={}){
+  const modal=document.getElementById('afisha-dialog'); if(!modal){ if(confirm) return Promise.resolve(window.confirm(message)); window.alert(message); return Promise.resolve(true); }
+  document.getElementById('afisha-dialog-title').textContent=title;
+  document.getElementById('afisha-dialog-message').textContent=String(message);
+  document.getElementById('afisha-dialog-icon').textContent=icon;
+  const actions=document.getElementById('afisha-dialog-actions'); actions.replaceChildren();
+  return new Promise(resolve=>{
+   resolver=resolve;
+   const finish=value=>{modal.classList.remove('open');document.body.style.overflow='';resolver=null;resolve(value)};
+   if(confirm){const cancel=document.createElement('button');cancel.className='afisha-dialog-btn';cancel.textContent=cancelText;cancel.onclick=()=>finish(false);actions.append(cancel)}
+   const ok=document.createElement('button');ok.className='afisha-dialog-btn '+(danger?'danger':'primary');ok.textContent=confirmText;ok.onclick=()=>finish(true);actions.append(ok);
+   modal.onclick=e=>{if(e.target===modal && !confirm)finish(true)};
+   modal.classList.add('open');document.body.style.overflow='hidden';ok.focus();
+   const key=e=>{if(e.key==='Escape'){if(confirm)finish(false);else finish(true);document.removeEventListener('keydown',key)}};document.addEventListener('keydown',key);
+  });
+ };
+ window.showNotice=function(message,title='Обратите внимание'){return window.showAfishaDialog({title,message,icon:'✦',confirmText:'Хорошо'})};
+ window.showConfirm=function(message,title='Подтвердите действие',danger=false){return window.showAfishaDialog({title,message,icon:danger?'!':'?',confirm:true,confirmText:danger?'Да, продолжить':'Подтвердить',cancelText:'Отмена',danger})};
+})();
 </script>
 
 </body>
