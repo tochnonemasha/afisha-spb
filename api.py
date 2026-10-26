@@ -551,6 +551,24 @@ def get_event_reviews(event_id: int, db=Depends(get_db)):
     }
 
 
+@app.get("/api/users/{user_id}/reviews")
+def get_user_reviews(user_id: int, db=Depends(get_db)):
+    """Отзывы конкретного пользователя для личного кабинета."""
+    rows = db.query(EventReview).filter(EventReview.user_id == user_id).order_by(EventReview.updated_at.desc()).all()
+    event_ids = [r.event_id for r in rows]
+    events = db.query(Event).filter(Event.id.in_(event_ids)).all() if event_ids else []
+    event_map = {e.id: e for e in events}
+    return {"reviews": [{
+        "id": r.id,
+        "user_id": r.user_id,
+        "event_id": r.event_id,
+        "event_title": event_map[r.event_id].title if r.event_id in event_map else f"Мероприятие #{r.event_id}",
+        "rating": r.rating,
+        "text": r.text,
+        "created_at": r.updated_at.isoformat() if r.updated_at else None,
+    } for r in rows]}
+
+
 @app.post("/api/reviews")
 def save_event_review(data: ReviewCreateRequest, db=Depends(get_db)):
     user = db.query(User).filter(User.id == data.user_id).first()
@@ -677,19 +695,23 @@ def get_views(user_id: int, db=Depends(get_db)):
         UserInteraction.interaction_type == "view"
     ).order_by(UserInteraction.timestamp.desc()).limit(20).all()
 
-    event_ids = [v.event_id for v in views]
-    timestamps = {v.event_id: str(v.timestamp) for v in views}
-    events = db.query(Event).filter(Event.id.in_(event_ids)).all()
+    # Для каждого мероприятия оставляем только последнее время просмотра.
+    latest = {}
+    for interaction in views:  # уже отсортировано от новых к старым
+        latest.setdefault(interaction.event_id, str(interaction.timestamp))
+    event_ids = list(latest.keys())
+    events = db.query(Event).filter(Event.id.in_(event_ids)).all() if event_ids else []
     event_map = {e.id: e for e in events}
 
     return {"events": [{
         "id": e_id,
-        "title": event_map[e_id].title if e_id in event_map else "",
-        "category": event_map[e_id].category if e_id in event_map else "",
-        "venue_title": event_map[e_id].venue_title if e_id in event_map else "",
-        "image_url": event_map[e_id].image_url if e_id in event_map else "",
-        "viewed_at": timestamps.get(e_id, ""),
+        "title": event_map[e_id].title,
+        "category": event_map[e_id].category,
+        "venue_title": event_map[e_id].venue_title,
+        "image_url": event_map[e_id].image_url,
+        "viewed_at": latest.get(e_id, ""),
     } for e_id in event_ids if e_id in event_map]}
+
 # ─── ЭНДПОИНТЫ: РЕКОМЕНДАЦИИ ──────────────────────────────
 
 @app.get("/api/recommendations/{user_id}")
