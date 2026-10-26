@@ -262,12 +262,13 @@ footer{border-top:1px solid var(--border);padding:28px 48px;display:flex;justify
     <span class="filter-label">Фильтры:</span>
 
     <div class="filter-wrapper">
-      <select class="filter-select" id="district-filter">
-        <option value="">Район</option>
+      <select class="filter-select district-filter-multi" id="district-filter" multiple size="4" aria-label="Выберите несколько районов">
+        
         <option>Центральный</option><option>Петроградский</option>
         <option>Василеостровский</option><option>Адмиралтейский</option>
         <option>Московский</option><option>Выборгский</option><option>Невский</option>
       </select>
+      <div class="district-multi-hint">Можно выбрать несколько районов (Ctrl/⌘).</div>
       <span class="filter-arrow">▾</span>
     </div>
 
@@ -356,6 +357,40 @@ footer{border-top:1px solid var(--border);padding:28px 48px;display:flex;justify
   </div>
   <div class="footer-copy">© 2026</div>
 </footer>
+
+<style>
+.afisha-dialog-backdrop{position:fixed;inset:0;z-index:100000;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(10,15,25,.62);backdrop-filter:blur(5px)}
+.afisha-dialog-backdrop.open{display:flex;animation:afade .16s ease-out}@keyframes afade{from{opacity:0}to{opacity:1}}
+.afisha-dialog{width:min(440px,100%);background:var(--surface,#fff);color:var(--text,#222);border:1px solid var(--border,#ddd);border-radius:18px;padding:25px;box-shadow:0 24px 80px #0004;font-family:inherit}
+.afisha-dialog-icon{width:42px;height:42px;border-radius:14px;display:grid;place-items:center;background:color-mix(in srgb,var(--accent,#b38b52) 16%,transparent);color:var(--accent,#b38b52);font-size:22px;margin-bottom:15px}
+.afisha-dialog-title{font-size:20px;font-weight:700;margin-bottom:9px}.afisha-dialog-message{font-size:14px;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere;color:var(--muted,#666)}
+.afisha-dialog-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:23px;flex-wrap:wrap}.afisha-dialog-btn{border-radius:10px;padding:10px 16px;border:1px solid var(--border,#ddd);background:transparent;color:inherit;font:inherit;cursor:pointer}.afisha-dialog-btn.primary{background:var(--accent,#b38b52);border-color:var(--accent,#b38b52);color:#fff}.afisha-dialog-btn.danger{background:#b94141;border-color:#b94141;color:#fff}
+.district-multi-hint{font-size:11px;opacity:.72;margin-top:6px}.district-filter-multi{min-width:180px;max-width:260px;height:auto;min-height:38px;padding:8px}
+</style>
+<div class="afisha-dialog-backdrop" id="afisha-dialog" role="dialog" aria-modal="true" aria-labelledby="afisha-dialog-title"><div class="afisha-dialog"><div class="afisha-dialog-icon" id="afisha-dialog-icon">✦</div><div class="afisha-dialog-title" id="afisha-dialog-title">Подтверждение</div><div class="afisha-dialog-message" id="afisha-dialog-message"></div><div class="afisha-dialog-actions" id="afisha-dialog-actions"></div></div></div>
+<script>
+(function(){
+ let resolver=null;
+ window.showAfishaDialog=function({title='Афиша SPB',message='',icon='✦',confirmText='Понятно',cancelText='Отмена',confirm=false,danger=false}={}){
+  const modal=document.getElementById('afisha-dialog'); if(!modal){ if(confirm) return Promise.resolve(window.confirm(message)); window.alert(message); return Promise.resolve(true); }
+  document.getElementById('afisha-dialog-title').textContent=title;
+  document.getElementById('afisha-dialog-message').textContent=String(message);
+  document.getElementById('afisha-dialog-icon').textContent=icon;
+  const actions=document.getElementById('afisha-dialog-actions'); actions.replaceChildren();
+  return new Promise(resolve=>{
+   resolver=resolve;
+   const finish=value=>{modal.classList.remove('open');document.body.style.overflow='';resolver=null;resolve(value)};
+   if(confirm){const cancel=document.createElement('button');cancel.className='afisha-dialog-btn';cancel.textContent=cancelText;cancel.onclick=()=>finish(false);actions.append(cancel)}
+   const ok=document.createElement('button');ok.className='afisha-dialog-btn '+(danger?'danger':'primary');ok.textContent=confirmText;ok.onclick=()=>finish(true);actions.append(ok);
+   modal.onclick=e=>{if(e.target===modal && !confirm)finish(true)};
+   modal.classList.add('open');document.body.style.overflow='hidden';ok.focus();
+   const key=e=>{if(e.key==='Escape'){if(confirm)finish(false);else finish(true);document.removeEventListener('keydown',key)}};document.addEventListener('keydown',key);
+  });
+ };
+ window.showNotice=function(message,title='Обратите внимание'){return window.showAfishaDialog({title,message,icon:'✦',confirmText:'Хорошо'})};
+ window.showConfirm=function(message,title='Подтвердите действие',danger=false){return window.showAfishaDialog({title,message,icon:danger?'!':'?',confirm:true,confirmText:danger?'Да, продолжить':'Подтвердить',cancelText:'Отмена',danger})};
+})();
+</script>
 
 <script>
 // === КОНФИГУРАЦИЯ ===
@@ -540,17 +575,15 @@ function filterEvents() {
     }
 
     // Район определяется по координатам события внутри полигонов districts.json.
-    const districtVal = normalizeDistrictName(document.getElementById('district-filter')?.value || '');
-    if (districtVal) {
-        filtered = filtered.filter(e => {
-            // Сначала используем результат географического определения района.
+    const districtVals = Array.from(document.getElementById('district-filter')?.selectedOptions || []).map(o => normalizeDistrictName(o.value)).filter(Boolean);
+    if (districtVals.length) {
+        filtered = filtered.filter(e => districtVals.some(districtVal => {
             const eventDistrict = normalizeDistrictName(e.districtName || '');
             if (eventDistrict) return eventDistrict === districtVal;
-            // Резервный вариант для событий без координат/района.
             const addr = normalizeDistrictName(e.venue_address || '');
             const venue = normalizeDistrictName(e.venue || '');
             return addr.includes(districtVal) || venue.includes(districtVal);
-        });
+        }));
     }
 
     // Фильтр по цене
@@ -697,7 +730,7 @@ async function toggleFav(e, id) {
     e.stopPropagation();
     const userId = localStorage.getItem('user_id');
     if (!userId) {
-        if (confirm('Чтобы сохранить в избранное нужно войти. Перейти?')) {
+        if (await showConfirm('Чтобы сохранить мероприятие в избранное, нужно войти в аккаунт. Перейти ко входу?', 'Вход в аккаунт')) {
             location.href = '/login.html';
         }
         return;
@@ -837,7 +870,7 @@ function resetFilters() {
     document.getElementById('price-display').textContent = 'Цена';
     document.getElementById('cal-display').textContent = 'Выберите дату';
     document.querySelectorAll('.age-option').forEach(o => o.classList.remove('selected'));
-    document.getElementById('district-filter').value = '';
+    Array.from(document.getElementById('district-filter').options).forEach(o => o.selected = false);
     
     // Сбрасываем активную категорию
     selectedCategories.clear();
@@ -890,10 +923,10 @@ async function loadDistrictsGeoJSON() {
         districtsGeoJSON = await response.json();
         const select = document.getElementById('district-filter');
         if (!select) return;
-        const previousValue = select.value;
+        const previousValue = Array.from(select.selectedOptions).map(o => o.value);
         const names = [...new Set((districtsGeoJSON.features || []).map(f => f.properties?.NAME).filter(Boolean))].sort((a,b) => a.localeCompare(b, 'ru'));
         select.innerHTML = '<option value="">Все районы</option>' + names.map(n => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');
-        if (names.some(n => normalizeDistrictName(n) === normalizeDistrictName(previousValue))) select.value = names.find(n => normalizeDistrictName(n) === normalizeDistrictName(previousValue));
+        Array.from(select.options).forEach(o => { o.selected = previousValue.some(v => normalizeDistrictName(v) === normalizeDistrictName(o.value)); });
         allEvents.forEach(e => { e.districtName = findDistrictForEvent(e); });
         renderCards();
     } catch (error) { console.warn('Не удалось загрузить GeoJSON районов:', error); }
@@ -934,16 +967,16 @@ loadEventsFromAPI().then(() => loadDistrictsGeoJSON());
 
 async function toggleAttended(eventId, button) {
     const userId = localStorage.getItem('user_id');
-    if (!userId) { if (confirm('Чтобы отметить посещение, войдите в аккаунт. Перейти ко входу?')) location.href='/login.html'; return; }
+    if (!userId) { if (await showConfirm('Чтобы отметить посещение, войдите в аккаунт. Перейти ко входу?', 'Вход в аккаунт')) location.href='/login.html'; return; }
     const wasAttended = button.classList.contains('is-attended');
-    if (wasAttended) { alert('Это мероприятие уже отмечено как посещённое.'); return; }
+    if (wasAttended) { showNotice('Это мероприятие уже отмечено как посещённое.'); return; }
     button.disabled = true;
     try {
         const response = await fetch(`${API_BASE_URL}/api/interactions`, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:Number(userId),event_id:Number(eventId),interaction_type:'attended'})});
         if (!response.ok) throw new Error('Не удалось сохранить посещение');
         button.classList.add('is-attended'); button.textContent='✓ Посещено';
         const ev=allEvents.find(x=>Number(x.id)===Number(eventId)); if(ev) ev.attended=true;
-    } catch(err) { alert('Не удалось отметить посещение. Попробуйте ещё раз.'); }
+    } catch(err) { showNotice('Не удалось отметить посещение. Попробуйте ещё раз.'); }
     finally { button.disabled=false; }
 }
 
@@ -964,21 +997,21 @@ function updateHeader() {
         regBtn.style.background = 'none';
         regBtn.style.border = '1px solid var(--border)';
         regBtn.style.color = 'var(--muted)';
-        regBtn.onclick = () => {
+        regBtn.onclick = () => showConfirm('Вы действительно хотите выйти из аккаунта?', 'Выход из аккаунта', true).then(ok => { if (!ok) return;
             localStorage.removeItem('user_id');
             localStorage.removeItem('user_name');
             localStorage.removeItem('user_email');
             localStorage.removeItem('user_type');
             location.reload();
-        };
+        });
     }
 }
 
 updateHeader();
-  function buyTicket(eventData) {
+  async function buyTicket(eventData) {
   const userId = localStorage.getItem('user_id');
   if (!userId) {
-    if (confirm('Чтобы купить билет нужно войти. Перейти к входу?')) {
+    if (await showConfirm('Чтобы купить билет, нужно войти в аккаунт. Перейти ко входу?', 'Вход в аккаунт')) {
       location.href = '/login.html';
     }
     return;
