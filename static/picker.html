@@ -276,12 +276,12 @@ input[type=range]{width:100%;accent-color:var(--accent);background:transparent;m
       </div>
       <div class="field">
         <label>Макс. событий в день</label>
-        <input type="range" id="max-per-day" min="1" max="5" value="3"
+        <input type="range" id="max-per-day" min="1" max="12" value="3"
           oninput="document.getElementById('max-per-day-val').textContent=this.value">
         <div class="range-label">
           <span>1</span>
           <span id="max-per-day-val" style="color:var(--accent)">3 события</span>
-          <span>5</span>
+          <span>12</span>
         </div>
       </div>
     </div>
@@ -1176,10 +1176,15 @@ function renderResults(plan, params, isEditRender = false) {
     }
 
     const schedule = plan.schedule || [];
+    const personalization = plan.personalization || {};
+    const personalizationStatus = (personalization.used_interactions || personalization.used_category_preferences)
+        ? `✦ Персональный подбор включён${personalization.interaction_count ? ` · учтено действий: ${personalization.interaction_count}` : ''}`
+        : `Общий порядок мероприятий: сервер не получил историю/предпочтения аккаунта${personalization.user_id ? ` (ID ${personalization.user_id}, действий: ${personalization.interaction_count || 0})` : ' — пользователь не авторизован на этом домене'}.`;
 
     let html = `
         <div class="results-header">
             <div class="results-title">Ваше расписание</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:6px">${personalizationStatus}</div>
             <div style="font-size:11px;color:var(--muted);margin-top:6px">Время переездов — предварительная оценка, не навигационный маршрут.</div>
             <div class="results-stats">
                 <div class="result-stat">
