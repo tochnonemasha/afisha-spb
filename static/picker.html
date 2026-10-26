@@ -1236,7 +1236,7 @@ async function initDayMaps(schedule, requestedMode) {
         const mode = requestedMode === 'car' ? 'car' : (requestedMode === 'walk' ? 'walk' : 'transit');
         if (mode === 'transit') {
             L.polyline(latlngs, {color:'#C8A96E',weight:3,dashArray:'7 8',opacity:.9}).addTo(map);
-            statusEl.textContent = 'Общественный транспорт: пунктир соединяет точки по порядку, это НЕ маршрут метро/автобуса. Дорожный роутер для этого режима не используется.';
+            statusEl.textContent = 'Общественный транспорт: пунктир соединяет точки по порядку.';
         } else {
             statusEl.textContent = 'Строим маршрут по дорожной сети…';
             try {
