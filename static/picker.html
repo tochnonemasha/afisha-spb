@@ -195,36 +195,6 @@ footer{border-top:1px solid var(--border);padding:28px 48px;display:flex;justify
 /* range input */
 input[type=range]{width:100%;accent-color:var(--accent);background:transparent;margin-top:8px}
 .range-label{display:flex;justify-content:space-between;font-size:10px;font-family:'IBM Plex Mono',monospace;color:var(--muted);margin-top:4px}
-
-/* Районы: выбор чекбоксами, без Ctrl/Cmd */
-.district-picker{position:relative}
-.district-trigger{width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:12px 14px;text-align:left;cursor:pointer;font-size:13px}
-.district-trigger:hover,.district-trigger[aria-expanded="true"]{border-color:var(--accent)}
-.district-trigger .district-summary{color:var(--muted);overflow:hidden;text-overflow:ellipsis}
-.district-panel{display:none;position:absolute;top:calc(100% + 6px);left:0;right:0;z-index:120;background:var(--surface);border:1px solid var(--accent);box-shadow:0 18px 45px #0009;padding:12px;max-height:300px;overflow:auto}
-.district-panel.open{display:block}
-.district-panel-top{display:flex;justify-content:space-between;align-items:center;gap:10px;padding-bottom:10px;margin-bottom:8px;border-bottom:1px solid var(--border);font:10px 'IBM Plex Mono',monospace;color:var(--muted);text-transform:uppercase}
-.district-clear{border:0;background:transparent;color:var(--accent);cursor:pointer;font:inherit}
-.district-options{display:grid;grid-template-columns:1fr 1fr;gap:6px}
-.district-option{display:flex;align-items:center;gap:8px;padding:9px;border:1px solid var(--border);color:var(--muted);font-size:12px;cursor:pointer;transition:.15s}
-.district-option:hover{border-color:var(--accent);color:var(--text)}
-.district-option:has(input:checked){background:#c8a96e18;border-color:var(--accent);color:var(--accent)}
-.district-option input{accent-color:var(--accent);width:15px;height:15px;flex-shrink:0}
-.district-help{font-size:10px;color:var(--muted);line-height:1.5;margin-top:8px}
-.db-toolbar{grid-template-columns:minmax(0,1fr) 160px 150px}
-.db-toolbar select{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:12px;font-size:12px;outline:none}
-.db-toolbar select:focus{border-color:var(--accent)}
-.confirm-modal{width:min(500px,100%);background:var(--surface);border:1px solid var(--accent);box-shadow:0 24px 90px #000b}
-.confirm-icon{width:46px;height:46px;border:1px solid var(--accent);border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--accent);font:24px 'Playfair Display',serif;margin-bottom:14px}
-.confirm-message{font-size:13px;line-height:1.7;color:var(--text);white-space:pre-line}
-.confirm-actions{display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap;padding:18px 26px 24px;border-top:1px solid var(--border)}
-.confirm-cancel,.confirm-accept{padding:12px 16px;cursor:pointer;font:10px 'IBM Plex Mono',monospace;letter-spacing:.08em;text-transform:uppercase}
-.confirm-cancel{background:transparent;border:1px solid var(--border);color:var(--muted)}
-.confirm-accept{background:var(--accent);border:1px solid var(--accent);color:#111}
-.confirm-accept.danger{background:var(--red);border-color:var(--red);color:white}
-@media(max-width:700px){.db-toolbar{grid-template-columns:1fr}.district-options{grid-template-columns:1fr 1fr}}
-@media(max-width:420px){.district-options{grid-template-columns:1fr}}
-
 </style>
 </head>
 <body>
@@ -339,7 +309,7 @@ input[type=range]{width:100%;accent-color:var(--accent);background:transparent;m
       <div class="field">
         <label for="travel-mode">Предпочтительный способ</label>
         <select id="travel-mode">
-          <option value="transit" selected>Метро и наземный транспорт (оценка)</option>
+          <option value="transit" selected>Метро и наземный транспорт</option>
           <option value="walk">Пешком</option>
           <option value="car">Такси / автомобиль</option>
           <option value="flexible">Любой — самый быстрый расчётный вариант</option>
@@ -357,7 +327,7 @@ input[type=range]{width:100%;accent-color:var(--accent);background:transparent;m
         </select>
       </div>
       <p style="font-size:11px;color:var(--muted);margin-top:10px;font-weight:300">
-        Время рассчитывается приблизительно по координатам. Реальные маршруты, расписание метро и пробки пока не подключены.
+        Время рассчитывается приблизительно.
       </p>
     </div>
 
@@ -365,37 +335,28 @@ input[type=range]{width:100%;accent-color:var(--accent);background:transparent;m
     <div class="form-section">
       <div class="section-label">Локация</div>
       <div class="field">
-        <label>Предпочтительные районы</label>
-        <div class="district-picker" id="district-picker">
-          <button type="button" class="district-trigger" id="district-trigger" aria-expanded="false" aria-controls="district-panel" onclick="toggleDistrictPanel()">
-            <span class="district-summary" id="district-summary">Все районы</span><span aria-hidden="true">⌄</span>
-          </button>
-          <div class="district-panel" id="district-panel">
-            <div class="district-panel-top"><span>Можно выбрать несколько</span><button type="button" class="district-clear" onclick="clearDistricts()">Сбросить</button></div>
-            <div class="district-options" id="district-options">
-              <label class="district-option"><input type="checkbox" value="Адмиралтейский" onchange="updateDistrictSummary()">Адмиралтейский</label>
-              <label class="district-option"><input type="checkbox" value="Василеостровский" onchange="updateDistrictSummary()">Василеостровский</label>
-              <label class="district-option"><input type="checkbox" value="Выборгский" onchange="updateDistrictSummary()">Выборгский</label>
-              <label class="district-option"><input type="checkbox" value="Калининский" onchange="updateDistrictSummary()">Калининский</label>
-              <label class="district-option"><input type="checkbox" value="Кировский" onchange="updateDistrictSummary()">Кировский</label>
-              <label class="district-option"><input type="checkbox" value="Колпинский" onchange="updateDistrictSummary()">Колпинский</label>
-              <label class="district-option"><input type="checkbox" value="Красногвардейский" onchange="updateDistrictSummary()">Красногвардейский</label>
-              <label class="district-option"><input type="checkbox" value="Красносельский" onchange="updateDistrictSummary()">Красносельский</label>
-              <label class="district-option"><input type="checkbox" value="Кронштадтский" onchange="updateDistrictSummary()">Кронштадтский</label>
-              <label class="district-option"><input type="checkbox" value="Курортный" onchange="updateDistrictSummary()">Курортный</label>
-              <label class="district-option"><input type="checkbox" value="Московский" onchange="updateDistrictSummary()">Московский</label>
-              <label class="district-option"><input type="checkbox" value="Невский" onchange="updateDistrictSummary()">Невский</label>
-              <label class="district-option"><input type="checkbox" value="Петроградский" onchange="updateDistrictSummary()">Петроградский</label>
-              <label class="district-option"><input type="checkbox" value="Петродворцовый" onchange="updateDistrictSummary()">Петродворцовый</label>
-              <label class="district-option"><input type="checkbox" value="Приморский" onchange="updateDistrictSummary()">Приморский</label>
-              <label class="district-option"><input type="checkbox" value="Пушкинский" onchange="updateDistrictSummary()">Пушкинский</label>
-              <label class="district-option"><input type="checkbox" value="Фрунзенский" onchange="updateDistrictSummary()">Фрунзенский</label>
-              <label class="district-option"><input type="checkbox" value="Центральный" onchange="updateDistrictSummary()">Центральный</label>
-            </div>
-          </div>
-        </div>
-        <input type="hidden" id="district" value="">
-        <div class="district-help">Отметьте один или несколько районов. Если ничего не выбрано, подойдут все районы.</div>
+        <label>Предпочтительный район</label>
+        <select id="district">
+          <option value="">Любой район</option>
+          <option>Адмиралтейский</option>
+          <option>Василеостровский</option>
+          <option>Выборгский</option>
+          <option>Калининский</option>
+          <option>Кировский</option>
+          <option>Колпинский</option>
+          <option>Красногвардейский</option>
+          <option>Красносельский</option>
+          <option>Кронштадтский</option>
+          <option>Курортный</option>
+          <option>Московский</option>
+          <option>Невский</option>
+          <option>Петроградский</option>
+          <option>Петродворцовый</option>
+          <option>Приморский</option>
+          <option>Пушкинский</option>
+          <option>Фрунзенский</option>
+          <option>Центральный</option>
+        </select>
       </div>
     </div>
 
@@ -417,12 +378,12 @@ input[type=range]{width:100%;accent-color:var(--accent);background:transparent;m
 
     <!-- ОБЯЗАТЕЛЬНЫЕ ТОЧКИ -->
     <div class="form-section">
-      <div class="section-label">Запланированное мероприятие</div>
+      <div class="section-label">Запланированные мероприятия</div>
       <p style="font-size:11px;color:var(--muted);margin-bottom:12px">Укажите места и время, которые нужно сохранить в расписании. Остальные мероприятия будут подбираться вокруг них.</p>
       <div class="mandatory-form">
         <div class="wide"><label for="mandatory-title">Название / место</label><input id="mandatory-title" placeholder="Например, встреча в музее"></div>
         <div><label for="mandatory-date">Дата</label><input id="mandatory-date" type="date"></div>
-        <div><label for="mandatory-address">Адрес (необязательно)</label><input id="mandatory-address" list="yandex-address-suggestions" placeholder="Начните вводить адрес места"><datalist id="yandex-address-suggestions"></datalist></div>
+        <div><label for="mandatory-address">Адрес</label><input id="mandatory-address" list="yandex-address-suggestions" placeholder="Начните вводить адрес места"><datalist id="yandex-address-suggestions"></datalist></div>
         <div><label for="mandatory-start">Начало</label><input id="mandatory-start" type="time" value="10:00"></div>
         <div><label for="mandatory-end">Время окончания</label><input id="mandatory-end" type="time" value="11:00" required></div>
         <div><label for="mandatory-cost">Цена на человека, ₽</label><input id="mandatory-cost" type="number" min="0" value="0"></div>
@@ -482,18 +443,9 @@ input[type=range]{width:100%;accent-color:var(--accent);background:transparent;m
       <div><div class="modal-kicker">Афиша SPB · база мероприятий</div><div class="modal-title" id="db-modal-title">Добавить мероприятие</div><div class="modal-subtitle" id="db-modal-subtitle">Выберите событие для выбранного дня. Занятые интервалы будут защищены от пересечений.</div></div>
       <button type="button" class="modal-close" aria-label="Закрыть" onclick="closeDatabaseEventModal()">×</button>
     </div>
-    <div class="db-toolbar"><input id="db-event-search" type="search" placeholder="Поиск по названию, категории или месту…" oninput="renderDatabaseEventOptions()"><select id="db-event-time-filter" aria-label="Фильтр по времени" onchange="renderDatabaseEventOptions()"><option value="any">Любое время</option><option value="morning">Утро · до 12:00</option><option value="afternoon">День · 12:00–17:00</option><option value="evening">Вечер · после 17:00</option></select><input id="db-event-time" type="time" value="12:00" aria-label="Время начала для события без фиксированного времени" title="Время начала для мероприятия без времени в афише"></div>
+    <div class="db-toolbar"><input id="db-event-search" type="search" placeholder="Поиск по названию, категории или месту…" oninput="renderDatabaseEventOptions()"><input id="db-event-time" type="time" value="12:00" aria-label="Время начала для события без фиксированного времени"></div>
     <div class="db-list" id="db-event-list"><div class="db-empty">Загрузка мероприятий…</div></div>
     <div class="modal-footer"><button type="button" class="modal-secondary" onclick="closeDatabaseEventModal()">Закрыть</button></div>
-  </div>
-</div>
-
-<!-- Универсальные красивые уведомления и подтверждения -->
-<div class="modal-backdrop" id="app-dialog-backdrop" role="dialog" aria-modal="true" aria-labelledby="app-dialog-title">
-  <div class="confirm-modal">
-    <div class="modal-head"><div><div class="modal-kicker" id="app-dialog-kicker">Афиша SPB · подтверждение</div><div class="modal-title" id="app-dialog-title">Подтвердите действие</div></div><button type="button" class="modal-close" aria-label="Закрыть" onclick="closeAppDialog(false)">×</button></div>
-    <div class="modal-body" style="grid-template-columns:1fr"><div class="confirm-icon" id="app-dialog-icon">✦</div><div class="confirm-message" id="app-dialog-message"></div></div>
-    <div class="confirm-actions" id="app-dialog-actions"></div>
   </div>
 </div>
 
@@ -505,63 +457,6 @@ input[type=range]{width:100%;accent-color:var(--accent);background:transparent;m
 <script>
 // Можно переопределить адрес API через window.API_BASE_URL перед этим скриптом.
 const API_BASE_URL = window.API_BASE_URL || (window.location.protocol === 'file:' ? 'http://127.0.0.1:8000' : ((window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? window.location.origin : 'https://afisha-spb-production.up.railway.app'));
-
-let appDialogResolver = null;
-function closeAppDialog(result=false) {
-    const backdrop = document.getElementById('app-dialog-backdrop');
-    if (backdrop) backdrop.classList.remove('open');
-    document.body.style.overflow = '';
-    if (appDialogResolver) { const resolve = appDialogResolver; appDialogResolver = null; resolve(result); }
-}
-function showAppDialog({title='Сообщение', message='', confirm=false, acceptText='Понятно', cancelText='Отмена', danger=false, icon='✦'}={}) {
-    const backdrop = document.getElementById('app-dialog-backdrop');
-    if (!backdrop) { if (confirm) return Promise.resolve(window.confirm(message)); window.alert(message); return Promise.resolve(true); }
-    if (appDialogResolver) closeAppDialog(false);
-    document.getElementById('app-dialog-title').textContent = title;
-    document.getElementById('app-dialog-message').textContent = String(message ?? '');
-    document.getElementById('app-dialog-icon').textContent = icon;
-    const actions = document.getElementById('app-dialog-actions');
-    actions.innerHTML = '';
-    if (confirm) {
-        const cancel = document.createElement('button');
-        cancel.type='button'; cancel.className='confirm-cancel'; cancel.textContent=cancelText;
-        cancel.addEventListener('click',()=>closeAppDialog(false)); actions.appendChild(cancel);
-    }
-    const accept = document.createElement('button');
-    accept.type='button'; accept.className='confirm-accept'+(danger?' danger':''); accept.textContent=acceptText;
-    accept.addEventListener('click',()=>closeAppDialog(true)); actions.appendChild(accept);
-    backdrop.classList.add('open'); document.body.style.overflow='hidden';
-    if (!confirm) return new Promise(resolve => { appDialogResolver = resolve; });
-    return new Promise(resolve => { appDialogResolver = resolve; });
-}
-function showNotice(message, title='Обратите внимание') {
-    return showAppDialog({title, message, confirm:false, acceptText:'Понятно', icon:'✦'});
-}
-function showConfirm(message, title='Подтвердите действие', options={}) {
-    return showAppDialog({title, message, confirm:true, acceptText:options.acceptText || 'Подтвердить', cancelText:options.cancelText || 'Отмена', danger:!!options.danger, icon:options.icon || '？'});
-}
-function toggleDistrictPanel() {
-    const panel=document.getElementById('district-panel'), trigger=document.getElementById('district-trigger');
-    const open=!panel.classList.contains('open'); panel.classList.toggle('open',open); trigger.setAttribute('aria-expanded',String(open));
-}
-function updateDistrictSummary() {
-    const selected=[...document.querySelectorAll('#district-options input:checked')].map(el=>el.value);
-    document.getElementById('district').value=selected.join(', ');
-    document.getElementById('district-summary').textContent=selected.length ? (selected.length <= 2 ? selected.join(', ') : `${selected.length} районов выбрано`) : 'Все районы';
-}
-function clearDistricts() {
-    document.querySelectorAll('#district-options input').forEach(el=>el.checked=false);
-    updateDistrictSummary();
-}
-document.addEventListener('click', event => {
-    const picker=document.getElementById('district-picker');
-    if (picker && !picker.contains(event.target)) {
-        document.getElementById('district-panel')?.classList.remove('open');
-        document.getElementById('district-trigger')?.setAttribute('aria-expanded','false');
-    }
-});
-document.addEventListener('keydown', event => { if (event.key==='Escape') { closeAppDialog(false); closePlanPointModal(); closeDatabaseEventModal(); } });
-
 
 // Подсказки адресов через backend: ключ Yandex Suggest не раскрывается в HTML.
 let addressSuggestTimer = null;
@@ -732,12 +627,12 @@ async function addMandatoryPointFromForm() {
     const end_time = document.getElementById('mandatory-end').value;
     const duration = durationBetween(start_time, end_time);
     const costInput = document.getElementById('mandatory-cost').value;
-    if (!title || !date || !start_time || !end_time) { showNotice('Укажите название, дату, время начала и окончания.'); return; }
-    if (!duration || duration < 15 || duration > 1440) { showNotice('Время окончания должно быть позже начала, длительность — от 15 минут до 24 часов.'); return; }
-    if (costInput !== '' && Number(costInput) < 0) { showNotice('Стоимость не может быть отрицательной'); return; }
+    if (!title || !date || !start_time || !end_time) { alert('Укажите название, дату, время начала и окончания.'); return; }
+    if (!duration || duration < 15 || duration > 1440) { alert('Время окончания должно быть позже начала, длительность — от 15 минут до 24 часов.'); return; }
+    if (costInput !== '' && Number(costInput) < 0) { alert('Стоимость не может быть отрицательной'); return; }
     const address = document.getElementById('mandatory-address').value.trim();
     let geocoded = null;
-    if (address) { try { geocoded = await validateRealAddress(address); } catch (err) { showNotice(err.message); return; } }
+    if (address) { try { geocoded = await validateRealAddress(address); } catch (err) { alert(err.message); return; } }
     mandatoryPoints.push({
         id: 'mandatory-' + Date.now(), title, date, start_time, end_time,
         address: geocoded?.address || address,
@@ -751,10 +646,7 @@ async function addMandatoryPointFromForm() {
     document.getElementById('mandatory-address').value = '';
 }
 
-async function removeMandatoryPoint(id) {
-    const point = mandatoryPoints.find(p => p.id === id);
-    if (!point) return;
-    if (!await showConfirm(`Убрать запланированное мероприятие «${point.title}»?`, 'Удаление точки', {acceptText:'Убрать точку', danger:true, icon:'−'})) return;
+function removeMandatoryPoint(id) {
     mandatoryPoints = mandatoryPoints.filter(p => p.id !== id);
     renderMandatoryPoints();
 }
@@ -783,13 +675,13 @@ function openPermanentExhibition(id) {
 
 function openPlanPointModal(mode) {
     if (!currentPlan || !Array.isArray(currentPlan.schedule) || !currentPlan.schedule.length) {
-        showNotice('Сначала составьте расписание.'); return;
+        alert('Сначала составьте расписание.'); return;
     }
     planPointModalMode = ['exhibition','custom'].includes(mode) ? mode : 'mandatory';
     const exhibition = planPointModalMode === 'exhibition';
     const customPoint = planPointModalMode === 'custom';
     document.getElementById('plan-point-kicker').textContent = exhibition ? 'Постоянная коллекция · музей' : (customPoint ? 'Ваш маршрут · новая точка' : 'Ваш маршрут · запланированное мероприятие');
-    document.getElementById('plan-point-modal-title').textContent = exhibition ? 'Добавить постоянную экспозицию' : (customPoint ? 'Добавить свою точку' : 'Добавить запланированное мероприятиеу');
+    document.getElementById('plan-point-modal-title').textContent = exhibition ? 'Добавить постоянную экспозицию' : (customPoint ? 'Добавить свою точку' : 'Добавить запланированное мероприятие');
     document.getElementById('plan-point-subtitle').textContent = exhibition
       ? 'Укажите экспозицию и выберите, в какой день и время встроить посещение.'
       : (customPoint ? 'Добавьте собственное место или занятие в расписание.' : 'Точка останется в расписании. После подтверждения система подберёт события вокруг неё.');
@@ -827,16 +719,16 @@ async function submitPlanPointModal() {
     const price = Number(document.getElementById('plan-point-cost').value || 0);
     const address = document.getElementById('plan-point-address').value.trim();
     const url = document.getElementById('plan-point-url').value.trim();
-    if (!title || !date || !start_time || !end_time) { showNotice('Заполните название, день, время начала и окончания.'); return; }
-    if (!duration || duration < 15 || duration > 720) { showNotice('Время окончания должно быть позже начала, а длительность — от 15 до 720 минут.'); return; }
-    if (!Number.isFinite(price) || price < 0) { showNotice('Стоимость не может быть отрицательной.'); return; }
-    if (url && !/^https?:\/\//i.test(url)) { showNotice('Ссылка должна начинаться с https:// или http://.'); return; }
+    if (!title || !date || !start_time || !end_time) { alert('Заполните название, день, время начала и окончания.'); return; }
+    if (!duration || duration < 15 || duration > 720) { alert('Время окончания должно быть позже начала, а длительность — от 15 до 720 минут.'); return; }
+    if (!Number.isFinite(price) || price < 0) { alert('Стоимость не может быть отрицательной.'); return; }
+    if (url && !/^https?:\/\//i.test(url)) { alert('Ссылка должна начинаться с https:// или http://.'); return; }
     let geocoded = null;
-    if (address) { try { geocoded = await validateRealAddress(address); } catch (err) { showNotice(err.message); return; } }
+    if (address) { try { geocoded = await validateRealAddress(address); } catch (err) { alert(err.message); return; } }
     const verifiedAddress = geocoded?.address || address;
 
     const day = currentPlan?.schedule?.find(d => d.date === date);
-    if (!day) { showNotice('Не удалось найти выбранный день плана.'); return; }
+    if (!day) { alert('Не удалось найти выбранный день плана.'); return; }
     // Не допускаем пересечения двух точек, которые пользователь уже закрепил вручную.
     const scheduleConflicts = (day.events || []).filter(e => {
         const es = e.planned_start || String(e.start_datetime || '').slice(11,16);
@@ -845,7 +737,7 @@ async function submitPlanPointModal() {
     });
     if (scheduleConflicts.length) {
         const names = scheduleConflicts.map(e => `«${e.title}» (${e.planned_start || String(e.start_datetime || '').slice(11,16)}–${e.planned_end || ''})`).join(', ');
-        if (!await showConfirm(`Выбранное время пересекается с: ${names}. Заменить ${scheduleConflicts.length === 1 ? 'это мероприятие' : 'эти мероприятия'} новой точкой? Отмена сохранит план без изменений.`)) return;
+        if (!window.confirm(`Выбранное время пересекается с: ${names}. Заменить ${scheduleConflicts.length === 1 ? 'это мероприятие' : 'эти мероприятия'} новой точкой? Отмена сохранит план без изменений.`)) return;
         const ids = new Set(scheduleConflicts.map(e => String(e.id)));
         day.events = day.events.filter(e => !ids.has(String(e.id)));
         mandatoryPoints = mandatoryPoints.filter(p => !ids.has(String(p.id)));
@@ -933,16 +825,9 @@ function recalculateEditedPlan() {
     renderResults(currentPlan, currentPlanParams, true);
 }
 
-async function removePlanEvent(dayDate, eventId) {
+function removePlanEvent(dayDate, eventId) {
     const day = currentPlan?.schedule?.find(d => d.date === dayDate);
     if (!day) return;
-    const event = day.events.find(e => String(e.id) === String(eventId));
-    if (!event) return;
-    if (event.mandatory || event.permanent_exhibition || String(event.id).startsWith('exhibition-')) {
-        await showNotice('Эта точка закреплена в расписании. Чтобы убрать её, удалите запланированное мероприятие в форме или измените план.', 'Нельзя удалить закреплённую точку');
-        return;
-    }
-    if (!await showConfirm(`Удалить «${event.title}» из плана? Стоимость, расстояние и время переездов будут пересчитаны.`, 'Удаление мероприятия', {acceptText:'Удалить', danger:true, icon:'−'})) return;
     day.events = day.events.filter(e => String(e.id) !== String(eventId));
     recalculateEditedPlan();
 }
@@ -971,13 +856,12 @@ async function addDatabaseEventToDay(dayDate) {
             if (!response.ok) throw new Error(payload.detail || 'Не удалось загрузить базу');
             options = (payload.events || []).filter(c => !c.start_datetime || String(c.start_datetime).slice(0,10) === dayDate)
                 .map(c => ({...c, price_per_person:c.price_min || 0, duration_minutes:c.duration_minutes || 120}));
-        } catch (err) { showNotice('Не удалось загрузить мероприятия из базы: ' + err.message); return; }
+        } catch (err) { alert('Не удалось загрузить мероприятия из базы: ' + err.message); return; }
     }
     const existing = new Set((day.events || []).map(e => String(e.id)));
     databaseModalOptions = options.filter(c => !existing.has(String(c.id)));
-    if (!databaseModalOptions.length) { showNotice('В базе нет других мероприятий на выбранный день.'); return; }
+    if (!databaseModalOptions.length) { alert('В базе нет других мероприятий на выбранный день.'); return; }
     document.getElementById('db-event-search').value = '';
-    document.getElementById('db-event-time-filter').value = 'any';
     document.getElementById('db-event-time').value = '12:00';
     document.getElementById('database-event-modal').classList.add('open');
     document.body.style.overflow = 'hidden';
@@ -995,19 +879,8 @@ function renderDatabaseEventOptions() {
     const list = document.getElementById('db-event-list');
     if (!list) return;
     const q = (document.getElementById('db-event-search')?.value || '').trim().toLocaleLowerCase('ru');
-    const timeFilter = document.getElementById('db-event-time-filter')?.value || 'any';
-    const options = databaseModalOptions.filter(e => {
-        const matchesText = [e.title,e.category,e.venue_title,e.venue_address]
-            .some(v => String(v || '').toLocaleLowerCase('ru').includes(q));
-        if (!matchesText) return false;
-        const rawTime = String(e.start_datetime || '').slice(11,16);
-        if (!rawTime || !/^([01]\d|2[0-3]):[0-5]\d$/.test(rawTime)) return true;
-        const minutes = Number(rawTime.slice(0,2))*60 + Number(rawTime.slice(3,5));
-        if (timeFilter === 'morning') return minutes < 12*60;
-        if (timeFilter === 'afternoon') return minutes >= 12*60 && minutes < 17*60;
-        if (timeFilter === 'evening') return minutes >= 17*60;
-        return true;
-    });
+    const options = databaseModalOptions.filter(e => [e.title,e.category,e.venue_title,e.venue_address]
+        .some(v => String(v || '').toLocaleLowerCase('ru').includes(q)));
     if (!options.length) { list.innerHTML = '<div class="db-empty">Ничего не найдено. Попробуйте изменить запрос.</div>'; return; }
     list.innerHTML = options.map(e => {
         const price = e.is_free ? 'Бесплатно' : (Number(e.price_per_person ?? e.price_min ?? 0) > 0 ? `от ${Number(e.price_per_person ?? e.price_min).toLocaleString('ru')} ₽` : 'Цена не указана');
@@ -1017,18 +890,18 @@ function renderDatabaseEventOptions() {
     }).join('');
 }
 
-async function selectDatabaseEvent(candidateId) {
+function selectDatabaseEvent(candidateId) {
     const day = currentPlan?.schedule?.find(d => d.date === databaseModalDay);
     const candidate = databaseModalOptions.find(c => String(c.id) === String(candidateId));
     if (!day || !candidate) return;
-    if ((day.events || []).some(e => String(e.id) === String(candidate.id))) { showNotice('Это мероприятие уже есть в плане.'); return; }
+    if ((day.events || []).some(e => String(e.id) === String(candidate.id))) { alert('Это мероприятие уже есть в плане.'); return; }
     const datePart = String(candidate.start_datetime || '').slice(0,10);
-    if (datePart && datePart !== databaseModalDay) { showNotice('Это мероприятие проходит в другую дату.'); return; }
+    if (datePart && datePart !== databaseModalDay) { alert('Это мероприятие проходит в другую дату.'); return; }
     const publishedTime = String(candidate.start_datetime || '').slice(11,16);
     const start = document.getElementById('db-event-time').value || publishedTime || '12:00';
     const duration = Math.max(15, Number(candidate.duration_minutes || 120));
     const endMins = Number(start.slice(0,2))*60 + Number(start.slice(3,5)) + duration;
-    if (endMins > 24*60) { showNotice('Мероприятие не помещается в выбранный день.'); return; }
+    if (endMins > 24*60) { alert('Мероприятие не помещается в выбранный день.'); return; }
     const end = String(Math.floor(endMins/60)).padStart(2,'0') + ':' + String(endMins%60).padStart(2,'0');
     const overlaps = (day.events || []).filter(e => {
         const es = e.planned_start || String(e.start_datetime || '').slice(11,16);
@@ -1038,10 +911,10 @@ async function selectDatabaseEvent(candidateId) {
     if (overlaps.length) {
         const protectedEvents = overlaps.filter(e => e.mandatory || e.permanent_exhibition || String(e.id).startsWith('exhibition-'));
         if (protectedEvents.length) {
-            showNotice(`«${candidate.title}» пересекается с запланированным мероприятием «${protectedEvents[0].title}» (${protectedEvents[0].planned_start || ''}–${protectedEvents[0].planned_end || ''}). Эта точка сохранена. Выберите другое мероприятие или освободите время.`);
+            alert(`«${candidate.title}» пересекается с запланированным мероприятием «${protectedEvents[0].title}» (${protectedEvents[0].planned_start || ''}–${protectedEvents[0].planned_end || ''}). Эта точка сохранена. Выберите другое мероприятие или освободите время.`);
             return;
         }
-        if (!await showConfirm(`«${candidate.title}» (${start}–${end}) пересекается с ${overlaps.map(e=>`«${e.title}»`).join(', ')}. Удалить только конфликтующие обычные мероприятия и добавить выбранное?`)) return;
+        if (!window.confirm(`«${candidate.title}» (${start}–${end}) пересекается с ${overlaps.map(e=>`«${e.title}»`).join(', ')}. Удалить только конфликтующие обычные мероприятия и добавить выбранное?`)) return;
         const ids = new Set(overlaps.map(e => String(e.id)));
         day.events = day.events.filter(e => !ids.has(String(e.id)));
     }
@@ -1056,29 +929,23 @@ async function selectDatabaseEvent(candidateId) {
     recalculateEditedPlan();
 }
 
-async function replacePlanEvent(dayDate, eventId, candidateId) {
+function replacePlanEvent(dayDate, eventId, candidateId) {
     if (!candidateId) return;
     const day = currentPlan?.schedule?.find(d => d.date === dayDate);
     if (!day) return;
     const index = day.events.findIndex(e => String(e.id) === String(eventId));
     const candidate = (currentPlan.candidate_options || []).find(c => String(c.id) === String(candidateId));
     if (index < 0 || !candidate) return;
-    if (day.events.some((e,i) => i !== index && String(e.id) === String(candidate.id))) { showNotice('Это мероприятие уже есть в плане'); return; }
+    if (day.events.some((e,i) => i !== index && String(e.id) === String(candidate.id))) { alert('Это мероприятие уже есть в плане'); return; }
     const datePart = String(candidate.start_datetime || '').slice(0,10);
-    if (datePart && /^\d{4}-\d{2}-\d{2}$/.test(datePart) && datePart !== dayDate) { showNotice('Это мероприятие проходит в другую дату'); return; }
+    if (datePart && /^\d{4}-\d{2}-\d{2}$/.test(datePart) && datePart !== dayDate) { alert('Это мероприятие проходит в другую дату'); return; }
     const old = day.events[index];
-    if (old.mandatory || old.permanent_exhibition || String(old.id).startsWith('exhibition-')) {
-        await showNotice('Это запланированное мероприятие или постоянная экспозиция. Её нельзя заменить обычным мероприятием из списка.', 'Запланированное мероприятие нельзя заменить');
-        return;
-    }
-    const accepted = await showConfirm(`Заменить мероприятие «${old.title}» на «${candidate.title}»?\n\nВремя начала останется прежним. После замены пересчитаются стоимость, расстояние и время переездов.`, 'Замена мероприятия', {acceptText:'Да, заменить', cancelText:'Оставить как есть', icon:'↔'});
-    if (!accepted) return;
     const start = old.planned_start || '12:00';
     const duration = Number(candidate.duration_minutes || old.duration_minutes || 120);
     const endMins = Number(start.slice(0,2))*60 + Number(start.slice(3,5)) + duration;
     const end = String(Math.floor(endMins/60)%24).padStart(2,'0') + ':' + String(endMins%60).padStart(2,'0');
     if (day.events.some((e,i) => i !== index && e.planned_start && e.planned_end && start < e.planned_end && end > e.planned_start)) {
-        showNotice('Замена пересекается по времени с другой точкой. Удалите или переместите одну из точек.'); return;
+        alert('Замена пересекается по времени с другой точкой. Удалите или переместите одну из точек.'); return;
     }
     day.events[index] = {...candidate, planned_start:start, planned_end:end, slot_label:'Заменено',
         start_datetime:candidate.start_datetime || dayDate+' '+start, price_total:candidate.is_free?0:Number(candidate.price_per_person||0)*Number(currentPlan.group_size||1),
@@ -1140,7 +1007,7 @@ async function generatePlan() {
     const data = getFormData();
 
     if (!data.date_from || !data.date_to) {
-        showNotice('Укажите даты');
+        alert('Укажите даты');
         return;
     }
 
@@ -1171,7 +1038,7 @@ async function generatePlan() {
         const message = (e instanceof TypeError && /fetch/i.test(e.message))
           ? 'Браузер не смог подключиться к API: ' + API_BASE_URL + '. Сначала откройте ' + API_BASE_URL + '/api/health. Если адрес не открывается, проверьте Railway Deployments/Logs и переменные сервиса API. Если health открывается, проверьте CORS и адрес API в настройке сайта. Для локального запуска: uvicorn api:app --reload --host 127.0.0.1 --port 8000.'
           : e.message;
-        showNotice('Ошибка: ' + message);
+        alert('Ошибка: ' + message);
     } finally {
         btn.disabled = false;
         spinner.classList.remove('show');
@@ -1272,7 +1139,7 @@ function renderResults(plan, params, isEditRender = false) {
                         <div class="event-age">${e.age_restriction || '0+'}</div>
                         <div class="edit-controls" onclick="event.stopPropagation()">
                           <button onclick="removePlanEvent('${day.date}','${e.id}')">Удалить</button>
-                          <select aria-label="Заменить мероприятие" onchange="replacePlanEvent('${day.date}','${e.id}',this.value);this.value=''">
+                          <select aria-label="Заменить мероприятие" onchange="replacePlanEvent('${day.date}','${e.id}',this.value)">
                             <option value="">Заменить на...</option>
                             ${(plan.candidate_options || []).filter(c => String(c.id) !== String(e.id) && (!c.start_datetime || String(c.start_datetime).slice(0,10) === day.date)).map(c => `<option value="${c.id}">${escapeHtml(c.title)} · ${c.is_free ? 'бесплатно' : Number(c.price_per_person||0).toLocaleString('ru')+' ₽'}</option>`).join('')}
                           </select>
@@ -1345,7 +1212,7 @@ async function initDayMaps(schedule, requestedMode) {
         if (!mapEl || !statusEl) continue;
         const points = (day.events || []).filter(e => Number.isFinite(Number(e.venue_lat)) && Number.isFinite(Number(e.venue_lon)) && e.venue_lat !== '' && e.venue_lon !== '');
         if (!points.length) {
-            statusEl.textContent = 'На этот день нет подтверждённых координат. Для точек из базы укажите/проверьте адрес площадки.';
+            statusEl.textContent = 'На этот день нет подходящих мероприятий. Вы можете самостоятельно выбрать понравившиеся события';
             continue;
         }
         let map = renderedDayMaps.get(mapEl.id);
@@ -1412,13 +1279,12 @@ function mapCat(cat) {
 }
 
 // === СБРОС ФОРМЫ ===
-async function resetForm() {
-    if (!await showConfirm('Сбросить все параметры подбора и удалить текущий план с экрана? Это действие нельзя отменить.', 'Сбросить форму', {acceptText:'Сбросить всё', danger:true, icon:'↺'})) return;
+function resetForm() {
     document.querySelectorAll('.cat-toggle').forEach(b => b.classList.remove('active'));
     document.getElementById('budget-limited').value = 'no';
     toggleBudgetFields();
     document.getElementById('group-size').value = '1';
-    clearDistricts();
+    document.getElementById('district').value = '';
     document.getElementById('age-group').value = '';
     document.getElementById('extra-wishes').value = '';
     document.getElementById('max-per-day').value = '3';
@@ -1436,6 +1302,7 @@ initAddressSuggestions();
 toggleBudgetFields();
 const mandatoryDateInput = document.getElementById('mandatory-date');
 if (mandatoryDateInput) { mandatoryDateInput.value = document.getElementById('date-from').value || '2026-12-01'; }
+document.getElementById('mandatory-start')?.addEventListener('input', updateMandatoryEndPreview);
 document.getElementById('mandatory-start')?.addEventListener('input', updateMandatoryEndPreview);
 document.getElementById('mandatory-end')?.addEventListener('input', updateMandatoryEndPreview);
 updateMandatoryEndPreview();
