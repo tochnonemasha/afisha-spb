@@ -115,6 +115,7 @@ header{border-bottom:1px solid var(--border);padding:0 48px;display:flex;align-i
 .edit-controls{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
 .edit-controls button,.day-add-btn,.mandatory-remove{background:transparent;border:1px solid var(--border);color:var(--accent);padding:7px 10px;font-size:10px;cursor:pointer}
 .edit-controls select{background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:7px;max-width:100%;font-size:11px}
+.edit-controls .replace-event-btn{background:var(--surface2);border:1px solid var(--accent);color:var(--accent);padding:7px 11px;font-size:10px;cursor:pointer;letter-spacing:.03em}.edit-controls .replace-event-btn:hover{background:var(--accent);color:#111}
 .mandatory-form{border:1px solid var(--border);padding:14px;display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .mandatory-form label{font-size:10px;color:var(--muted);display:block;margin-bottom:5px}
 .mandatory-form input{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:9px;font-size:12px}
@@ -595,6 +596,35 @@ function toggleBudgetFields() {
     });
 }
 
+function timeToMinutes(value) {
+    const match = String(value || '').trim().match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);
+    if (!match) return null;
+    const hours = Number(match[1]), minutes = Number(match[2]);
+    if (hours < 0 || hours > 24 || minutes < 0 || minutes > 59 || (hours === 24 && minutes !== 0)) return null;
+    return hours * 60 + minutes;
+}
+
+function getEventTimeRange(event) {
+    const startText = event?.planned_start || String(event?.start_datetime || '').replace('T', ' ').slice(11, 16);
+    const start = timeToMinutes(startText);
+    if (start == null || start >= 1440) return null;
+    const endText = event?.planned_end || '';
+    let end = timeToMinutes(endText);
+    if (end == null) {
+        const duration = Number(event?.duration_minutes || event?.duration || 120);
+        if (!Number.isFinite(duration) || duration <= 0) return null;
+        end = start + duration;
+    }
+    if (end <= start) return null;
+    return { start, end, startText: String(startText).slice(0, 5), endText: end >= 1440 ? '24:00' : `${String(Math.floor(end / 60)).padStart(2, '0')}:${String(end % 60).padStart(2, '0')}` };
+}
+
+function timeRangesOverlap(startText, endText, event) {
+    const start = timeToMinutes(startText), end = timeToMinutes(endText);
+    const range = getEventTimeRange(event);
+    return start != null && end != null && end > start && !!range && start < range.end && end > range.start;
+}
+
 function calculateMandatoryEnd(startTime, durationMinutes) {
     const [hours, minutes] = String(startTime || '09:00').split(':').map(Number);
     const total = hours * 60 + minutes + Number(durationMinutes || 60);
@@ -730,11 +760,7 @@ async function submitPlanPointModal() {
     const day = currentPlan?.schedule?.find(d => d.date === date);
     if (!day) { alert('Не удалось найти выбранный день плана.'); return; }
     // Не допускаем пересечения двух точек, которые пользователь уже закрепил вручную.
-    const scheduleConflicts = (day.events || []).filter(e => {
-        const es = e.planned_start || String(e.start_datetime || '').slice(11,16);
-        const ee = e.planned_end || (es ? calculateMandatoryEnd(es, Number(e.duration_minutes || 120)) : '');
-        return es && ee && start_time < ee && end_time > es;
-    });
+    const scheduleConflicts = (day.events || []).filter(e => timeRangesOverlap(start_time, end_time, e));
     if (scheduleConflicts.length) {
         const names = scheduleConflicts.map(e => `«${e.title}» (${e.planned_start || String(e.start_datetime || '').slice(11,16)}–${e.planned_end || ''})`).join(', ');
         if (!window.confirm(`Выбранное время пересекается с: ${names}. Заменить ${scheduleConflicts.length === 1 ? 'это мероприятие' : 'эти мероприятия'} новой точкой? Отмена сохранит план без изменений.`)) return;
@@ -843,11 +869,17 @@ function addCustomPlanPoint(dayDate) {
 
 let databaseModalDay = null;
 let databaseModalOptions = [];
+let databaseModalMode = "add";
+let databaseModalReplaceEventId = null;
 
 async function addDatabaseEventToDay(dayDate) {
     const day = currentPlan?.schedule?.find(d => d.date === dayDate);
     if (!day) return;
     databaseModalDay = dayDate;
+    databaseModalMode = "add";
+    databaseModalReplaceEventId = null;
+    document.getElementById('db-modal-title').textContent = 'Добавить мероприятие';
+    document.getElementById('db-modal-subtitle').textContent = 'Выберите событие для выбранного дня. Занятые интервалы будут защищены от пересечений.';
     let options = (currentPlan.candidate_options || []).filter(c => !c.start_datetime || String(c.start_datetime).slice(0,10) === dayDate);
     if (!options.length) {
         try {
@@ -869,10 +901,68 @@ async function addDatabaseEventToDay(dayDate) {
     setTimeout(() => document.getElementById('db-event-search').focus(), 50);
 }
 
+function openReplaceEventModal(dayDate, eventId) {
+    const day = currentPlan?.schedule?.find(d => d.date === dayDate);
+    const old = day?.events?.find(e => String(e.id) === String(eventId));
+    if (!day || !old) return;
+    databaseModalDay = dayDate;
+    databaseModalMode = "replace";
+    databaseModalReplaceEventId = String(eventId);
+    const existing = new Set((day.events || []).filter(e => String(e.id) !== String(eventId)).map(e => String(e.id)));
+    databaseModalOptions = (currentPlan.candidate_options || [])
+        .filter(c => String(c.id) !== String(eventId) && !existing.has(String(c.id)))
+        .filter(c => !c.start_datetime || String(c.start_datetime).slice(0,10) === dayDate)
+        .filter(c => replacementCandidateFits(day, old, c));
+    document.getElementById('db-modal-title').textContent = 'Заменить мероприятие';
+    document.getElementById('db-modal-subtitle').textContent = `Вместо «${old.title}». Показаны варианты без пересечений по времени и с учётом бюджета. Время на переезд проверяется отдельно.`;
+    document.getElementById('db-event-search').value = '';
+    document.getElementById('db-event-time').value = old.planned_start || '12:00';
+    document.getElementById('database-event-modal').classList.add('open');
+    document.body.style.overflow = 'hidden';
+    renderDatabaseEventOptions();
+    setTimeout(() => document.getElementById('db-event-search').focus(), 50);
+}
+
+function replacementCandidateFits(day, old, candidate) {
+    const price = candidate.is_free ? 0 : Number(candidate.price_per_person ?? candidate.price_min ?? 0);
+    const groupSize = Number(currentPlan.group_size || currentPlanParams?.group_size || 1);
+    const replacementCost = Math.round(price * groupSize);
+    const oldCost = Number(old.price_total ?? (Number(old.price_per_person || 0) * groupSize));
+    const dailyLimit = currentPlanParams?.budget_per_day;
+    const totalLimit = currentPlanParams?.budget_total;
+    if (dailyLimit != null && Number(day.day_cost || 0) - oldCost + replacementCost > Number(dailyLimit)) return false;
+    if (totalLimit != null && Number(currentPlan.total_cost || 0) - oldCost + replacementCost > Number(totalLimit)) return false;
+
+    const duration = Math.max(15, Number(candidate.duration_minutes || old.duration_minutes || 120));
+    const dateText = String(candidate.start_datetime || '').replace('T',' ');
+    const publishedDate = dateText.slice(0,10);
+    const publishedTime = /^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}/.test(dateText) ? dateText.slice(11,16) : '';
+    if (publishedDate && publishedDate !== day.date) return false;
+    const start = publishedTime || old.planned_start || '12:00';
+    const endMins = Number(start.slice(0,2))*60 + Number(start.slice(3,5)) + duration;
+    if (endMins > 1439) return false;
+    const end = String(Math.floor(endMins/60)).padStart(2,'0') + ':' + String(endMins%60).padStart(2,'0');
+    const slotWindows = {morning:[540,780], afternoon:[780,1080], evening:[1080,1439]};
+    const slot = old.slot;
+    if (slotWindows[slot]) {
+        const mins = Number(start.slice(0,2))*60 + Number(start.slice(3,5));
+        if (mins < slotWindows[slot][0] || endMins > slotWindows[slot][1]) return false;
+    }
+    const toMin = v => { const a=String(v||'00:00').split(':').map(Number); return a[0]*60+a[1]; };
+    const others = (day.events || []).filter(e => String(e.id) !== String(old.id));
+    if (others.some(e => timeRangesOverlap(start, end, e))) return false;
+    const proposed = {...candidate, planned_start:start, planned_end:end};
+    // Проверяем именно пересечение интервалов выше. Недостаток времени на переезд
+    // отображается отдельным предупреждением в плане и не должен скрывать вариант замены.
+    return true;
+}
+
 function closeDatabaseEventModal() {
     document.getElementById('database-event-modal')?.classList.remove('open');
     document.body.style.overflow = '';
     databaseModalDay = null;
+    databaseModalMode = 'add';
+    databaseModalReplaceEventId = null;
 }
 
 function renderDatabaseEventOptions() {
@@ -886,8 +976,33 @@ function renderDatabaseEventOptions() {
         const price = e.is_free ? 'Бесплатно' : (Number(e.price_per_person ?? e.price_min ?? 0) > 0 ? `от ${Number(e.price_per_person ?? e.price_min).toLocaleString('ru')} ₽` : 'Цена не указана');
         const time = String(e.start_datetime || '').slice(11,16);
         const image = e.image_url ? `<img src="${escapeHtml(e.image_url)}" alt="" loading="lazy">` : '<div class="db-event-placeholder">✦</div>';
-        return `<article class="db-event-card">${image}<div class="db-event-info"><div class="db-event-title">${escapeHtml(e.title || 'Без названия')}</div><div class="db-event-meta">${escapeHtml(e.category || 'Мероприятие')}<br>${escapeHtml(e.venue_title || e.venue_address || 'Место уточняется')}<br>${time ? 'Начало по афише: ' + escapeHtml(time) : 'Время можно выбрать'} · ${escapeHtml(e.age_restriction || '0+')}</div><div class="db-event-price">${price}</div><button type="button" class="db-event-add" onclick="selectDatabaseEvent('${String(e.id).replace(/'/g, '')}')">Добавить в план</button></div></article>`;
+        return `<article class="db-event-card">${image}<div class="db-event-info"><div class="db-event-title">${escapeHtml(e.title || 'Без названия')}</div><div class="db-event-meta">${escapeHtml(e.category || 'Мероприятие')}<br>${escapeHtml(e.venue_title || e.venue_address || 'Место уточняется')}<br>${time ? 'Начало по афише: ' + escapeHtml(time) : 'Время можно выбрать'} · ${escapeHtml(e.age_restriction || '0+')}</div><div class="db-event-price">${price}</div><button type="button" class="db-event-add" onclick="${databaseModalMode === 'replace' ? `selectReplacementEvent('${String(e.id).replace(/'/g, '')}')` : `selectDatabaseEvent('${String(e.id).replace(/'/g, '')}')`}">${databaseModalMode === 'replace' ? 'Выбрать замену' : 'Добавить в план'}</button></div></article>`;
     }).join('');
+}
+
+function selectReplacementEvent(candidateId) {
+    const day = currentPlan?.schedule?.find(d => d.date === databaseModalDay);
+    const index = day?.events?.findIndex(e => String(e.id) === String(databaseModalReplaceEventId));
+    const old = index >= 0 ? day.events[index] : null;
+    const candidate = databaseModalOptions.find(c => String(c.id) === String(candidateId));
+    if (!day || !old || !candidate) return;
+    if (!replacementCandidateFits(day, old, candidate)) {
+        alert('Этот вариант больше не подходит по времени, бюджету или времени на переезд. Выберите другой.');
+        return;
+    }
+    const published = String(candidate.start_datetime || '').replace('T',' ');
+    const publishedTime = /^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}/.test(published) ? published.slice(11,16) : '';
+    const start = publishedTime || old.planned_start || '12:00';
+    const duration = Math.max(15, Number(candidate.duration_minutes || old.duration_minutes || 120));
+    const endMins = Number(start.slice(0,2))*60 + Number(start.slice(3,5)) + duration;
+    const end = String(Math.floor(endMins/60)).padStart(2,'0') + ':' + String(endMins%60).padStart(2,'0');
+    const price = candidate.is_free ? 0 : Number(candidate.price_per_person ?? candidate.price_min ?? 0);
+    day.events[index] = {...candidate, price_per_person:price, price_total:Math.round(price*Number(currentPlan.group_size||1)),
+        planned_start:start, planned_end:end, slot_label:'Заменено', start_datetime:candidate.start_datetime || `${databaseModalDay} ${start}`,
+        mandatory:false, custom:false};
+    day.events.sort((a,b)=>(a.planned_start||'00:00').localeCompare(b.planned_start||'00:00'));
+    closeDatabaseEventModal();
+    recalculateEditedPlan();
 }
 
 function selectDatabaseEvent(candidateId) {
@@ -903,11 +1018,7 @@ function selectDatabaseEvent(candidateId) {
     const endMins = Number(start.slice(0,2))*60 + Number(start.slice(3,5)) + duration;
     if (endMins > 24*60) { alert('Мероприятие не помещается в выбранный день.'); return; }
     const end = String(Math.floor(endMins/60)).padStart(2,'0') + ':' + String(endMins%60).padStart(2,'0');
-    const overlaps = (day.events || []).filter(e => {
-        const es = e.planned_start || String(e.start_datetime || '').slice(11,16);
-        const ee = e.planned_end || (es ? calculateMandatoryEnd(es, Number(e.duration_minutes || 120)) : '');
-        return es && ee && start < ee && end > es;
-    });
+    const overlaps = (day.events || []).filter(e => timeRangesOverlap(start, end, e));
     if (overlaps.length) {
         const protectedEvents = overlaps.filter(e => e.mandatory || e.permanent_exhibition || String(e.id).startsWith('exhibition-'));
         if (protectedEvents.length) {
@@ -944,7 +1055,7 @@ function replacePlanEvent(dayDate, eventId, candidateId) {
     const duration = Number(candidate.duration_minutes || old.duration_minutes || 120);
     const endMins = Number(start.slice(0,2))*60 + Number(start.slice(3,5)) + duration;
     const end = String(Math.floor(endMins/60)%24).padStart(2,'0') + ':' + String(endMins%60).padStart(2,'0');
-    if (day.events.some((e,i) => i !== index && e.planned_start && e.planned_end && start < e.planned_end && end > e.planned_start)) {
+    if (day.events.some((e,i) => i !== index && timeRangesOverlap(start, end, e))) {
         alert('Замена пересекается по времени с другой точкой. Удалите или переместите одну из точек.'); return;
     }
     day.events[index] = {...candidate, planned_start:start, planned_end:end, slot_label:'Заменено',
@@ -1139,10 +1250,7 @@ function renderResults(plan, params, isEditRender = false) {
                         <div class="event-age">${e.age_restriction || '0+'}</div>
                         <div class="edit-controls" onclick="event.stopPropagation()">
                           <button onclick="removePlanEvent('${day.date}','${e.id}')">Удалить</button>
-                          <select aria-label="Заменить мероприятие" onchange="replacePlanEvent('${day.date}','${e.id}',this.value)">
-                            <option value="">Заменить на...</option>
-                            ${(plan.candidate_options || []).filter(c => String(c.id) !== String(e.id) && (!c.start_datetime || String(c.start_datetime).slice(0,10) === day.date)).map(c => `<option value="${c.id}">${escapeHtml(c.title)} · ${c.is_free ? 'бесплатно' : Number(c.price_per_person||0).toLocaleString('ru')+' ₽'}</option>`).join('')}
-                          </select>
+                          <button type="button" class="replace-event-btn" onclick="openReplaceEventModal('${day.date}','${String(e.id).replace(/'/g, '')}')">↻ Заменить</button>
                         </div>
                     </div>`;
             });
