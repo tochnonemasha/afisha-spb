@@ -6,7 +6,7 @@ import time
 import os
 from pathlib import Path
 from datetime import datetime, timedelta
-from database import SessionLocal, Event
+from database import SessionLocal, Event, UserInteraction, UserPreference
 
 # Временные слоты
 TIME_SLOTS = {
@@ -488,7 +488,7 @@ class SmartPlanner:
             current += timedelta(days=1)
 
         group_size = max(1, int(group_size or 1))
-        max_events_per_day = max(1, int(max_events_per_day or 3))
+        max_events_per_day = min(12, max(1, int(max_events_per_day or 3)))
         daily_budget = int(budget_per_day) if budget_per_day is not None else None
         total_budget = int(budget_total) if budget_total is not None else None
         if travel_mode not in {"walk", "transit", "car", "flexible"}:
@@ -499,14 +499,75 @@ class SmartPlanner:
             interests=interests, district=district, benefits_filter=benefits_filter,
             age_group=age_group, date_from=date_from, date_to=date_to,
         )
-        scores = {}
-        if user_id and self.recommender and getattr(self.recommender, "is_trained", False):
+        # Персонализация должна опираться на историю именно этого пользователя и
+        # на его сохранённые категории. Раньше планировщик использовал только CBF,
+        # а при пустой/непереданной истории присваивал всем кандидатам одинаковые 0.5.
+        interaction_scores = {}
+        collaborative_scores = {}
+        preference_scores = {}
+        interaction_count = 0
+        preference_count = 0
+        if user_id:
             try:
-                scores = self.recommender.get_realtime_cbf_scores(user_id) or {}
+                interaction_count = self.db.query(UserInteraction).filter(
+                    UserInteraction.user_id == int(user_id)
+                ).count()
+                preferences = self.db.query(UserPreference).filter(
+                    UserPreference.user_id == int(user_id)
+                ).all()
+                preference_count = len(preferences)
+                if preferences:
+                    weights = [float(p.weight or 0.0) for p in preferences]
+                    low, high = min(weights), max(weights)
+                    for pref in preferences:
+                        key = str(pref.category or "").strip().casefold()
+                        value = float(pref.weight or 0.0)
+                        preference_scores[key] = ((value - low) / (high - low)) if high > low else 0.5
             except Exception:
-                scores = {}
+                interaction_count = 0
+                preference_count = 0
+                preference_scores = {}
+
+        alpha = 0.0
+        if interaction_count and self.recommender and getattr(self.recommender, "is_trained", False):
+            try:
+                interaction_scores = self.recommender.get_realtime_cbf_scores(int(user_id)) or {}
+                collaborative_scores = self.recommender.get_cf_scores(int(user_id)) or {}
+                alpha = float(self.recommender.get_alpha(int(user_id)) or 0.0)
+            except Exception:
+                interaction_scores = {}
+                collaborative_scores = {}
+                alpha = 0.0
+
+        try:
+            baseline_scores = (self.recommender.get_cold_start_scores() or {}) if self.recommender else {}
+        except Exception:
+            baseline_scores = {}
+
+        def category_preference(candidate):
+            category_text = str(candidate.get("category") or "").casefold()
+            matched = []
+            for pref_key, pref_value in preference_scores.items():
+                aliases = CATEGORY_ALIASES.get(pref_key, [pref_key])
+                if any(alias and alias in category_text for alias in aliases):
+                    matched.append(pref_value)
+            return max(matched) if matched else 0.5
+
         for candidate in candidates:
-            candidate["score"] = float(scores.get(candidate["id"], 0.5) or 0.5)
+            event_id = candidate["id"]
+            baseline = float(baseline_scores.get(event_id, 0.5))
+            if interaction_count and interaction_scores:
+                content_score = float(interaction_scores.get(event_id, baseline))
+                collaborative_score = float(collaborative_scores.get(event_id, content_score))
+                # Используем оба компонента гибридной модели, а не только контентную часть.
+                personal = (alpha * collaborative_score + (1.0 - alpha) * content_score) if collaborative_scores else content_score
+                candidate_score = (0.8 * personal + 0.2 * category_preference(candidate)) if preference_count else personal
+            elif preference_count:
+                candidate_score = 0.85 * category_preference(candidate) + 0.15 * baseline
+            else:
+                candidate_score = baseline
+            candidate["score"] = float(candidate_score)
+
         candidates.sort(key=lambda item: item["score"], reverse=True)
 
         schedule = [{
@@ -767,6 +828,16 @@ class SmartPlanner:
             "budget_exceeded": total_budget is not None and total_cost > total_budget,
             "coverage": round(total_events / (len(days) * max_events_per_day) * 100) if days and max_events_per_day else 0,
             "candidate_count": len(candidates),
+            "personalization": {
+                "user_id": int(user_id) if user_id else None,
+                "used_interactions": bool(interaction_count and interaction_scores),
+                "interaction_count": int(interaction_count),
+                "hybrid_alpha": round(alpha, 3),
+                "used_collaborative_filtering": bool(collaborative_scores),
+                "used_category_preferences": bool(preference_count),
+                "category_preference_count": int(preference_count),
+                "note": ("Персональный порядок рассчитан по истории действий и/или предпочтениям аккаунта." if (interaction_count and interaction_scores) or preference_count else "Персональная история не обнаружена: используется общий порядок. Проверьте, передаётся ли user_id и записываются ли действия пользователя.")
+            },
             "empty_reason": ("В базе нет мероприятий, совпавших с выбранными категориями, районом и возрастом." if not candidates else ("Мероприятия найдены, но их даты/время, длительность, бюджет или интервалы дороги не подошли под расписание." if total_events == 0 else None)),
             "candidate_options": [{
                 "id": c["id"], "title": c["title"], "category": c["category"],
