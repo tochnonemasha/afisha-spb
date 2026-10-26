@@ -193,7 +193,6 @@ footer{border-top:1px solid var(--border);padding:32px 48px;display:flex;justify
       <div class="profile-name" id="profile-name-display">Загрузка...</div>
       <div class="profile-email" id="profile-email-display"></div>
       <div class="profile-stats">
-        <div class="stat-item"><span class="stat-num" id="stat-tickets">0</span><span class="stat-label">Билетов</span></div>
         <div class="stat-item"><span class="stat-num" id="stat-history-count">0</span><span class="stat-label">Посещено</span></div>
         <div class="stat-item"><span class="stat-num" id="stat-fav-count">0</span><span class="stat-label">В избранном</span></div>
         <div class="stat-item"><span class="stat-num" id="stat-views">0</span><span class="stat-label">Просмотрено</span></div>
@@ -205,7 +204,6 @@ footer{border-top:1px solid var(--border);padding:32px 48px;display:flex;justify
 <div class="tabs-container">
   <div class="tabs">
     <button class="tab-btn active" data-tab="favorites">Избранное</button>
-    <button class="tab-btn" data-tab="tickets">Билеты</button>
     <button class="tab-btn" data-tab="history">Посещённые</button>
     <button class="tab-btn" data-tab="reviews">Мои отзывы</button>
     <button class="tab-btn" data-tab="recent">Недавние</button>
@@ -226,20 +224,6 @@ footer{border-top:1px solid var(--border);padding:32px 48px;display:flex;justify
     <div class="recommend-grid" id="rec-grid">
       <div style="grid-column:1/-1;padding:20px;color:var(--muted);font-size:12px;font-family:'IBM Plex Mono',monospace"><div class="spinner"></div>Подбираем рекомендации...</div>
     </div>
-  </div>
-</div>
-
-<!-- БИЛЕТЫ -->
-<div id="tickets" class="panel">
-  <div class="section-title">Активные билеты <span class="count" id="tickets-count-display">0</span></div>
-  <div class="cards-grid" id="tickets-grid">
-    <div style="grid-column:1/-1;padding:40px;text-align:center;color:var(--muted)"><div class="spinner"></div>Загрузка...</div>
-  </div>
-  <div id="tickets-empty" class="empty-state" style="display:none">
-    <div class="empty-icon">❧</div>
-    <div class="empty-text">У вас пока нет билетов</div>
-    <div class="empty-sub">Купите билеты на мероприятия и они появятся здесь</div>
-    <br><button class="btn-outline" onclick="location.href='/'">Перейти к афише →</button>
   </div>
 </div>
 
@@ -371,7 +355,7 @@ footer{border-top:1px solid var(--border);padding:32px 48px;display:flex;justify
 <script>
 const API_BASE_URL = 'https://afisha-spb-production.up.railway.app';
 
-// ─── ИКОНКИ ЖАНРОВ (изящные символы вместо эмодзи) ───────
+// ─── ИКОНКИ КАТЕГОРИЙ: совпадают с picker.html ─────────
 const GENRE_ICONS = {
   'theater': '❧',
   'concert': '♪',
@@ -383,16 +367,24 @@ const GENRE_ICONS = {
   'excursion': '◎',
   'party': '✶',
   'cinema': '◇',
+  'masterclass': '∴',
+  'kids': '◦',
   'other': '·',
 };
 
 function getGenreIcon(cat) {
   if (!cat) return '·';
   const c = cat.toLowerCase();
+  const normalized = c.replace('theatre', 'theater').replace('мастер-класс', 'masterclass').replace('мастер класс', 'masterclass');
   for (const [key, icon] of Object.entries(GENRE_ICONS)) {
-    if (c.includes(key)) return icon;
+    if (normalized.includes(key)) return icon;
   }
-  return '◦';
+  if (c.includes('театр') || c.includes('спектак')) return GENRE_ICONS.theater;
+  if (c.includes('выстав')) return GENRE_ICONS.exhibition;
+  if (c.includes('лекц') || c.includes('образован')) return GENRE_ICONS.education;
+  if (c.includes('кино') || c.includes('фильм')) return GENRE_ICONS.cinema;
+  if (c.includes('концерт') || c.includes('музык')) return GENRE_ICONS.concert;
+  return GENRE_ICONS.other;
 }
 
 // ─── ПРОВЕРКА АВТОРИЗАЦИИ ─────────────────────────────────
@@ -427,7 +419,7 @@ async function loadProfile() {
     if (res.ok) {
       const data = await res.json();
       const stats = data.stats || {};
-      document.getElementById('stat-views').textContent = stats.views || 0;
+      // Счётчик просмотров обновляет loadRecent с учётом локально очищенной истории.
     }
   } catch(e) {}
 }
@@ -494,75 +486,6 @@ async function removeFavorite(eventId) {
   document.getElementById('fav-count-display').textContent = allFavorites.length;
   renderFavorites();
   showToast('Удалено из избранного');
-}
-
-// ─── БИЛЕТЫ ───────────────────────────────────────────────
-let allTickets = [];
-
-async function loadTickets() {
-  // Билеты храним в localStorage (имитация покупки)
-  allTickets = JSON.parse(localStorage.getItem('user_tickets_' + userId) || '[]');
-  renderTickets();
-}
-
-function renderTickets() {
-  const grid = document.getElementById('tickets-grid');
-  const empty = document.getElementById('tickets-empty');
-  document.getElementById('tickets-count-display').textContent = allTickets.length;
-  document.getElementById('stat-tickets').textContent = allTickets.length;
-
-  if (!allTickets.length) {
-    grid.style.display = 'none';
-    empty.style.display = 'block';
-    return;
-  }
-
-  grid.style.display = 'grid';
-  empty.style.display = 'none';
-
-  grid.innerHTML = allTickets.map(t => `
-    <div class="event-card" onclick="location.href='/event.html?id=${t.event_id}'">
-      ${t.image_url ? `<img class="card-img" src="${t.image_url}" alt="">` : ''}
-      <div class="card-cat">${mapCat(t.category)} · Билет #${t.ticket_num}</div>
-      <div class="card-title">${t.title}</div>
-      <div class="card-venue">${t.venue_title || ''}</div>
-      <div class="card-date">${t.start_datetime || ''}</div>
-      <div class="card-price">${t.is_free ? 'Бесплатно' : '<em>от</em>' + (t.price_min||0).toLocaleString('ru') + ' ₽'}</div>
-      <div class="card-bottom">
-        <span class="card-status upcoming">Предстоит</span>
-        <button class="remove-btn" onclick="event.stopPropagation();removeTicket(${t.event_id})">✕ Отменить</button>
-      </div>
-    </div>`).join('');
-}
-
-async function addTicket(event) {
-  // Проверяем не куплен ли уже
-  if (allTickets.find(t => t.event_id === event.id)) {
-    showToast('Билет уже добавлен');
-    return;
-  }
-  const ticket = {
-    ...event,
-    event_id: event.id,
-    ticket_num: Math.floor(Math.random() * 90000) + 10000,
-    bought_at: new Date().toISOString()
-  };
-  allTickets.push(ticket);
-  localStorage.setItem('user_tickets_' + userId, JSON.stringify(allTickets));
-
-  // Записываем взаимодействие
-  await recordInteraction(event.id, 'attended');
-  renderTickets();
-  showToast('Билет добавлен! Номер: ' + ticket.ticket_num);
-}
-
-function removeTicket(eventId) {
-  if (confirm('Отменить билет?')) {
-    allTickets = allTickets.filter(t => t.event_id !== eventId);
-    localStorage.setItem('user_tickets_' + userId, JSON.stringify(allTickets));
-    renderTickets();
-    showToast('Билет отменён');
-  }
 }
 
 // ─── ПОСЕЩЁННЫЕ ───────────────────────────────────────────
@@ -727,52 +650,54 @@ async function searchEventsForVisited(query) {
 
 // ─── НЕДАВНИЕ ─────────────────────────────────────────────
 async function loadRecent() {
+  let events = [];
   try {
     const res = await fetch(API_BASE_URL + '/api/interactions/views/' + userId);
     if (res.ok) {
       const data = await res.json();
-      renderRecent(data.events || []);
-      return;
+      events = data.events || [];
     }
-  } catch(e) {}
+  } catch (e) {}
 
-  // Fallback из localStorage
-  const recentIds = JSON.parse(localStorage.getItem('recent_views_' + userId) || '[]');
-  if (!recentIds.length) {
-    renderRecent([]);
-    return;
+  if (!events.length) {
+    const recentIds = JSON.parse(localStorage.getItem('recent_views_' + userId) || '[]');
+    for (const item of recentIds.slice(0, 20)) {
+      try {
+        const res = await fetch(API_BASE_URL + '/api/events/' + item.id);
+        if (res.ok) events.push({ ...(await res.json()), viewed_at: item.viewed_at });
+      } catch (e) {}
+    }
   }
 
-  // Получаем данные по ID
-  const events = [];
-  for (const item of recentIds.slice(0, 10)) {
-    try {
-      const res = await fetch(API_BASE_URL + '/api/events/' + item.id);
-      if (res.ok) {
-        const e = await res.json();
-        events.push({ ...e, viewed_at: item.viewed_at });
-      }
-    } catch(e) {}
-  }
+  // Скрываем только в личном кабинете просмотры до очистки. Записи в БД не удаляются.
+  const clearedAt = Number(localStorage.getItem('recent_views_cleared_at_' + userId) || 0);
+  events = events.filter(e => {
+    if (!clearedAt) return true;
+    const viewedAt = e.viewed_at ? new Date(e.viewed_at).getTime() : 0;
+    return viewedAt > clearedAt;
+  });
+  events.sort((a, b) => new Date(b.viewed_at || 0).getTime() - new Date(a.viewed_at || 0).getTime());
   renderRecent(events);
 }
 
 function renderRecent(events) {
   const list = document.getElementById('recent-list');
   const empty = document.getElementById('recent-empty');
+  const visibleEvents = (events || []).slice(0, 15);
+  document.getElementById('stat-views').textContent = visibleEvents.length;
 
-  if (!events.length) {
+  if (!visibleEvents.length) {
     list.innerHTML = '';
     empty.style.display = 'block';
     return;
   }
 
   empty.style.display = 'none';
-  list.innerHTML = events.slice(0, 15).map(e => `
+  list.innerHTML = visibleEvents.map(e => `
     <div class="recent-item" onclick="location.href='/event.html?id=${e.id}'">
       <div class="recent-icon">${getGenreIcon(e.category)}</div>
       <div class="recent-info">
-        <div class="recent-title">${e.title}</div>
+        <div class="recent-title">${e.title || 'Мероприятие'}</div>
         <div class="recent-meta">
           <span>${e.venue_title || mapCat(e.category)}</span>
           <span class="recent-date">${e.viewed_at ? formatRelativeTime(e.viewed_at) : ''}</span>
@@ -783,11 +708,12 @@ function renderRecent(events) {
 }
 
 function clearHistory() {
-  if (confirm('Очистить историю просмотров?')) {
-    localStorage.removeItem('recent_views_' + userId);
-    renderRecent([]);
-    showToast('История очищена');
-  }
+  if (!confirm('Очистить историю просмотров в личном кабинете? Записи в базе данных сохранятся.')) return;
+  localStorage.setItem('recent_views_cleared_at_' + userId, String(Date.now()));
+  // Удаляем только локальный кеш, серверная история и взаимодействия в БД остаются.
+  localStorage.removeItem('recent_views_' + userId);
+  renderRecent([]);
+  showToast('История скрыта в личном кабинете');
 }
 
 function formatRelativeTime(isoStr) {
@@ -834,23 +760,33 @@ let currentReviewEventId = null;
 let currentReviewRating = 0;
 let editingReviewId = null;
 
-function openReviewModal(eventId, eventTitle, preRating) {
+async function fetchUserReviews() {
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/users/${userId}/reviews`);
+    if (!res.ok) throw new Error('Не удалось загрузить отзывы');
+    const data = await res.json();
+    const reviews = data.reviews || [];
+    localStorage.setItem('user_reviews_' + userId, JSON.stringify(reviews));
+    return reviews;
+  } catch (e) {
+    return JSON.parse(localStorage.getItem('user_reviews_' + userId) || '[]');
+  }
+}
+
+async function openReviewModal(eventId, eventTitle, preRating) {
   currentReviewEventId = eventId;
-  currentReviewRating = preRating;
+  currentReviewRating = preRating || 0;
   document.getElementById('review-modal-title').textContent = 'Отзыв: ' + eventTitle;
-
-  const reviews = JSON.parse(localStorage.getItem('user_reviews_' + userId) || '[]');
-  const existing = reviews.find(r => r.event_id === eventId);
-
+  const reviews = await fetchUserReviews();
+  const existing = reviews.find(r => Number(r.event_id) === Number(eventId));
   if (existing) {
-    document.getElementById('review-text-input').value = existing.text;
+    document.getElementById('review-text-input').value = existing.text || '';
     editingReviewId = existing.id;
-    currentReviewRating = existing.rating;
+    currentReviewRating = Number(existing.rating) || currentReviewRating;
   } else {
     document.getElementById('review-text-input').value = '';
     editingReviewId = null;
   }
-
   setReviewRating(currentReviewRating);
   document.getElementById('reviewModal').style.display = 'flex';
   document.body.style.overflow = 'hidden';
@@ -863,62 +799,43 @@ function closeReviewModal() {
 
 function setReviewRating(r) {
   currentReviewRating = r;
-  document.querySelectorAll('#modal-stars .star').forEach((s, i) => {
-    s.classList.toggle('active', i < r);
-  });
+  document.querySelectorAll('#modal-stars .star').forEach((s, i) => s.classList.toggle('active', i < r));
 }
 
-function saveReview() {
+async function saveReview() {
   const text = document.getElementById('review-text-input').value.trim();
   if (!text) { showToast('Напишите текст отзыва'); return; }
   if (!currentReviewRating) { showToast('Поставьте оценку'); return; }
-
-  let reviews = JSON.parse(localStorage.getItem('user_reviews_' + userId) || '[]');
-
-  if (editingReviewId) {
-    reviews = reviews.map(r => r.id === editingReviewId ? { ...r, text, rating: currentReviewRating } : r);
-  } else {
-    reviews.push({
-      id: Date.now(),
-      event_id: currentReviewEventId,
-      text,
-      rating: currentReviewRating,
-      created_at: new Date().toISOString()
+  try {
+    const res = await fetch(API_BASE_URL + '/api/reviews', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: Number(userId), event_id: Number(currentReviewEventId), rating: currentReviewRating, text })
     });
-  }
-
-  localStorage.setItem('user_reviews_' + userId, JSON.stringify(reviews));
-
-  // Записываем оценку в API
-  recordInteraction(currentReviewEventId, 'rated', currentReviewRating);
-
-  closeReviewModal();
-  renderVisited();
-  renderUserReviews();
-  showToast('Отзыв сохранён');
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.detail || 'Не удалось сохранить отзыв на сервере');
+    await recordInteraction(currentReviewEventId, 'rated', currentReviewRating);
+    closeReviewModal();
+    await renderUserReviews();
+    renderVisited();
+    showToast('Отзыв сохранён');
+  } catch (e) { showToast(e.message || 'Ошибка сохранения отзыва'); }
 }
 
-function renderUserReviews() {
-  const reviews = JSON.parse(localStorage.getItem('user_reviews_' + userId) || '[]');
+async function renderUserReviews() {
+  const reviews = await fetchUserReviews();
   const list = document.getElementById('user-reviews-list');
   const empty = document.getElementById('empty-reviews');
   document.getElementById('reviews-count').textContent = reviews.length;
-
-  if (!reviews.length) {
-    list.innerHTML = '';
-    empty.style.display = 'block';
-    return;
-  }
-
+  if (!reviews.length) { list.innerHTML = ''; empty.style.display = 'block'; return; }
   empty.style.display = 'none';
   list.innerHTML = reviews.map(r => `
     <div class="review-card">
       <div class="review-header">
-        <div class="review-event-title">${r.event_title || 'Мероприятие #' + r.event_id}</div>
-        <div class="review-event-date">${new Date(r.created_at).toLocaleDateString('ru')}</div>
+        <div class="review-event-title"><a href="/event.html?id=${r.event_id}">${r.event_title || 'Мероприятие #' + r.event_id}</a></div>
+        <div class="review-event-date">${r.created_at ? new Date(r.created_at).toLocaleDateString('ru') : ''}</div>
       </div>
-      <div class="review-stars">${'<span class="star-static">★</span>'.repeat(r.rating)}${'<span style="color:var(--muted2)">★</span>'.repeat(5 - r.rating)}</div>
-      <div class="review-content">${r.text}</div>
+      <div class="review-stars">${'<span class="star-static">★</span>'.repeat(Number(r.rating) || 0)}${'<span style="color:var(--muted2)">★</span>'.repeat(5 - (Number(r.rating) || 0))}</div>
+      <div class="review-content">${escapeHtml(r.text || '')}</div>
       <div class="review-actions">
         <button class="review-edit" onclick="openEditReview(${r.id})">✎ Изменить</button>
         <button class="review-delete" onclick="deleteReview(${r.id})">✕ Удалить</button>
@@ -926,12 +843,14 @@ function renderUserReviews() {
     </div>`).join('');
 }
 
-function openEditReview(id) {
-  const reviews = JSON.parse(localStorage.getItem('user_reviews_' + userId) || '[]');
-  const r = reviews.find(r => r.id === id);
+async function openEditReview(id) {
+  const reviews = await fetchUserReviews();
+  const r = reviews.find(r => Number(r.id) === Number(id));
   if (!r) return;
-  editingReviewId = id;
-  document.getElementById('edit-review-text').value = r.text;
+  editingReviewId = r.id;
+  currentReviewEventId = r.event_id;
+  currentReviewRating = Number(r.rating) || 0;
+  document.getElementById('edit-review-text').value = r.text || '';
   document.getElementById('editReviewModal').style.display = 'flex';
   document.body.style.overflow = 'hidden';
 }
@@ -941,26 +860,37 @@ function closeEditReviewModal() {
   document.body.style.overflow = 'auto';
 }
 
-function saveReviewChanges() {
+async function saveReviewChanges() {
   const text = document.getElementById('edit-review-text').value.trim();
   if (!text) { showToast('Текст не может быть пустым'); return; }
-  let reviews = JSON.parse(localStorage.getItem('user_reviews_' + userId) || '[]');
-  reviews = reviews.map(r => r.id === editingReviewId ? { ...r, text } : r);
-  localStorage.setItem('user_reviews_' + userId, JSON.stringify(reviews));
-  closeEditReviewModal();
-  renderUserReviews();
-  showToast('Отзыв обновлён');
+  try {
+    const res = await fetch(API_BASE_URL + '/api/reviews', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: Number(userId), event_id: Number(currentReviewEventId), rating: Number(currentReviewRating) || 5, text })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.detail || 'Не удалось обновить отзыв');
+    closeEditReviewModal();
+    await renderUserReviews();
+    renderVisited();
+    showToast('Отзыв обновлён');
+  } catch (e) { showToast(e.message || 'Ошибка обновления отзыва'); }
 }
 
-function deleteReview(id) {
-  if (confirm('Удалить отзыв?')) {
-    let reviews = JSON.parse(localStorage.getItem('user_reviews_' + userId) || '[]');
-    reviews = reviews.filter(r => r.id !== id);
-    localStorage.setItem('user_reviews_' + userId, JSON.stringify(reviews));
-    renderUserReviews();
+async function deleteReview(id) {
+  if (!confirm('Удалить отзыв?')) return;
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/reviews/${id}?user_id=${encodeURIComponent(userId)}`, { method: 'DELETE' });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.detail || 'Не удалось удалить отзыв');
+    await renderUserReviews();
     renderVisited();
     showToast('Отзыв удалён');
-  }
+  } catch (e) { showToast(e.message || 'Ошибка удаления отзыва'); }
+}
+
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 }
 
 // ─── РЕДАКТИРОВАНИЕ ПРОФИЛЯ ───────────────────────────────
@@ -1059,14 +989,11 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
 // ─── ИНИЦИАЛИЗАЦИЯ ────────────────────────────────────────
 loadProfile();
 loadFavorites();
-loadTickets();
 loadVisited();
 loadRecommendations();
+renderUserReviews();
+loadRecent();
 </script>
 
-<!-- Экспортируем addTicket для index.html -->
-<script>
-window.addTicketFromIndex = addTicket;
-</script>
 </body>
 </html>
