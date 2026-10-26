@@ -544,12 +544,16 @@ class SmartPlanner:
                 estimate = estimate_travel(previous, location, travel_mode, use_router=False)
                 gap = int((start_dt - previous["end_dt"]).total_seconds() // 60)
                 required = estimate["minutes"] + travel_buffer_minutes
-                checks.append((gap >= required, previous, estimate, gap, required, "from_previous"))
+                # Without coordinates, 30 minutes is only a fallback estimate and must not
+                # be treated as a confirmed conflict that prevents adding an event.
+                known = estimate.get("known_coordinates", False)
+                checks.append((not known or gap >= required, previous, estimate, gap, required, "from_previous"))
             if following:
                 estimate = estimate_travel(location, following, travel_mode, use_router=False)
                 gap = int((following["start_dt"] - end_dt).total_seconds() // 60)
                 required = estimate["minutes"] + travel_buffer_minutes
-                checks.append((gap >= required, following, estimate, gap, required, "to_next"))
+                known = estimate.get("known_coordinates", False)
+                checks.append((not known or gap >= required, following, estimate, gap, required, "to_next"))
             return all(item[0] for item in checks), checks
 
         # 1) Reserve mandatory points first. They are kept even if their cost exceeds the budget,
@@ -621,11 +625,9 @@ class SmartPlanner:
                     estimate = estimate_travel(previous, following, travel_mode, use_router=False)
                     gap = int((following["start_dt"] - previous["end_dt"]).total_seconds() // 60)
                     required = estimate["minutes"] + travel_buffer_minutes
-                    if gap < required:
-                        return {"error": (f"Между обязательными точками «{previous.get('title', 'Точка')}» и "
-                                f"«{following.get('title', 'Точка')}» на {day} только {gap} мин, "
-                                f"а для дороги и запаса ориентировочно нужно {required} мин. "
-                                "Измените время или выберите другой способ передвижения."), "schedule": []}
+                    # Недостаточный интервал на дорогу — предупреждение, а не пересечение.
+                    # Не отменяем весь план: реальная нехватка времени будет отмечена в travel_legs.
+                    # Жёсткой ошибкой остаётся только фактическое пересечение временных интервалов.
 
         # 2) Place ranked events into free time windows without colliding with fixed points.
         for day in days:
