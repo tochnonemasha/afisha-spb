@@ -5,12 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Умный подбор — АФИША SPB</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{--bg:#0C0C0E;--surface:#141416;--surface2:#1C1C1F;--border:#2A2A2E;--accent:#C8A96E;--accent2:#E8C88E;--text:#F0EDE8;--muted:#888580;--red:#D64040}
-.day-map{height:300px;width:100%;border-top:1px solid var(--border);background:#202024;z-index:1}.map-status{padding:10px 14px;font-size:11px;color:var(--muted);border-top:1px solid var(--border)}.map-status a{color:var(--accent);text-decoration:underline}
 body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',sans-serif;min-height:100vh}
 a{color:inherit;text-decoration:none}
 button,input,select,textarea{font-family:inherit}
@@ -162,9 +159,9 @@ header{border-bottom:1px solid var(--border);padding:0 48px;display:flex;align-i
 
 /* Окно выбора мероприятия из базы */
 .db-modal{width:min(900px,100%);max-height:92vh;overflow:hidden;background:var(--surface);border:1px solid var(--accent);box-shadow:0 24px 90px rgba(0,0,0,.55);display:flex;flex-direction:column}
-.db-toolbar{padding:18px 24px;border-bottom:1px solid var(--border);display:grid;grid-template-columns:minmax(0,1fr) 150px;gap:12px}
-.db-toolbar input{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:12px;font-size:13px;outline:none}
-.db-toolbar input:focus{border-color:var(--accent)}
+.db-toolbar{padding:18px 24px;border-bottom:1px solid var(--border);display:grid;grid-template-columns:minmax(0,1fr) minmax(150px,190px) 150px;gap:12px}
+.db-toolbar input,.db-toolbar select{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:9px;color:var(--text);padding:12px;font-size:13px;outline:none}
+.db-toolbar input:focus,.db-toolbar select:focus{border-color:var(--accent)}
 .db-list{padding:16px 24px;overflow:auto;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
 .db-event-card{border:1px solid var(--border);background:var(--bg);padding:14px;display:grid;grid-template-columns:64px minmax(0,1fr);gap:12px;min-width:0}
 .db-event-card img,.db-event-placeholder{width:64px;height:76px;object-fit:cover;background:var(--surface2);display:flex;align-items:center;justify-content:center;color:var(--accent);font:italic 24px 'Playfair Display',serif}
@@ -309,7 +306,7 @@ input[type=range]{width:100%;accent-color:var(--accent);background:transparent;m
       <div class="field">
         <label for="travel-mode">Предпочтительный способ</label>
         <select id="travel-mode">
-          <option value="transit" selected>Метро и наземный транспорт</option>
+          <option value="transit" selected>Метро и наземный транспорт (оценка)</option>
           <option value="walk">Пешком</option>
           <option value="car">Такси / автомобиль</option>
           <option value="flexible">Любой — самый быстрый расчётный вариант</option>
@@ -327,7 +324,7 @@ input[type=range]{width:100%;accent-color:var(--accent);background:transparent;m
         </select>
       </div>
       <p style="font-size:11px;color:var(--muted);margin-top:10px;font-weight:300">
-        Время рассчитывается приблизительно.
+        Время рассчитывается приблизительно по координатам. Реальные маршруты, расписание метро и пробки пока не подключены.
       </p>
     </div>
 
@@ -336,8 +333,8 @@ input[type=range]{width:100%;accent-color:var(--accent);background:transparent;m
       <div class="section-label">Локация</div>
       <div class="field">
         <label>Предпочтительный район</label>
-        <select id="district">
-          <option value="">Любой район</option>
+        <select id="district" multiple size="5" class="district-filter-multi" aria-label="Выберите один или несколько районов">
+          
           <option>Адмиралтейский</option>
           <option>Василеостровский</option>
           <option>Выборгский</option>
@@ -357,6 +354,7 @@ input[type=range]{width:100%;accent-color:var(--accent);background:transparent;m
           <option>Фрунзенский</option>
           <option>Центральный</option>
         </select>
+        <div class="district-multi-hint">Можно выбрать несколько районов: удерживайте Ctrl (Windows) или ⌘ (Mac).</div>
       </div>
     </div>
 
@@ -378,17 +376,17 @@ input[type=range]{width:100%;accent-color:var(--accent);background:transparent;m
 
     <!-- ОБЯЗАТЕЛЬНЫЕ ТОЧКИ -->
     <div class="form-section">
-      <div class="section-label">Запланированные мероприятия</div>
+      <div class="section-label">Обязательные точки</div>
       <p style="font-size:11px;color:var(--muted);margin-bottom:12px">Укажите места и время, которые нужно сохранить в расписании. Остальные мероприятия будут подбираться вокруг них.</p>
       <div class="mandatory-form">
         <div class="wide"><label for="mandatory-title">Название / место</label><input id="mandatory-title" placeholder="Например, встреча в музее"></div>
         <div><label for="mandatory-date">Дата</label><input id="mandatory-date" type="date"></div>
-        <div><label for="mandatory-address">Адрес</label><input id="mandatory-address" list="yandex-address-suggestions" placeholder="Начните вводить адрес места"><datalist id="yandex-address-suggestions"></datalist></div>
+        <div><label for="mandatory-address">Адрес (необязательно)</label><input id="mandatory-address" list="yandex-address-suggestions" placeholder="Начните вводить адрес места"><datalist id="yandex-address-suggestions"></datalist></div>
         <div><label for="mandatory-start">Начало</label><input id="mandatory-start" type="time" value="10:00"></div>
         <div><label for="mandatory-end">Время окончания</label><input id="mandatory-end" type="time" value="11:00" required></div>
         <div><label for="mandatory-cost">Цена на человека, ₽</label><input id="mandatory-cost" type="number" min="0" value="0"></div>
         <div class="wide" id="mandatory-end-preview" style="font-size:11px;color:var(--muted)">Укажите начало и окончание посещения. Продолжительность рассчитается автоматически.</div>
-        <div class="wide"><button type="button" class="day-add-btn" onclick="addMandatoryPointFromForm()">＋ Добавить запланированное мероприятие</button></div>
+        <div class="wide"><button type="button" class="day-add-btn" onclick="addMandatoryPointFromForm()">＋ Добавить обязательную точку</button></div>
       </div>
       <div class="mandatory-list" id="mandatory-list"></div>
     </div>
@@ -418,7 +416,7 @@ input[type=range]{width:100%;accent-color:var(--accent);background:transparent;m
 <div class="modal-backdrop" id="plan-point-modal" role="dialog" aria-modal="true" aria-labelledby="plan-point-modal-title" onclick="if(event.target===this)closePlanPointModal()">
   <div class="plan-modal">
     <div class="modal-head">
-      <div><div class="modal-kicker" id="plan-point-kicker">Ваш маршрут · настройка</div><div class="modal-title" id="plan-point-modal-title">Добавить запланированное мероприятие</div><div class="modal-subtitle" id="plan-point-subtitle">Точка останется в расписании, а подбор событий будет выполнен заново.</div></div>
+      <div><div class="modal-kicker" id="plan-point-kicker">Ваш маршрут · настройка</div><div class="modal-title" id="plan-point-modal-title">Добавить обязательную точку</div><div class="modal-subtitle" id="plan-point-subtitle">Точка останется в расписании, а подбор событий будет выполнен заново.</div></div>
       <button type="button" class="modal-close" aria-label="Закрыть" onclick="closePlanPointModal()">×</button>
     </div>
     <div class="modal-body">
@@ -429,7 +427,7 @@ input[type=range]{width:100%;accent-color:var(--accent);background:transparent;m
       <div class="modal-field"><label for="plan-point-cost">Стоимость на человека, ₽</label><input id="plan-point-cost" type="number" min="0" step="50" value="0"></div>
       <div class="modal-field wide"><label for="plan-point-address">Адрес / музей</label><input id="plan-point-address" list="yandex-address-suggestions" placeholder="Начните вводить адрес или название площадки"></div>
       <div class="modal-field wide" id="plan-point-url-wrap"><label for="plan-point-url">Ссылка на сайт (необязательно)</label><input id="plan-point-url" type="url" placeholder="https://..."></div>
-      <div class="modal-note" id="plan-point-note">После подтверждения план будет пересчитан: запланированное мероприятие сохранится, а мероприятия, которые конфликтуют с ней по времени, будут заменены при наличии подходящих вариантов.</div>
+      <div class="modal-note" id="plan-point-note">После подтверждения план будет пересчитан: обязательная точка сохранится, а мероприятия, которые конфликтуют с ней по времени, будут заменены при наличии подходящих вариантов.</div>
     </div>
     <div class="modal-footer"><button type="button" class="modal-secondary" onclick="closePlanPointModal()">Отмена</button><button type="button" class="modal-primary" id="plan-point-submit" onclick="submitPlanPointModal()">Добавить и перестроить план</button></div>
   </div>
@@ -443,7 +441,7 @@ input[type=range]{width:100%;accent-color:var(--accent);background:transparent;m
       <div><div class="modal-kicker">Афиша SPB · база мероприятий</div><div class="modal-title" id="db-modal-title">Добавить мероприятие</div><div class="modal-subtitle" id="db-modal-subtitle">Выберите событие для выбранного дня. Занятые интервалы будут защищены от пересечений.</div></div>
       <button type="button" class="modal-close" aria-label="Закрыть" onclick="closeDatabaseEventModal()">×</button>
     </div>
-    <div class="db-toolbar"><input id="db-event-search" type="search" placeholder="Поиск по названию, категории или месту…" oninput="renderDatabaseEventOptions()"><input id="db-event-time" type="time" value="12:00" aria-label="Время начала для события без фиксированного времени"></div>
+    <div class="db-toolbar"><input id="db-event-search" type="search" placeholder="Поиск по названию, категории или месту…" oninput="renderDatabaseEventOptions()"><select id="db-event-time-filter" aria-label="Фильтр по времени" onchange="renderDatabaseEventOptions()"><option value="any">Любое время</option><option value="morning">Утро · до 12:00</option><option value="afternoon">День · 12:00–17:00</option><option value="evening">Вечер · после 17:00</option></select><input id="db-event-time" type="time" value="12:00" aria-label="Время начала для события без фиксированного времени" title="Время начала, если у мероприятия нет фиксированного времени"></div>
     <div class="db-list" id="db-event-list"><div class="db-empty">Загрузка мероприятий…</div></div>
     <div class="modal-footer"><button type="button" class="modal-secondary" onclick="closeDatabaseEventModal()">Закрыть</button></div>
   </div>
@@ -454,9 +452,43 @@ input[type=range]{width:100%;accent-color:var(--accent);background:transparent;m
   <div class="footer-copy">© 2025</div>
 </footer>
 
+<style>
+.afisha-dialog-backdrop{position:fixed;inset:0;z-index:100000;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(10,15,25,.62);backdrop-filter:blur(5px)}
+.afisha-dialog-backdrop.open{display:flex;animation:afade .16s ease-out}@keyframes afade{from{opacity:0}to{opacity:1}}
+.afisha-dialog{width:min(440px,100%);background:var(--surface,#fff);color:var(--text,#222);border:1px solid var(--border,#ddd);border-radius:18px;padding:25px;box-shadow:0 24px 80px #0004;font-family:inherit}
+.afisha-dialog-icon{width:42px;height:42px;border-radius:14px;display:grid;place-items:center;background:color-mix(in srgb,var(--accent,#b38b52) 16%,transparent);color:var(--accent,#b38b52);font-size:22px;margin-bottom:15px}
+.afisha-dialog-title{font-size:20px;font-weight:700;margin-bottom:9px}.afisha-dialog-message{font-size:14px;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere;color:var(--muted,#666)}
+.afisha-dialog-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:23px;flex-wrap:wrap}.afisha-dialog-btn{border-radius:10px;padding:10px 16px;border:1px solid var(--border,#ddd);background:transparent;color:inherit;font:inherit;cursor:pointer}.afisha-dialog-btn.primary{background:var(--accent,#b38b52);border-color:var(--accent,#b38b52);color:#fff}.afisha-dialog-btn.danger{background:#b94141;border-color:#b94141;color:#fff}
+.district-multi-hint{font-size:11px;opacity:.72;margin-top:6px}.district-filter-multi{min-width:180px;max-width:260px;height:auto;min-height:38px;padding:8px}
+</style>
+<div class="afisha-dialog-backdrop" id="afisha-dialog" role="dialog" aria-modal="true" aria-labelledby="afisha-dialog-title"><div class="afisha-dialog"><div class="afisha-dialog-icon" id="afisha-dialog-icon">✦</div><div class="afisha-dialog-title" id="afisha-dialog-title">Подтверждение</div><div class="afisha-dialog-message" id="afisha-dialog-message"></div><div class="afisha-dialog-actions" id="afisha-dialog-actions"></div></div></div>
+<script>
+(function(){
+ let resolver=null;
+ window.showAfishaDialog=function({title='Афиша SPB',message='',icon='✦',confirmText='Понятно',cancelText='Отмена',confirm=false,danger=false}={}){
+  const modal=document.getElementById('afisha-dialog'); if(!modal){ if(confirm) return Promise.resolve(window.confirm(message)); window.alert(message); return Promise.resolve(true); }
+  document.getElementById('afisha-dialog-title').textContent=title;
+  document.getElementById('afisha-dialog-message').textContent=String(message);
+  document.getElementById('afisha-dialog-icon').textContent=icon;
+  const actions=document.getElementById('afisha-dialog-actions'); actions.replaceChildren();
+  return new Promise(resolve=>{
+   resolver=resolve;
+   const finish=value=>{modal.classList.remove('open');document.body.style.overflow='';resolver=null;resolve(value)};
+   if(confirm){const cancel=document.createElement('button');cancel.className='afisha-dialog-btn';cancel.textContent=cancelText;cancel.onclick=()=>finish(false);actions.append(cancel)}
+   const ok=document.createElement('button');ok.className='afisha-dialog-btn '+(danger?'danger':'primary');ok.textContent=confirmText;ok.onclick=()=>finish(true);actions.append(ok);
+   modal.onclick=e=>{if(e.target===modal && !confirm)finish(true)};
+   modal.classList.add('open');document.body.style.overflow='hidden';ok.focus();
+   const key=e=>{if(e.key==='Escape'){if(confirm)finish(false);else finish(true);document.removeEventListener('keydown',key)}};document.addEventListener('keydown',key);
+  });
+ };
+ window.showNotice=function(message,title='Обратите внимание'){return window.showAfishaDialog({title,message,icon:'✦',confirmText:'Хорошо'})};
+ window.showConfirm=function(message,title='Подтвердите действие',danger=false){return window.showAfishaDialog({title,message,icon:danger?'!':'?',confirm:true,confirmText:danger?'Да, продолжить':'Подтвердить',cancelText:'Отмена',danger})};
+})();
+</script>
+
 <script>
 // Можно переопределить адрес API через window.API_BASE_URL перед этим скриптом.
-const API_BASE_URL = window.API_BASE_URL || (window.location.protocol === 'file:' ? 'http://127.0.0.1:8000' : ((window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? window.location.origin : 'https://afisha-spb-production.up.railway.app'));
+const API_BASE_URL = window.API_BASE_URL || (window.location.protocol === 'file:' ? 'http://127.0.0.1:8000' : ((window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') ? window.location.origin : 'https://web-production-02057.up.railway.app'));
 
 // Подсказки адресов через backend: ключ Yandex Suggest не раскрывается в HTML.
 let addressSuggestTimer = null;
@@ -486,17 +518,16 @@ function initAddressSuggestions() {
 
 
 async function validateRealAddress(address) {
-    if (!address) return null;
+    if (!address) return true;
     const response = await fetch(`${API_BASE_URL}/api/geocode`, {
         method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({address})
     });
     const data = await response.json();
     if (!response.ok) throw new Error(data.detail || 'Не удалось проверить адрес');
-    if (!data.success || !Number.isFinite(Number(data.latitude)) || !Number.isFinite(Number(data.longitude))) {
-        throw new Error(data.message || 'Адрес не подтверждён. Выберите точку из подсказок или уточните адрес.');
-    }
-    return data;
+    if (!data.success) { showNotice(data.message || 'Выберите реальный адрес из подсказок.'); return false; }
+    return true;
 }
+
 
 // === ИНИЦИАЛИЗАЦИЯ ДАТ ===
 function initDates() {
@@ -620,24 +651,19 @@ function updateMandatoryEndPreview() {
       : 'Время окончания должно быть позже времени начала.';
 }
 
-async function addMandatoryPointFromForm() {
+function addMandatoryPointFromForm() {
     const title = document.getElementById('mandatory-title').value.trim();
     const date = document.getElementById('mandatory-date').value;
     const start_time = document.getElementById('mandatory-start').value;
     const end_time = document.getElementById('mandatory-end').value;
     const duration = durationBetween(start_time, end_time);
     const costInput = document.getElementById('mandatory-cost').value;
-    if (!title || !date || !start_time || !end_time) { alert('Укажите название, дату, время начала и окончания.'); return; }
-    if (!duration || duration < 15 || duration > 1440) { alert('Время окончания должно быть позже начала, длительность — от 15 минут до 24 часов.'); return; }
-    if (costInput !== '' && Number(costInput) < 0) { alert('Стоимость не может быть отрицательной'); return; }
-    const address = document.getElementById('mandatory-address').value.trim();
-    let geocoded = null;
-    if (address) { try { geocoded = await validateRealAddress(address); } catch (err) { alert(err.message); return; } }
+    if (!title || !date || !start_time || !end_time) { showNotice('Укажите название, дату, время начала и окончания.'); return; }
+    if (!duration || duration < 15 || duration > 1440) { showNotice('Время окончания должно быть позже начала, длительность — от 15 минут до 24 часов.'); return; }
+    if (costInput !== '' && Number(costInput) < 0) { showNotice('Стоимость не может быть отрицательной'); return; }
     mandatoryPoints.push({
         id: 'mandatory-' + Date.now(), title, date, start_time, end_time,
-        address: geocoded?.address || address,
-        venue_address: geocoded?.address || address,
-        venue_lat: geocoded?.latitude ?? null, venue_lon: geocoded?.longitude ?? null,
+        address: document.getElementById('mandatory-address').value.trim(),
         price_per_person: Number(costInput || 0), duration_minutes: duration,
         category: 'Личная точка', url: ''
     });
@@ -675,13 +701,13 @@ function openPermanentExhibition(id) {
 
 function openPlanPointModal(mode) {
     if (!currentPlan || !Array.isArray(currentPlan.schedule) || !currentPlan.schedule.length) {
-        alert('Сначала составьте расписание.'); return;
+        showNotice('Сначала составьте расписание.'); return;
     }
     planPointModalMode = ['exhibition','custom'].includes(mode) ? mode : 'mandatory';
     const exhibition = planPointModalMode === 'exhibition';
     const customPoint = planPointModalMode === 'custom';
-    document.getElementById('plan-point-kicker').textContent = exhibition ? 'Постоянная коллекция · музей' : (customPoint ? 'Ваш маршрут · новая точка' : 'Ваш маршрут · запланированное мероприятие');
-    document.getElementById('plan-point-modal-title').textContent = exhibition ? 'Добавить постоянную экспозицию' : (customPoint ? 'Добавить свою точку' : 'Добавить запланированное мероприятие');
+    document.getElementById('plan-point-kicker').textContent = exhibition ? 'Постоянная коллекция · музей' : (customPoint ? 'Ваш маршрут · новая точка' : 'Ваш маршрут · обязательная точка');
+    document.getElementById('plan-point-modal-title').textContent = exhibition ? 'Добавить постоянную экспозицию' : (customPoint ? 'Добавить свою точку' : 'Добавить обязательную точку');
     document.getElementById('plan-point-subtitle').textContent = exhibition
       ? 'Укажите экспозицию и выберите, в какой день и время встроить посещение.'
       : (customPoint ? 'Добавьте собственное место или занятие в расписание.' : 'Точка останется в расписании. После подтверждения система подберёт события вокруг неё.');
@@ -719,16 +745,14 @@ async function submitPlanPointModal() {
     const price = Number(document.getElementById('plan-point-cost').value || 0);
     const address = document.getElementById('plan-point-address').value.trim();
     const url = document.getElementById('plan-point-url').value.trim();
-    if (!title || !date || !start_time || !end_time) { alert('Заполните название, день, время начала и окончания.'); return; }
-    if (!duration || duration < 15 || duration > 720) { alert('Время окончания должно быть позже начала, а длительность — от 15 до 720 минут.'); return; }
-    if (!Number.isFinite(price) || price < 0) { alert('Стоимость не может быть отрицательной.'); return; }
-    if (url && !/^https?:\/\//i.test(url)) { alert('Ссылка должна начинаться с https:// или http://.'); return; }
-    let geocoded = null;
-    if (address) { try { geocoded = await validateRealAddress(address); } catch (err) { alert(err.message); return; } }
-    const verifiedAddress = geocoded?.address || address;
+    if (!title || !date || !start_time || !end_time) { showNotice('Заполните название, день, время начала и окончания.'); return; }
+    if (!duration || duration < 15 || duration > 720) { showNotice('Время окончания должно быть позже начала, а длительность — от 15 до 720 минут.'); return; }
+    if (!Number.isFinite(price) || price < 0) { showNotice('Стоимость не может быть отрицательной.'); return; }
+    if (url && !/^https?:\/\//i.test(url)) { showNotice('Ссылка должна начинаться с https:// или http://.'); return; }
+    if (address) { try { if (!(await validateRealAddress(address))) return; } catch (err) { showNotice(err.message); return; } }
 
     const day = currentPlan?.schedule?.find(d => d.date === date);
-    if (!day) { alert('Не удалось найти выбранный день плана.'); return; }
+    if (!day) { showNotice('Не удалось найти выбранный день плана.'); return; }
     // Не допускаем пересечения двух точек, которые пользователь уже закрепил вручную.
     const scheduleConflicts = (day.events || []).filter(e => {
         const es = e.planned_start || String(e.start_datetime || '').slice(11,16);
@@ -737,23 +761,21 @@ async function submitPlanPointModal() {
     });
     if (scheduleConflicts.length) {
         const names = scheduleConflicts.map(e => `«${e.title}» (${e.planned_start || String(e.start_datetime || '').slice(11,16)}–${e.planned_end || ''})`).join(', ');
-        if (!window.confirm(`Выбранное время пересекается с: ${names}. Заменить ${scheduleConflicts.length === 1 ? 'это мероприятие' : 'эти мероприятия'} новой точкой? Отмена сохранит план без изменений.`)) return;
+        if (!(await showConfirm(`Выбранное время пересекается с: ${names}. Заменить ${scheduleConflicts.length === 1 ? 'это мероприятие' : 'эти мероприятия'} новой точкой? Отмена сохранит план без изменений.`, 'Конфликт времени', true))) return;
         const ids = new Set(scheduleConflicts.map(e => String(e.id)));
         day.events = day.events.filter(e => !ids.has(String(e.id)));
         mandatoryPoints = mandatoryPoints.filter(p => !ids.has(String(p.id)));
     }
     const point = {
         id: (planPointModalMode === 'exhibition' ? 'exhibition-' : (planPointModalMode === 'custom' ? 'custom-' : 'mandatory-')) + Date.now(),
-        title, date, start_time, end_time, address: verifiedAddress, venue_title: verifiedAddress,
-        venue_lat: geocoded?.latitude ?? null, venue_lon: geocoded?.longitude ?? null,
+        title, date, start_time, end_time, address, venue_title: address,
         price_per_person: price, duration_minutes: duration,
         category: planPointModalMode === 'exhibition' ? 'Постоянная экспозиция' : 'Личная точка',
         url, mandatory: true, permanent_exhibition: planPointModalMode === 'exhibition'
     };
     mandatoryPoints.push(point);
     day.events.push({
-        id: point.id, title, category: point.category, venue_title: verifiedAddress, venue_address: verifiedAddress,
-        venue_lat: point.venue_lat, venue_lon: point.venue_lon,
+        id: point.id, title, category: point.category, venue_title: address, venue_address: address,
         planned_start: start_time, planned_end: end_time, start_datetime: `${date} ${start_time}`,
         duration_minutes: duration, price_per_person: price, price_total: price * Number(currentPlan.group_size || 1),
         is_free: price === 0, image_url: '', url, mandatory: true, custom: true,
@@ -856,12 +878,13 @@ async function addDatabaseEventToDay(dayDate) {
             if (!response.ok) throw new Error(payload.detail || 'Не удалось загрузить базу');
             options = (payload.events || []).filter(c => !c.start_datetime || String(c.start_datetime).slice(0,10) === dayDate)
                 .map(c => ({...c, price_per_person:c.price_min || 0, duration_minutes:c.duration_minutes || 120}));
-        } catch (err) { alert('Не удалось загрузить мероприятия из базы: ' + err.message); return; }
+        } catch (err) { showNotice('Не удалось загрузить мероприятия из базы: ' + err.message); return; }
     }
     const existing = new Set((day.events || []).map(e => String(e.id)));
     databaseModalOptions = options.filter(c => !existing.has(String(c.id)));
-    if (!databaseModalOptions.length) { alert('В базе нет других мероприятий на выбранный день.'); return; }
+    if (!databaseModalOptions.length) { showNotice('В базе нет других мероприятий на выбранный день.'); return; }
     document.getElementById('db-event-search').value = '';
+    document.getElementById('db-event-time-filter').value = 'any';
     document.getElementById('db-event-time').value = '12:00';
     document.getElementById('database-event-modal').classList.add('open');
     document.body.style.overflow = 'hidden';
@@ -879,8 +902,19 @@ function renderDatabaseEventOptions() {
     const list = document.getElementById('db-event-list');
     if (!list) return;
     const q = (document.getElementById('db-event-search')?.value || '').trim().toLocaleLowerCase('ru');
-    const options = databaseModalOptions.filter(e => [e.title,e.category,e.venue_title,e.venue_address]
-        .some(v => String(v || '').toLocaleLowerCase('ru').includes(q)));
+    const timeFilter = document.getElementById('db-event-time-filter')?.value || 'any';
+    const options = databaseModalOptions.filter(e => {
+        const matchesText = [e.title,e.category,e.venue_title,e.venue_address]
+            .some(v => String(v || '').toLocaleLowerCase('ru').includes(q));
+        const time = String(e.start_datetime || '').slice(11,16);
+        // Если у события нет времени в афише, не скрываем его фильтром: время можно задать вручную.
+        const minutes = /^\d{2}:\d{2}$/.test(time) ? Number(time.slice(0,2))*60 + Number(time.slice(3,5)) : null;
+        const matchesTime = timeFilter === 'any' || minutes === null ||
+            (timeFilter === 'morning' && minutes < 12*60) ||
+            (timeFilter === 'afternoon' && minutes >= 12*60 && minutes < 17*60) ||
+            (timeFilter === 'evening' && minutes >= 17*60);
+        return matchesText && matchesTime;
+    });
     if (!options.length) { list.innerHTML = '<div class="db-empty">Ничего не найдено. Попробуйте изменить запрос.</div>'; return; }
     list.innerHTML = options.map(e => {
         const price = e.is_free ? 'Бесплатно' : (Number(e.price_per_person ?? e.price_min ?? 0) > 0 ? `от ${Number(e.price_per_person ?? e.price_min).toLocaleString('ru')} ₽` : 'Цена не указана');
@@ -890,18 +924,18 @@ function renderDatabaseEventOptions() {
     }).join('');
 }
 
-function selectDatabaseEvent(candidateId) {
+async function selectDatabaseEvent(candidateId) {
     const day = currentPlan?.schedule?.find(d => d.date === databaseModalDay);
     const candidate = databaseModalOptions.find(c => String(c.id) === String(candidateId));
     if (!day || !candidate) return;
-    if ((day.events || []).some(e => String(e.id) === String(candidate.id))) { alert('Это мероприятие уже есть в плане.'); return; }
+    if ((day.events || []).some(e => String(e.id) === String(candidate.id))) { showNotice('Это мероприятие уже есть в плане.'); return; }
     const datePart = String(candidate.start_datetime || '').slice(0,10);
-    if (datePart && datePart !== databaseModalDay) { alert('Это мероприятие проходит в другую дату.'); return; }
+    if (datePart && datePart !== databaseModalDay) { showNotice('Это мероприятие проходит в другую дату.'); return; }
     const publishedTime = String(candidate.start_datetime || '').slice(11,16);
     const start = document.getElementById('db-event-time').value || publishedTime || '12:00';
     const duration = Math.max(15, Number(candidate.duration_minutes || 120));
     const endMins = Number(start.slice(0,2))*60 + Number(start.slice(3,5)) + duration;
-    if (endMins > 24*60) { alert('Мероприятие не помещается в выбранный день.'); return; }
+    if (endMins > 24*60) { showNotice('Мероприятие не помещается в выбранный день.'); return; }
     const end = String(Math.floor(endMins/60)).padStart(2,'0') + ':' + String(endMins%60).padStart(2,'0');
     const overlaps = (day.events || []).filter(e => {
         const es = e.planned_start || String(e.start_datetime || '').slice(11,16);
@@ -911,10 +945,10 @@ function selectDatabaseEvent(candidateId) {
     if (overlaps.length) {
         const protectedEvents = overlaps.filter(e => e.mandatory || e.permanent_exhibition || String(e.id).startsWith('exhibition-'));
         if (protectedEvents.length) {
-            alert(`«${candidate.title}» пересекается с запланированным мероприятием «${protectedEvents[0].title}» (${protectedEvents[0].planned_start || ''}–${protectedEvents[0].planned_end || ''}). Эта точка сохранена. Выберите другое мероприятие или освободите время.`);
+            showNotice(`«${candidate.title}» пересекается с обязательной точкой «${protectedEvents[0].title}» (${protectedEvents[0].planned_start || ''}–${protectedEvents[0].planned_end || ''}). Эта точка сохранена. Выберите другое мероприятие или освободите время.`);
             return;
         }
-        if (!window.confirm(`«${candidate.title}» (${start}–${end}) пересекается с ${overlaps.map(e=>`«${e.title}»`).join(', ')}. Удалить только конфликтующие обычные мероприятия и добавить выбранное?`)) return;
+        if (!(await showConfirm(`«${candidate.title}» (${start}–${end}) пересекается с ${overlaps.map(e=>`«${e.title}»`).join(', ')}. Удалить только конфликтующие обычные мероприятия и добавить выбранное?`, 'Заменить мероприятие', true))) return;
         const ids = new Set(overlaps.map(e => String(e.id)));
         day.events = day.events.filter(e => !ids.has(String(e.id)));
     }
@@ -929,24 +963,28 @@ function selectDatabaseEvent(candidateId) {
     recalculateEditedPlan();
 }
 
-function replacePlanEvent(dayDate, eventId, candidateId) {
+async function replacePlanEvent(dayDate, eventId, candidateId, selectElement) {
     if (!candidateId) return;
     const day = currentPlan?.schedule?.find(d => d.date === dayDate);
     if (!day) return;
     const index = day.events.findIndex(e => String(e.id) === String(eventId));
     const candidate = (currentPlan.candidate_options || []).find(c => String(c.id) === String(candidateId));
     if (index < 0 || !candidate) return;
-    if (day.events.some((e,i) => i !== index && String(e.id) === String(candidate.id))) { alert('Это мероприятие уже есть в плане'); return; }
-    const datePart = String(candidate.start_datetime || '').slice(0,10);
-    if (datePart && /^\d{4}-\d{2}-\d{2}$/.test(datePart) && datePart !== dayDate) { alert('Это мероприятие проходит в другую дату'); return; }
     const old = day.events[index];
+    const cancelSelection = () => { if (selectElement) selectElement.value = ''; };
+    if (day.events.some((e,i) => i !== index && String(e.id) === String(candidate.id))) { showNotice('Это мероприятие уже есть в плане'); cancelSelection(); return; }
+    const datePart = String(candidate.start_datetime || '').slice(0,10);
+    if (datePart && /^\d{4}-\d{2}-\d{2}$/.test(datePart) && datePart !== dayDate) { showNotice('Это мероприятие проходит в другую дату'); cancelSelection(); return; }
     const start = old.planned_start || '12:00';
     const duration = Number(candidate.duration_minutes || old.duration_minutes || 120);
     const endMins = Number(start.slice(0,2))*60 + Number(start.slice(3,5)) + duration;
-    const end = String(Math.floor(endMins/60)%24).padStart(2,'0') + ':' + String(endMins%60).padStart(2,'0');
+    if (endMins > 24*60) { showNotice('Мероприятие не помещается в выбранный день.'); cancelSelection(); return; }
+    const end = String(Math.floor(endMins/60)).padStart(2,'0') + ':' + String(endMins%60).padStart(2,'0');
     if (day.events.some((e,i) => i !== index && e.planned_start && e.planned_end && start < e.planned_end && end > e.planned_start)) {
-        alert('Замена пересекается по времени с другой точкой. Удалите или переместите одну из точек.'); return;
+        showNotice('Замена пересекается по времени с другой точкой. Удалите или переместите одну из точек.'); cancelSelection(); return;
     }
+    const accepted = await showConfirm(`Заменить «${old.title}» на «${candidate.title}»? Время в плане останется ${start}–${end}.`, 'Заменить мероприятие', true);
+    if (!accepted) { cancelSelection(); return; }
     day.events[index] = {...candidate, planned_start:start, planned_end:end, slot_label:'Заменено',
         start_datetime:candidate.start_datetime || dayDate+' '+start, price_total:candidate.is_free?0:Number(candidate.price_per_person||0)*Number(currentPlan.group_size||1),
         mandatory:false, custom:false};
@@ -992,7 +1030,7 @@ function getFormData() {
         budget_per_day: document.getElementById('budget-limited').value === 'yes' && document.getElementById('budget-per-day').value !== '' ? Math.max(0, parseInt(document.getElementById('budget-per-day').value)) : null,
         group_size: parseInt(document.getElementById('group-size').value) || 1,
         time_slots: timeSlots,
-        district: document.getElementById('district').value || null,
+        district: Array.from(document.getElementById('district').selectedOptions).map(o => o.value).filter(Boolean).join(', ') || null,
         age_group: document.getElementById('age-group').value || null,
         mandatory_points: mandatoryPoints,
         travel_mode: document.getElementById('travel-mode').value || 'transit',
@@ -1007,7 +1045,7 @@ async function generatePlan() {
     const data = getFormData();
 
     if (!data.date_from || !data.date_to) {
-        alert('Укажите даты');
+        showNotice('Укажите даты');
         return;
     }
 
@@ -1038,7 +1076,7 @@ async function generatePlan() {
         const message = (e instanceof TypeError && /fetch/i.test(e.message))
           ? 'Браузер не смог подключиться к API: ' + API_BASE_URL + '. Сначала откройте ' + API_BASE_URL + '/api/health. Если адрес не открывается, проверьте Railway Deployments/Logs и переменные сервиса API. Если health открывается, проверьте CORS и адрес API в настройке сайта. Для локального запуска: uvicorn api:app --reload --host 127.0.0.1 --port 8000.'
           : e.message;
-        alert('Ошибка: ' + message);
+        showNotice('Ошибка: ' + message);
     } finally {
         btn.disabled = false;
         spinner.classList.remove('show');
@@ -1094,7 +1132,7 @@ function renderResults(plan, params, isEditRender = false) {
         </div>`;
 
     html += `<div class="plan-actions">
-      <button class="plan-action-btn" onclick="openPlanPointModal('mandatory')">＋ Добавить запланированное мероприятие</button>
+      <button class="plan-action-btn" onclick="openPlanPointModal('mandatory')">＋ Добавить обязательную точку</button>
       <button class="plan-action-btn" onclick="openPlanPointModal('exhibition')">＋ Добавить постоянную экспозицию</button>
     </div>`;
     html += `<section class="permanent-section">
@@ -1139,7 +1177,7 @@ function renderResults(plan, params, isEditRender = false) {
                         <div class="event-age">${e.age_restriction || '0+'}</div>
                         <div class="edit-controls" onclick="event.stopPropagation()">
                           <button onclick="removePlanEvent('${day.date}','${e.id}')">Удалить</button>
-                          <select aria-label="Заменить мероприятие" onchange="replacePlanEvent('${day.date}','${e.id}',this.value)">
+                          <select aria-label="Заменить мероприятие" onchange="replacePlanEvent('${day.date}','${e.id}',this.value,this)">
                             <option value="">Заменить на...</option>
                             ${(plan.candidate_options || []).filter(c => String(c.id) !== String(e.id) && (!c.start_datetime || String(c.start_datetime).slice(0,10) === day.date)).map(c => `<option value="${c.id}">${escapeHtml(c.title)} · ${c.is_free ? 'бесплатно' : Number(c.price_per_person||0).toLocaleString('ru')+' ₽'}</option>`).join('')}
                           </select>
@@ -1159,7 +1197,7 @@ function renderResults(plan, params, isEditRender = false) {
             </div>`;
         }
 
-        html += `</div><div class="day-map" id="day-map-${String(day.date).replace(/[^0-9]/g,'')}"></div><div class="map-status" id="map-status-${String(day.date).replace(/[^0-9]/g,'')}">Загружаем карту и проверяем координаты точек…</div></div>`;
+        html += `</div></div>`;
     });
 
     // Итоговая сводка
@@ -1192,72 +1230,7 @@ function renderResults(plan, params, isEditRender = false) {
     }
 
     content.innerHTML = html;
-    initDayMaps(schedule, currentPlanParams?.travel_mode || 'walk');
     section.scrollIntoView({ behavior: 'smooth' });
-}
-
-
-// Карты: маркеры строятся только по подтверждённым координатам. Дорожная линия
-// запрашивается с OSM-роутера; если он недоступен, не выдаём прямую линию за маршрут.
-const renderedDayMaps = new Map();
-async function initDayMaps(schedule, requestedMode) {
-    if (!window.L) {
-        document.querySelectorAll('.map-status').forEach(el => el.textContent = 'Не загрузилась библиотека карты. Обновите страницу.');
-        return;
-    }
-    for (const day of (schedule || [])) {
-        const key = String(day.date || '').replace(/[^0-9]/g, '');
-        const mapEl = document.getElementById(`day-map-${key}`);
-        const statusEl = document.getElementById(`map-status-${key}`);
-        if (!mapEl || !statusEl) continue;
-        const points = (day.events || []).filter(e => Number.isFinite(Number(e.venue_lat)) && Number.isFinite(Number(e.venue_lon)) && e.venue_lat !== '' && e.venue_lon !== '');
-        if (!points.length) {
-            statusEl.textContent = 'На этот день нет подходящих мероприятий. Вы можете самостоятельно выбрать понравившиеся события';
-            continue;
-        }
-        let map = renderedDayMaps.get(mapEl.id);
-        if (map) { map.remove(); renderedDayMaps.delete(mapEl.id); }
-        map = L.map(mapEl, {scrollWheelZoom:false}).setView([Number(points[0].venue_lat), Number(points[0].venue_lon)], 13);
-        renderedDayMaps.set(mapEl.id, map);
-        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19, attribution:'&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a>'}).addTo(map);
-        const latlngs = [];
-        points.forEach((point, idx) => {
-            const ll = [Number(point.venue_lat), Number(point.venue_lon)]; latlngs.push(ll);
-            const time = point.planned_start || (point.start_datetime || '').slice(11,16) || '';
-            L.marker(ll).addTo(map).bindPopup(`<strong>${escapeHtml(point.title || 'Точка')}</strong><br>${escapeHtml(time)}<br>${escapeHtml(point.venue_address || point.venue_title || '')}`);
-        });
-        if (points.length === 1) {
-            map.setView(latlngs[0], 15);
-            statusEl.textContent = `На карте отмечена точка: ${points[0].venue_address || points[0].venue_title || points[0].title}.`;
-            setTimeout(() => map.invalidateSize(), 100);
-            continue;
-        }
-        map.fitBounds(L.latLngBounds(latlngs).pad(0.15));
-        const mode = requestedMode === 'car' ? 'car' : (requestedMode === 'walk' ? 'walk' : 'transit');
-        if (mode === 'transit') {
-            L.polyline(latlngs, {color:'#C8A96E',weight:3,dashArray:'7 8',opacity:.9}).addTo(map);
-            statusEl.textContent = 'Общественный транспорт: пунктир соединяет точки по порядку, это НЕ маршрут метро/автобуса. Дорожный роутер для этого режима не используется.';
-        } else {
-            statusEl.textContent = 'Строим маршрут по дорожной сети…';
-            try {
-                const response = await fetch(`${API_BASE_URL}/api/route`, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode,points:points.map(p=>({venue_lat:Number(p.venue_lat),venue_lon:Number(p.venue_lon)}))})});
-                const route = await response.json();
-                if (response.ok && route.success && Array.isArray(route.geometry) && route.geometry.length) {
-                    const routeLatLngs = route.geometry.map(c => [c[1],c[0]]);
-                    L.polyline(routeLatLngs,{color:'#C8A96E',weight:4,opacity:.9}).addTo(map);
-                    map.fitBounds(L.latLngBounds(routeLatLngs).pad(0.12));
-                    statusEl.textContent = `Маршрут по дорожной сети OpenStreetMap/OSRM: ${route.distance_km} км, около ${route.duration_minutes} мин. Время не учитывает пробки и остановки.`;
-                } else {
-                    L.polyline(latlngs,{color:'#C8A96E',weight:3,dashArray:'7 8',opacity:.9}).addTo(map);
-                    statusEl.textContent = (route.message || 'Не удалось построить дорожный маршрут.') + ' Пунктир — только порядок точек, не путь по дорогам.';
-                }
-            } catch (_) {
-                L.polyline(latlngs,{color:'#C8A96E',weight:3,dashArray:'7 8',opacity:.9}).addTo(map);
-                statusEl.textContent = 'Роутер временно недоступен. Пунктир — только порядок точек, не путь по дорогам.';
-            }
-        }
-        setTimeout(() => map.invalidateSize(), 100);
-    }
 }
 
 function mapCat(cat) {
@@ -1279,12 +1252,13 @@ function mapCat(cat) {
 }
 
 // === СБРОС ФОРМЫ ===
-function resetForm() {
+async function resetForm() {
+    if (!(await showConfirm('Очистить все выбранные параметры и результаты расписания?', 'Сбросить форму', true))) return;
     document.querySelectorAll('.cat-toggle').forEach(b => b.classList.remove('active'));
     document.getElementById('budget-limited').value = 'no';
     toggleBudgetFields();
     document.getElementById('group-size').value = '1';
-    document.getElementById('district').value = '';
+    Array.from(document.getElementById('district').options).forEach(o => o.selected = false);
     document.getElementById('age-group').value = '';
     document.getElementById('extra-wishes').value = '';
     document.getElementById('max-per-day').value = '3';
@@ -1298,7 +1272,6 @@ function resetForm() {
 
 // === ИНИЦИАЛИЗАЦИЯ ===
 initDates();
-initAddressSuggestions();
 toggleBudgetFields();
 const mandatoryDateInput = document.getElementById('mandatory-date');
 if (mandatoryDateInput) { mandatoryDateInput.value = document.getElementById('date-from').value || '2026-12-01'; }
