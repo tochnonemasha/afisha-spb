@@ -189,7 +189,7 @@ class SmartPlanRequest(BaseModel):
     group_size: int = 1
     time_slots: Optional[dict] = None
     district: Optional[str] = None
-    max_events_per_day: int = 3
+    max_events_per_day: int = Field(3, ge=1, le=12)
     age_group: Optional[str] = None
     mandatory_points: List[dict] = Field(default_factory=list)
     travel_mode: str = Field("transit", pattern="^(walk|transit|car|flexible)$")
@@ -219,16 +219,18 @@ async def startup():
     import os
     from load_data import load_events_from_csv, seed_test_users
 
-    # Загружаем ВСЕ CSV файлы всегда — дубли пропускаются автоматически
-    csv_files = sorted([f for f in os.listdir(".") if f.startswith("events_") and f.endswith(".csv")])
+    # Ищем CSV относительно папки api.py, а не текущей рабочей директории.
+    # На хостинге cwd может отличаться от корня проекта; из-за этого каталог
+    # мероприятий раньше мог не загружаться, и план строился по старой маленькой БД.
+    csv_files = sorted(APP_DIR.glob("events_*.csv"))
 
     if csv_files:
-        print("Загружаю CSV файлы: " + str(csv_files))
-        for filename in csv_files:
-            print("Загружаю: " + filename)
-            load_events_from_csv(filename)
+        print("Загружаю CSV файлы: " + str([f.name for f in csv_files]))
+        for csv_path in csv_files:
+            print("Загружаю: " + str(csv_path))
+            load_events_from_csv(str(csv_path))
     else:
-        print("CSV файлы не найдены")
+        print(f"CSV файлы не найдены в {APP_DIR}")
 
     seed_test_users()
     retrain_model()
