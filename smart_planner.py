@@ -29,7 +29,7 @@ CATEGORY_ALIASES = {
     "exhibition": ["exhibition", "выстав", "экспозиц", "музей"],
     "lecture": ["lecture", "лекц", "встреча", "дискусс"],
     "festival": ["festival", "фестивал"],
-    "sport": ["sport", "спорт", "матч", "соревнован"],
+    "sport": ["sport", "спорт", "спортивн", "матч", "соревнован", "футбол", "хоккей", "баскетбол", "волейбол", "теннис", "бокс", "единоборств", "легкая атлетика", "лыж", "бег", "фитнес", "турнир", "чемпионат", "велоспорт", "регби", "плаван"],
     "stand-up": ["stand-up", "standup", "стендап", "комед"],
     "excursion": ["excursion", "экскурс", "прогулк"],
     "party": ["party", "вечерин", "клуб", "ночн"],
@@ -602,13 +602,26 @@ class SmartPlanner:
 
             candidate_categories = matched_categories(candidate)
             category_weight = max((combined_category_profile.get(key, 0.0) for key in candidate_categories), default=0.0)
-            category_affinity = max(0.0, min(1.0, category_weight / max_category_weight)) if has_category_profile else 0.5
+            # Нормируем персональную оценку, чтобы popularity/CF не перекрывали
+            # явно выраженный интерес к категории. Без этого популярный концерт мог
+            # обойти спортивное событие даже у пользователя с преимущественно спортивной
+            # историей. Категория теперь является главным сигналом, а популярность — tie-breaker.
+            try:
+                personal = max(0.0, min(1.0, float(personal)))
+            except (TypeError, ValueError):
+                personal = 0.5
+            category_affinity = (
+                max(0.0, min(1.0, category_weight / max_category_weight))
+                if has_category_profile else 0.0
+            )
             if has_category_profile:
-                # Увеличенный вес профиля категорий делает повторяющийся интерес (например,
-                # спорт) заметным даже у нового аккаунта, не полностью отключая content/CF.
-                candidate_score = 0.60 * personal + 0.40 * category_affinity
+                # 82% — интересы аккаунта, 18% — контентная/коллаборативная оценка.
+                # Кандидаты без совпадения с любимыми категориями не получают нейтральный
+                # бонус: сначала планируем сильные интересы, затем дополняем расписание.
+                candidate_score = 0.82 * category_affinity + 0.18 * personal
             else:
                 candidate_score = personal
+            candidate["category_affinity"] = float(category_affinity)
             candidate["score"] = float(candidate_score)
         candidates.sort(key=lambda item: item["score"], reverse=True)
 
@@ -742,87 +755,99 @@ class SmartPlanner:
                 day_slots = [day_slots]
             day_slots = [s for s in day_slots if s in TIME_SLOTS and s != "any"] or ["morning", "afternoon", "evening"]
             events_added = len(day_plan["events"])
-            for slot in day_slots:
-                if events_added >= max_events_per_day:
-                    break
-                slot_info = TIME_SLOTS[slot]
-                slot_start = point_datetime(day, slot_info["start"])
-                slot_end = point_datetime(day, "23:59" if slot_info["end"] == "23:59" else slot_info["end"])
-                if not slot_start or not slot_end:
+            # Сначала резервируем подходящие события из предпочитаемых категорий,
+            # только затем заполняем оставшиеся окна популярными/прочими событиями.
+            # Это не отменяет бюджет, расписание, длительность и проверки переездов.
+            for candidate_phase in (0, 1):
+                if candidate_phase == 0 and has_category_profile:
+                    phase_candidates = [c for c in candidates if c.get("category_affinity", 0.0) >= 0.5]
+                elif candidate_phase == 1:
+                    phase_candidates = [c for c in candidates if not has_category_profile or c.get("category_affinity", 0.0) < 0.5]
+                else:
+                    phase_candidates = []
+                if not phase_candidates:
                     continue
-                for candidate in candidates:
+                for slot in day_slots:
                     if events_added >= max_events_per_day:
                         break
-                    if candidate["id"] in used_event_ids:
+                    slot_info = TIME_SLOTS[slot]
+                    slot_start = point_datetime(day, slot_info["start"])
+                    slot_end = point_datetime(day, "23:59" if slot_info["end"] == "23:59" else slot_info["end"])
+                    if not slot_start or not slot_end:
                         continue
-                    event_dt = parse_event_date(candidate.get("start_datetime"))
-                    if event_dt and len(str(candidate.get("start_datetime", ""))) >= 10:
-                        if event_dt.strftime("%Y-%m-%d") != day:
+                    for candidate in phase_candidates:
+                        if events_added >= max_events_per_day:
+                            break
+                        if candidate["id"] in used_event_ids:
                             continue
-                    event_duration = duration_minutes(candidate)
-                    # Fixed-time events keep their published time. Flexible events are placed
-                    # into the first free interval inside this slot, scanning in 15-minute steps.
-                    raw_start = str(candidate.get("start_datetime") or "").strip().replace("T", " ")
-                    has_clock_time = len(raw_start) >= 16 and raw_start[10:11] == " " and raw_start[11:13].isdigit() and raw_start[13:14] == ":"
-                    day_end = point_datetime(day, "23:59")
-                    if event_dt and has_clock_time:
-                        start_dt = event_dt
-                        # Слот ограничивает время начала, а не обязан завершать мероприятие.
-                        # Иначе, например, событие в 12:30 длительностью 2 часа выпадало
-                        # одновременно из утреннего и дневного слотов.
-                        if start_dt < slot_start or start_dt >= slot_end:
-                            continue
-                        end_dt = start_dt + timedelta(minutes=event_duration)
-                        if end_dt > day_end or overlaps(start_dt, end_dt, day_timeline[day]):
-                            continue
-                    else:
-                        start_dt = slot_start
-                        end_dt = start_dt + timedelta(minutes=event_duration)
-                        while start_dt < slot_end and end_dt <= day_end and (
-                            overlaps(start_dt, end_dt, day_timeline[day]) or
-                            not travel_check(start_dt, end_dt, candidate, day_timeline[day])[0]
-                        ):
-                            start_dt += timedelta(minutes=15)
+                        event_dt = parse_event_date(candidate.get("start_datetime"))
+                        if event_dt and len(str(candidate.get("start_datetime", ""))) >= 10:
+                            if event_dt.strftime("%Y-%m-%d") != day:
+                                continue
+                        event_duration = duration_minutes(candidate)
+                        # Fixed-time events keep their published time. Flexible events are placed
+                        # into the first free interval inside this slot, scanning in 15-minute steps.
+                        raw_start = str(candidate.get("start_datetime") or "").strip().replace("T", " ")
+                        has_clock_time = len(raw_start) >= 16 and raw_start[10:11] == " " and raw_start[11:13].isdigit() and raw_start[13:14] == ":"
+                        day_end = point_datetime(day, "23:59")
+                        if event_dt and has_clock_time:
+                            start_dt = event_dt
+                            # Слот ограничивает время начала, а не обязан завершать мероприятие.
+                            # Иначе, например, событие в 12:30 длительностью 2 часа выпадало
+                            # одновременно из утреннего и дневного слотов.
+                            if start_dt < slot_start or start_dt >= slot_end:
+                                continue
                             end_dt = start_dt + timedelta(minutes=event_duration)
-                        if start_dt >= slot_end or end_dt > day_end:
+                            if end_dt > day_end or overlaps(start_dt, end_dt, day_timeline[day]):
+                                continue
+                        else:
+                            start_dt = slot_start
+                            end_dt = start_dt + timedelta(minutes=event_duration)
+                            while start_dt < slot_end and end_dt <= day_end and (
+                                overlaps(start_dt, end_dt, day_timeline[day]) or
+                                not travel_check(start_dt, end_dt, candidate, day_timeline[day])[0]
+                            ):
+                                start_dt += timedelta(minutes=15)
+                                end_dt = start_dt + timedelta(minutes=event_duration)
+                            if start_dt >= slot_end or end_dt > day_end:
+                                continue
+                        if overlaps(start_dt, end_dt, day_timeline[day]):
                             continue
-                    if overlaps(start_dt, end_dt, day_timeline[day]):
-                        continue
-                    if not travel_check(start_dt, end_dt, candidate, day_timeline[day])[0]:
-                        continue
-                    event_cost = int((candidate.get("price_min") or 0) * group_size) if not candidate.get("is_free") else 0
-                    current_day_cost = day_plan["day_cost"]
-                    if daily_budget is not None and current_day_cost + event_cost > daily_budget:
-                        continue
-                    if total_budget is not None and total_cost + event_cost > total_budget:
-                        continue
-                    entry = {
-                        "slot": slot, "slot_label": TIME_SLOTS[slot]["label"],
-                        "id": candidate["id"], "title": candidate["title"],
-                        "category": candidate["category"], "venue_title": candidate.get("venue_title") or "",
-                        "venue_address": candidate.get("venue_address") or "",
-                        "venue_lat": candidate.get("venue_lat"), "venue_lon": candidate.get("venue_lon"),
-                        "start_datetime": candidate.get("start_datetime") or start_dt.strftime("%Y-%m-%d %H:%M"),
-                        "planned_start": start_dt.strftime("%H:%M"), "planned_end": end_dt.strftime("%H:%M"),
-                        "duration_minutes": event_duration,
-                        "price_per_person": candidate.get("price_min") or 0, "price_total": event_cost,
-                        "is_free": bool(candidate.get("is_free")), "image_url": candidate.get("image_url") or "",
-                        "age_restriction": candidate.get("age_restriction") or "0+",
-                        "benefits": candidate.get("benefits") or "", "score": round(candidate["score"], 3),
-                        "mandatory": False, "custom": False, "url": "",
-                    }
-                    day_plan["events"].append(entry)
-                    day_timeline[day].append({
-                        "start_dt": start_dt, "end_dt": end_dt,
-                        "venue_lat": entry.get("venue_lat"), "venue_lon": entry.get("venue_lon"),
-                        "title": entry["title"], "id": entry["id"],
-                    })
-                    used_event_ids.add(candidate["id"])
-                    day_plan["day_cost"] += event_cost
-                    total_cost += event_cost
-                    events_added += 1
-                    # Не выходим из цикла кандидатов после первого добавленного события:
-                    # продолжаем заполнять текущий слот, пока не достигнут дневной лимит.
+                        if not travel_check(start_dt, end_dt, candidate, day_timeline[day])[0]:
+                            continue
+                        event_cost = int((candidate.get("price_min") or 0) * group_size) if not candidate.get("is_free") else 0
+                        current_day_cost = day_plan["day_cost"]
+                        if daily_budget is not None and current_day_cost + event_cost > daily_budget:
+                            continue
+                        if total_budget is not None and total_cost + event_cost > total_budget:
+                            continue
+                        entry = {
+                            "slot": slot, "slot_label": TIME_SLOTS[slot]["label"],
+                            "id": candidate["id"], "title": candidate["title"],
+                            "category": candidate["category"], "venue_title": candidate.get("venue_title") or "",
+                            "venue_address": candidate.get("venue_address") or "",
+                            "venue_lat": candidate.get("venue_lat"), "venue_lon": candidate.get("venue_lon"),
+                            "start_datetime": candidate.get("start_datetime") or start_dt.strftime("%Y-%m-%d %H:%M"),
+                            "planned_start": start_dt.strftime("%H:%M"), "planned_end": end_dt.strftime("%H:%M"),
+                            "duration_minutes": event_duration,
+                            "price_per_person": candidate.get("price_min") or 0, "price_total": event_cost,
+                            "is_free": bool(candidate.get("is_free")), "image_url": candidate.get("image_url") or "",
+                            "age_restriction": candidate.get("age_restriction") or "0+",
+                            "benefits": candidate.get("benefits") or "", "score": round(candidate["score"], 3),
+                            "mandatory": False, "custom": False, "url": "",
+                        }
+                        day_plan["events"].append(entry)
+                        day_timeline[day].append({
+                            "start_dt": start_dt, "end_dt": end_dt,
+                            "venue_lat": entry.get("venue_lat"), "venue_lon": entry.get("venue_lon"),
+                            "title": entry["title"], "id": entry["id"],
+                        })
+                        used_event_ids.add(candidate["id"])
+                        day_plan["day_cost"] += event_cost
+                        total_cost += event_cost
+                        events_added += 1
+                        # Не выходим из цикла кандидатов после первого добавленного события:
+                        # продолжаем заполнять текущий слот, пока не достигнут дневной лимит.
 
         # Сортируем события, считаем расстояния по прямой и показываем оценку времени
         # между соседними событиями. Это эвристика, не фактические маршруты.
@@ -883,6 +908,7 @@ class SmartPlanner:
                 "used_category_preferences": bool(preference_count or has_category_profile),
                 "category_preference_count": int(preference_count),
                 "category_profile": {key: round(value, 2) for key, value in combined_category_profile.items()},
+                "ranking_strategy": "category_first_82_personal_18" if has_category_profile else "personal_or_popularity",
                 "note": ("Персональный порядок рассчитан по истории действий и предпочтениям категорий аккаунта." if (interaction_count and has_category_profile) or preference_count else ("История действий найдена, но не удалось выделить предпочтения категорий; используется контентный/общий порядок." if interaction_count else "Персональная история не обнаружена: используется общий порядок. Проверьте, передаётся ли user_id и записываются ли действия пользователя."))
             },
             "empty_reason": ("В базе нет мероприятий, совпавших с выбранными категориями, районом и возрастом." if not candidates else ("Мероприятия найдены, но их даты/время, длительность, бюджет или интервалы дороги не подошли под расписание." if total_events == 0 else None)),
