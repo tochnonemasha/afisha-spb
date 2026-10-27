@@ -927,12 +927,27 @@ function setReplacementListMode(mode) {
     document.querySelectorAll('.db-filter-tab').forEach(btn => btn.classList.toggle('active', btn.dataset.listMode === mode));
     renderDatabaseEventOptions();
 }
+function getPublishedEventTime(event) {
+    const raw = String(event?.start_datetime || '').replace('T', ' ').trim();
+    const match = raw.match(/^\d{4}-\d{2}-\d{2}\s+(\d{2}):(\d{2})(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})?$/i);
+    if (!match) return '';
+    // Значение 00:00 в импорте часто означает отсутствие опубликованного времени.
+    if (Number(match[1]) === 0 && Number(match[2]) === 0) return '';
+    return `${match[1]}:${match[2]}`;
+}
+
 function eventPeriodMatches(event, period) {
     if (period === 'any') return true;
-    const raw = String(event.start_datetime || '').replace('T', ' ');
-    const match = raw.match(/\b(\d{2}):(\d{2})/);
-    // Если время в афише не указано, используем выбранное пользователем время.
-    const chosen = match ? Number(match[1]) * 60 + Number(match[2]) : (() => { const t=(document.getElementById('db-event-time')?.value || '12:00').split(':').map(Number); return t[0]*60+t[1]; })();
+    const publishedTime = getPublishedEventTime(event);
+    let chosen = null;
+    if (publishedTime) {
+        const [hour, minute] = publishedTime.split(':').map(Number);
+        chosen = hour * 60 + minute;
+    }
+    if (chosen == null) {
+        const t = (document.getElementById('db-event-time')?.value || '12:00').split(':').map(Number);
+        chosen = (Number(t[0]) || 0) * 60 + (Number(t[1]) || 0);
+    }
     if (period === 'morning') return chosen >= 5*60 && chosen < 12*60;
     if (period === 'day') return chosen >= 12*60 && chosen < 18*60;
     if (period === 'evening') return chosen >= 18*60 || chosen < 5*60;
@@ -945,7 +960,7 @@ async function loadReplacementRecommendations() {
     const userId = parseInt(localStorage.getItem('user_id')) || null;
     if (!userId) return;
     try {
-        const response = await fetch(`${API_BASE_URL}/api/recommendations/${userId}?n=200`);
+        const response = await fetch(`${API_BASE_URL}/api/recommendations/${userId}?n=5`);
         if (!response.ok) return;
         const payload = await response.json();
         const recs = payload.recommendations || [];
@@ -1015,7 +1030,7 @@ function openReplaceEventModal(dayDate, eventId) {
     loadReplacementRecommendations().then(() => {
         const note = document.getElementById('db-recommendation-note');
         if (note) note.textContent = replacementRecommendationsAvailable
-          ? 'Сначала показаны события с наивысшим приоритетом рекомендательной системы для вашего профиля.'
+          ? 'Показаны 5 лучших рекомендаций модели, которые подходят по времени, дате и бюджету.'
           : 'Персональный профиль не найден или рекомендации недоступны. Показаны подходящие события; можно открыть весь список.';
         renderDatabaseEventOptions();
     });
@@ -1035,7 +1050,7 @@ function replacementCandidateFits(day, old, candidate) {
     const duration = Math.max(15, Number(candidate.duration_minutes || old.duration_minutes || 120));
     const dateText = String(candidate.start_datetime || '').replace('T',' ');
     const publishedDate = dateText.slice(0,10);
-    const publishedTime = /^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}/.test(dateText) ? dateText.slice(11,16) : '';
+    const publishedTime = getPublishedEventTime(candidate);
     if (publishedDate && publishedDate !== day.date) return false;
     const start = publishedTime || document.getElementById('db-event-time')?.value || old.planned_start || '12:00';
     const endMins = Number(start.slice(0,2))*60 + Number(start.slice(3,5)) + duration;
@@ -1050,7 +1065,7 @@ function replacementCandidateFitsAtSelectedTime(day, old, candidate) {
     if (!replacementCandidateFits(day, old, candidate)) return false;
     if (!eventPeriodMatches(candidate, replacementTimePeriod)) return false;
     const raw = String(candidate.start_datetime || '').replace('T',' ');
-    const publishedTime = /^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}/.test(raw) ? raw.slice(11,16) : '';
+    const publishedTime = getPublishedEventTime(candidate);
     const start = publishedTime || document.getElementById('db-event-time')?.value || old.planned_start || '12:00';
     const duration = Math.max(15, Number(candidate.duration_minutes || old.duration_minutes || 120));
     const endMins = Number(start.slice(0,2))*60 + Number(start.slice(3,5)) + duration;
@@ -1078,17 +1093,26 @@ function renderDatabaseEventOptions() {
         const day = currentPlan?.schedule?.find(d => d.date === databaseModalDay);
         const old = day?.events?.find(e => String(e.id) === String(databaseModalReplaceEventId));
         options = options.filter(e => day && old && replacementCandidateFitsAtSelectedTime(day, old, e));
-        if (replacementListMode === 'recommended' && replacementRecommendationsAvailable) {
-            options.sort((a,b) => (replacementRecommendationOrder.get(String(a.id)) ?? 1e9) - (replacementRecommendationOrder.get(String(b.id)) ?? 1e9));
-        } else if (replacementListMode === 'recommended') {
-            // Если персональная модель недоступна, не скрываем подходящие варианты.
-            options.sort((a,b) => (Number(b.average_rating || 0) - Number(a.average_rating || 0)) || String(a.title||'').localeCompare(String(b.title||''), 'ru'));
+        if (replacementListMode === 'recommended') {
+            if (replacementRecommendationsAvailable) {
+                // Во вкладке рекомендаций показываем только события из верхней выдачи модели.
+                options = options.filter(e => replacementRecommendationOrder.has(String(e.id)));
+                options.sort((a,b) => (replacementRecommendationOrder.get(String(a.id)) ?? 1e9) - (replacementRecommendationOrder.get(String(b.id)) ?? 1e9));
+            } else {
+                options = [];
+            }
         }
     }
-    if (!options.length) { list.innerHTML = '<div class="db-empty">Подходящих мероприятий не найдено. Выберите другое время или откройте все мероприятия.</div>'; return; }
+    if (!options.length) {
+        const message = databaseModalMode === 'replace' && replacementListMode === 'recommended'
+            ? 'Нет рекомендаций из топ-5, подходящих под выбранное время, дату и бюджет. Перейдите во вкладку «Все мероприятия».'
+            : 'Подходящих мероприятий не найдено. Выберите другое время или откройте все мероприятия.';
+        list.innerHTML = `<div class="db-empty">${message}</div>`;
+        return;
+    }
     list.innerHTML = options.map((e, index) => {
         const price = e.is_free ? 'Бесплатно' : (Number(e.price_per_person ?? e.price_min ?? 0) > 0 ? `от ${Number(e.price_per_person ?? e.price_min).toLocaleString('ru')} ₽` : 'Цена не указана');
-        const time = String(e.start_datetime || '').slice(11,16);
+        const time = getPublishedEventTime(e);
         const recommended = databaseModalMode === 'replace' && replacementListMode === 'recommended' && replacementRecommendationsAvailable && replacementRecommendationOrder.has(String(e.id));
         const image = e.image_url ? `<img src="${escapeHtml(e.image_url)}" alt="" loading="lazy">` : '<div class="db-event-placeholder">✦</div>';
         return `<article class="db-event-card">${image}<div class="db-event-info">${recommended ? '<span class="db-event-recommendation">✦ Приоритет рекомендации</span>' : ''}<div class="db-event-title">${escapeHtml(e.title || 'Без названия')}</div><div class="db-event-meta">${escapeHtml(e.category || 'Мероприятие')}<br>${escapeHtml(e.venue_title || e.venue_address || 'Место уточняется')}<br>${time ? 'Начало по афише: ' + escapeHtml(time) : 'Время можно выбрать'} · ${escapeHtml(e.age_restriction || '0+')}</div><div class="db-event-price">${price}</div><button type="button" class="db-event-add" onclick="${databaseModalMode === 'replace' ? `selectReplacementEvent('${String(e.id).replace(/'/g, '')}')` : `selectDatabaseEvent('${String(e.id).replace(/'/g, '')}')`}">${databaseModalMode === 'replace' ? 'Выбрать замену' : 'Добавить в план'}</button></div></article>`;
@@ -1106,7 +1130,7 @@ function selectReplacementEvent(candidateId) {
         return;
     }
     const published = String(candidate.start_datetime || '').replace('T',' ');
-    const publishedTime = /^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}/.test(published) ? published.slice(11,16) : '';
+    const publishedTime = getPublishedEventTime(candidate);
     const start = publishedTime || document.getElementById('db-event-time').value || old.planned_start || '12:00';
     const duration = Math.max(15, Number(candidate.duration_minutes || old.duration_minutes || 120));
     const endMins = Number(start.slice(0,2))*60 + Number(start.slice(3,5)) + duration;
@@ -1294,7 +1318,7 @@ function renderResults(plan, params, isEditRender = false) {
     const schedule = plan.schedule || [];
     const personalization = plan.personalization || {};
     const personalizationStatus = (personalization.used_interactions || personalization.used_category_preferences)
-        ? `✦ Персональный подбор включён${personalization.interaction_count ? ` · учтено действий: ${personalization.interaction_count}` : ''}`
+        ? `✦ Персональный подбор учитывает историю аккаунта${personalization.interaction_count ? ` · записей взаимодействия: ${personalization.interaction_count} (просмотры, избранное, оценки и другие действия)` : ''}`
         : `Общий порядок мероприятий: сервер не получил историю/предпочтения аккаунта${personalization.user_id ? ` (ID ${personalization.user_id}, действий: ${personalization.interaction_count || 0})` : ' — пользователь не авторизован на этом домене'}.`;
 
     let html = `
