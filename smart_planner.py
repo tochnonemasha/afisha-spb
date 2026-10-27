@@ -581,6 +581,23 @@ class SmartPlanner:
         except Exception:
             baseline_scores = {}
 
+        # У разных реализаций модели ключи оценок могут быть int или str.
+        # Нормализуем их, чтобы персональные баллы не терялись из-за типа ID.
+        def normalize_score_map(values):
+            normalized = {}
+            if not isinstance(values, dict):
+                return normalized
+            for key, value in values.items():
+                try:
+                    normalized[str(key)] = float(value)
+                except (TypeError, ValueError):
+                    continue
+            return normalized
+
+        interaction_scores = normalize_score_map(interaction_scores)
+        collaborative_scores = normalize_score_map(collaborative_scores)
+        baseline_scores = normalize_score_map(baseline_scores)
+
         # Положительные действия по категории создают явный бонус. Избранное весит
         # существенно больше просмотра; низкие оценки могут уменьшить интерес.
         combined_category_profile = dict(category_profile)
@@ -591,10 +608,10 @@ class SmartPlanner:
 
         for candidate in candidates:
             event_id = candidate["id"]
-            baseline = float(baseline_scores.get(event_id, 0.5))
+            baseline = float(baseline_scores.get(str(event_id), 0.5))
             if interaction_count and interaction_scores:
-                content_score = float(interaction_scores.get(event_id, baseline))
-                collaborative_score = float(collaborative_scores.get(event_id, content_score))
+                content_score = float(interaction_scores.get(str(event_id), baseline))
+                collaborative_score = float(collaborative_scores.get(str(event_id), content_score))
                 personal = (alpha * collaborative_score + (1.0 - alpha) * content_score) if collaborative_scores else content_score
             elif preference_count:
                 personal = baseline
@@ -611,7 +628,19 @@ class SmartPlanner:
             else:
                 candidate_score = personal
             candidate["score"] = float(candidate_score)
-        candidates.sort(key=lambda item: item["score"], reverse=True)
+            # Дополнительные компоненты сохраняем для объяснимого разрешения равных оценок.
+            candidate["_personal_score"] = float(personal)
+            candidate["_baseline_score"] = float(baseline)
+            candidate["_category_affinity"] = float(category_affinity)
+        # Сначала реальный итоговый приоритет, затем базовая популярность/профиль.
+        # При полном равенстве используем название, а не исходный порядок строк БД.
+        candidates.sort(key=lambda item: (
+            -float(item.get("score", 0.0)),
+            -float(item.get("_personal_score", 0.0)),
+            -float(item.get("_baseline_score", 0.0)),
+            -float(item.get("_category_affinity", 0.5)),
+            str(item.get("title") or "").casefold(),
+        ))
 
         schedule = [{
             "date": day, "date_label": self._format_date_label(day), "events": [],
@@ -742,6 +771,33 @@ class SmartPlanner:
             elif not isinstance(day_slots, list):
                 day_slots = [day_slots]
             day_slots = [s for s in day_slots if s in TIME_SLOTS and s != "any"] or ["morning", "afternoon", "evening"]
+            # При лимите в одно мероприятие нельзя давать преимущество утру только
+            # потому, что цикл слотов идёт с утра к вечеру. Сначала определяем
+            # самый высоко оценённый кандидат, который по времени подходит хотя бы
+            # к одному разрешённому слоту, а уже затем строим событие для этого слота.
+            if max_events_per_day == 1 and not day_plan["events"]:
+                for ranked_candidate in candidates:
+                    if ranked_candidate["id"] in used_event_ids:
+                        continue
+                    ranked_dt = parse_event_date(ranked_candidate.get("start_datetime"))
+                    ranked_raw = str(ranked_candidate.get("start_datetime") or "").strip().replace("T", " ")
+                    ranked_has_clock = len(ranked_raw) >= 16 and ranked_raw[10:11] == " " and ranked_raw[11:13].isdigit() and ranked_raw[13:14] == ":"
+                    if ranked_dt and len(ranked_raw) >= 10 and ranked_dt.strftime("%Y-%m-%d") != day:
+                        continue
+                    matching_slot = None
+                    if ranked_dt and ranked_has_clock:
+                        ranked_start = ranked_dt.strftime("%H:%M")
+                        for slot_name in day_slots:
+                            slot_info = TIME_SLOTS[slot_name]
+                            if slot_info["start"] <= ranked_start < slot_info["end"]:
+                                matching_slot = slot_name
+                                break
+                        if matching_slot is None:
+                            continue
+                    else:
+                        matching_slot = day_slots[0]
+                    day_slots = [matching_slot]
+                    break
             events_added = len(day_plan["events"])
             for slot in day_slots:
                 if events_added >= max_events_per_day:
@@ -889,6 +945,7 @@ class SmartPlanner:
             "empty_reason": ("В базе нет мероприятий, совпавших с выбранными категориями, районом и возрастом." if not candidates else ("Мероприятия найдены, но их даты/время, длительность, бюджет или интервалы дороги не подошли под расписание." if total_events == 0 else None)),
             "candidate_options": [{
                 "id": c["id"], "title": c["title"], "category": c["category"],
+                "recommendation_score": round(float(c.get("score", 0.0)), 4),
                 "venue_title": c.get("venue_title") or "", "venue_address": c.get("venue_address") or "",
                 "start_datetime": c.get("start_datetime") or "", "price_per_person": c.get("price_min") or 0,
                 "is_free": bool(c.get("is_free")), "duration_minutes": duration_minutes(c),
