@@ -488,7 +488,7 @@ class SmartPlanner:
             current += timedelta(days=1)
 
         group_size = max(1, int(group_size or 1))
-        max_events_per_day = min(12, max(1, int(max_events_per_day or 3)))
+        max_events_per_day = min(5, max(1, int(max_events_per_day or 3)))
         daily_budget = int(budget_per_day) if budget_per_day is not None else None
         total_budget = int(budget_total) if budget_total is not None else None
         if travel_mode not in {"walk", "transit", "car", "flexible"}:
@@ -499,37 +499,73 @@ class SmartPlanner:
             interests=interests, district=district, benefits_filter=benefits_filter,
             age_group=age_group, date_from=date_from, date_to=date_to,
         )
-        # Персонализация должна опираться на историю именно этого пользователя и
-        # на его сохранённые категории. Раньше планировщик использовал только CBF,
-        # а при пустой/непереданной истории присваивал всем кандидатам одинаковые 0.5.
+        # Персонализация использует и онлайн-историю пользователя, и профиль категорий.
+        # Одних TF-IDF-оценок недостаточно: для новых аккаунтов они могут быть слишком
+        # близкими, поэтому отдельно учитываем категории событий, которые пользователь
+        # смотрел, добавлял в избранное или посещал.
         interaction_scores = {}
         collaborative_scores = {}
         preference_scores = {}
         interaction_count = 0
         preference_count = 0
+        category_profile = {}
+        alpha = 0.0
+
+        def matched_categories(item):
+            text_value = " ".join(str(item.get(k) or "") for k in ("category", "title", "tags", "description")).casefold()
+            found = set()
+            for code, aliases in CATEGORY_ALIASES.items():
+                if any(alias.casefold() in text_value for alias in aliases if alias):
+                    found.add(code)
+            return found
+
         if user_id:
             try:
-                interaction_count = self.db.query(UserInteraction).filter(
-                    UserInteraction.user_id == int(user_id)
-                ).count()
+                interactions = self.db.query(UserInteraction, Event).join(
+                    Event, Event.id == UserInteraction.event_id
+                ).filter(UserInteraction.user_id == int(user_id)).all()
+                interaction_count = len(interactions)
+                for interaction, event in interactions:
+                    kind = str(interaction.interaction_type or "").casefold()
+                    if kind == "view":
+                        signal = 0.5
+                    elif kind == "favorite":
+                        signal = 2.5
+                    elif kind == "attended":
+                        signal = 2.0
+                    elif kind == "rated":
+                        try:
+                            signal = float(interaction.rating or 3) - 3.0
+                        except (TypeError, ValueError):
+                            signal = 0.0
+                    else:
+                        signal = 0.0
+                    interacted_event = {
+                        "category": event.category, "title": event.title,
+                        "tags": getattr(event, "tags", "") or "",
+                        "description": getattr(event, "description", "") or "",
+                    }
+                    for category_key in matched_categories(interacted_event):
+                        category_profile[category_key] = category_profile.get(category_key, 0.0) + signal
+
                 preferences = self.db.query(UserPreference).filter(
                     UserPreference.user_id == int(user_id)
                 ).all()
                 preference_count = len(preferences)
-                if preferences:
-                    weights = [float(p.weight or 0.0) for p in preferences]
-                    low, high = min(weights), max(weights)
-                    for pref in preferences:
-                        key = str(pref.category or "").strip().casefold()
-                        value = float(pref.weight or 0.0)
-                        preference_scores[key] = ((value - low) / (high - low)) if high > low else 0.5
+                for pref in preferences:
+                    key = str(pref.category or "").strip().casefold()
+                    value = float(pref.weight or 0.0)
+                    for code, aliases in CATEGORY_ALIASES.items():
+                        if key == code or any(alias.casefold() == key for alias in aliases):
+                            preference_scores[code] = preference_scores.get(code, 0.0) + value
             except Exception:
+                # Если данные профиля недоступны, не ломаем составление плана.
                 interaction_count = 0
                 preference_count = 0
+                category_profile = {}
                 preference_scores = {}
 
-        alpha = 0.0
-        if interaction_count and self.recommender and getattr(self.recommender, "is_trained", False):
+        if user_id and interaction_count and self.recommender and getattr(self.recommender, "is_trained", False):
             try:
                 interaction_scores = self.recommender.get_realtime_cbf_scores(int(user_id)) or {}
                 collaborative_scores = self.recommender.get_cf_scores(int(user_id)) or {}
@@ -544,14 +580,13 @@ class SmartPlanner:
         except Exception:
             baseline_scores = {}
 
-        def category_preference(candidate):
-            category_text = str(candidate.get("category") or "").casefold()
-            matched = []
-            for pref_key, pref_value in preference_scores.items():
-                aliases = CATEGORY_ALIASES.get(pref_key, [pref_key])
-                if any(alias and alias in category_text for alias in aliases):
-                    matched.append(pref_value)
-            return max(matched) if matched else 0.5
+        # Положительные действия по категории создают явный бонус. Избранное весит
+        # существенно больше просмотра; низкие оценки могут уменьшить интерес.
+        combined_category_profile = dict(category_profile)
+        for key, value in preference_scores.items():
+            combined_category_profile[key] = combined_category_profile.get(key, 0.0) + value
+        max_category_weight = max([v for v in combined_category_profile.values() if v > 0], default=0.0)
+        has_category_profile = max_category_weight > 0
 
         for candidate in candidates:
             event_id = candidate["id"]
@@ -559,15 +594,22 @@ class SmartPlanner:
             if interaction_count and interaction_scores:
                 content_score = float(interaction_scores.get(event_id, baseline))
                 collaborative_score = float(collaborative_scores.get(event_id, content_score))
-                # Используем оба компонента гибридной модели, а не только контентную часть.
                 personal = (alpha * collaborative_score + (1.0 - alpha) * content_score) if collaborative_scores else content_score
-                candidate_score = (0.8 * personal + 0.2 * category_preference(candidate)) if preference_count else personal
             elif preference_count:
-                candidate_score = 0.85 * category_preference(candidate) + 0.15 * baseline
+                personal = baseline
             else:
-                candidate_score = baseline
-            candidate["score"] = float(candidate_score)
+                personal = baseline
 
+            candidate_categories = matched_categories(candidate)
+            category_weight = max((combined_category_profile.get(key, 0.0) for key in candidate_categories), default=0.0)
+            category_affinity = max(0.0, min(1.0, category_weight / max_category_weight)) if has_category_profile else 0.5
+            if has_category_profile:
+                # Увеличенный вес профиля категорий делает повторяющийся интерес (например,
+                # спорт) заметным даже у нового аккаунта, не полностью отключая content/CF.
+                candidate_score = 0.60 * personal + 0.40 * category_affinity
+            else:
+                candidate_score = personal
+            candidate["score"] = float(candidate_score)
         candidates.sort(key=lambda item: item["score"], reverse=True)
 
         schedule = [{
@@ -722,23 +764,27 @@ class SmartPlanner:
                     # into the first free interval inside this slot, scanning in 15-minute steps.
                     raw_start = str(candidate.get("start_datetime") or "").strip().replace("T", " ")
                     has_clock_time = len(raw_start) >= 16 and raw_start[10:11] == " " and raw_start[11:13].isdigit() and raw_start[13:14] == ":"
+                    day_end = point_datetime(day, "23:59")
                     if event_dt and has_clock_time:
                         start_dt = event_dt
-                        if start_dt < slot_start or start_dt > slot_end:
+                        # Слот ограничивает время начала, а не обязан завершать мероприятие.
+                        # Иначе, например, событие в 12:30 длительностью 2 часа выпадало
+                        # одновременно из утреннего и дневного слотов.
+                        if start_dt < slot_start or start_dt >= slot_end:
                             continue
                         end_dt = start_dt + timedelta(minutes=event_duration)
-                        if end_dt > slot_end or overlaps(start_dt, end_dt, day_timeline[day]):
+                        if end_dt > day_end or overlaps(start_dt, end_dt, day_timeline[day]):
                             continue
                     else:
                         start_dt = slot_start
                         end_dt = start_dt + timedelta(minutes=event_duration)
-                        while end_dt <= slot_end and (
+                        while start_dt < slot_end and end_dt <= day_end and (
                             overlaps(start_dt, end_dt, day_timeline[day]) or
                             not travel_check(start_dt, end_dt, candidate, day_timeline[day])[0]
                         ):
                             start_dt += timedelta(minutes=15)
                             end_dt = start_dt + timedelta(minutes=event_duration)
-                        if end_dt > slot_end:
+                        if start_dt >= slot_end or end_dt > day_end:
                             continue
                     if overlaps(start_dt, end_dt, day_timeline[day]):
                         continue
@@ -830,13 +876,14 @@ class SmartPlanner:
             "candidate_count": len(candidates),
             "personalization": {
                 "user_id": int(user_id) if user_id else None,
-                "used_interactions": bool(interaction_count and interaction_scores),
+                "used_interactions": bool(interaction_count),
                 "interaction_count": int(interaction_count),
                 "hybrid_alpha": round(alpha, 3),
                 "used_collaborative_filtering": bool(collaborative_scores),
-                "used_category_preferences": bool(preference_count),
+                "used_category_preferences": bool(preference_count or has_category_profile),
                 "category_preference_count": int(preference_count),
-                "note": ("Персональный порядок рассчитан по истории действий и/или предпочтениям аккаунта." if (interaction_count and interaction_scores) or preference_count else "Персональная история не обнаружена: используется общий порядок. Проверьте, передаётся ли user_id и записываются ли действия пользователя.")
+                "category_profile": {key: round(value, 2) for key, value in combined_category_profile.items()},
+                "note": ("Персональный порядок рассчитан по истории действий и предпочтениям категорий аккаунта." if (interaction_count and has_category_profile) or preference_count else ("История действий найдена, но не удалось выделить предпочтения категорий; используется контентный/общий порядок." if interaction_count else "Персональная история не обнаружена: используется общий порядок. Проверьте, передаётся ли user_id и записываются ли действия пользователя."))
             },
             "empty_reason": ("В базе нет мероприятий, совпавших с выбранными категориями, районом и возрастом." if not candidates else ("Мероприятия найдены, но их даты/время, длительность, бюджет или интервалы дороги не подошли под расписание." if total_events == 0 else None)),
             "candidate_options": [{
@@ -951,6 +998,8 @@ class SmartPlanner:
                 "image_url": e.image_url or "",
                 "benefits": e.benefits or "",
                 "source": e.source or "",
+                "tags": getattr(e, "tags", "") or "",
+                "description": getattr(e, "description", "") or "",
             })
         return result
 
