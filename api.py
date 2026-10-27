@@ -188,7 +188,8 @@ class SmartPlanRequest(BaseModel):
     budget_per_day: Optional[int] = None
     group_size: int = 1
     time_slots: Optional[dict] = None
-    district: Optional[str] = None
+    district: Optional[str] = None  # legacy: один район
+    districts: Optional[List[str]] = None
     max_events_per_day: int = Field(3, ge=1, le=5)
     age_group: Optional[str] = None
     mandatory_points: List[dict] = Field(default_factory=list)
@@ -783,6 +784,7 @@ def create_smart_plan(data: SmartPlanRequest, db=Depends(get_db)):
         group_size=data.group_size or 1,
         time_slots=data.time_slots,
         district=data.district,
+        districts=(data.districts if data.districts is not None else ([data.district] if data.district else [])),
         max_events_per_day=data.max_events_per_day or 3,
         user_id=data.user_id,
         age_group=data.age_group,
