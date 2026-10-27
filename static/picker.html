@@ -336,9 +336,8 @@ input[type=range]{width:100%;accent-color:var(--accent);background:transparent;m
     <div class="form-section">
       <div class="section-label">Локация</div>
       <div class="field">
-        <label>Предпочтительный район</label>
-        <select id="district">
-          <option value="">Любой район</option>
+        <label for="district">Предпочтительные районы</label>
+        <select id="district" multiple size="6" aria-describedby="district-help">
           <option>Адмиралтейский</option>
           <option>Василеостровский</option>
           <option>Выборгский</option>
@@ -351,13 +350,14 @@ input[type=range]{width:100%;accent-color:var(--accent);background:transparent;m
           <option>Курортный</option>
           <option>Московский</option>
           <option>Невский</option>
-          <option>Петроградский</option>
+          <option selected>Петроградский</option>
           <option>Петродворцовый</option>
           <option>Приморский</option>
           <option>Пушкинский</option>
           <option>Фрунзенский</option>
-          <option>Центральный</option>
+          <option selected>Центральный</option>
         </select>
+        <p id="district-help" style="font-size:11px;color:var(--muted);margin-top:6px;font-weight:300">Можно выбрать несколько районов: удерживайте Ctrl (Windows) или ⌘ (Mac). Если ничего не выбрано, доступны все районы.</p>
       </div>
     </div>
 
@@ -1104,7 +1104,7 @@ function getFormData() {
         budget_per_day: document.getElementById('budget-limited').value === 'yes' && document.getElementById('budget-per-day').value !== '' ? Math.max(0, parseInt(document.getElementById('budget-per-day').value)) : null,
         group_size: parseInt(document.getElementById('group-size').value) || 1,
         time_slots: timeSlots,
-        district: document.getElementById('district').value || null,
+        districts: Array.from(document.getElementById('district').selectedOptions).map(option => option.value).filter(Boolean),
         age_group: document.getElementById('age-group').value || null,
         mandatory_points: mandatoryPoints,
         travel_mode: document.getElementById('travel-mode').value || 'transit',
@@ -1398,7 +1398,9 @@ function resetForm() {
     document.getElementById('budget-limited').value = 'no';
     toggleBudgetFields();
     document.getElementById('group-size').value = '1';
-    document.getElementById('district').value = '';
+    Array.from(document.getElementById('district').options).forEach(option => {
+        option.selected = ['Центральный', 'Петроградский'].includes(option.value);
+    });
     document.getElementById('age-group').value = '';
     document.getElementById('extra-wishes').value = '';
     document.getElementById('max-per-day').value = '3';
