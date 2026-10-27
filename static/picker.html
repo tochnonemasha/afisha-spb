@@ -48,6 +48,23 @@ header{border-bottom:1px solid var(--border);padding:0 48px;display:flex;align-i
 .field input::placeholder{color:rgba(136,133,128,0.5)}
 .field textarea{resize:vertical;min-height:80px}
 
+
+/* Красивый выбор нескольких районов */
+.district-picker-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
+.district-picker-heading label{display:block;font-size:10px;font-family:'IBM Plex Mono',monospace;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.district-count{font-size:10px;color:var(--accent);font-family:'IBM Plex Mono',monospace;white-space:nowrap}
+.district-actions{display:flex;gap:8px;margin-bottom:12px}
+.district-action{background:transparent;border:1px solid var(--border);color:var(--muted);padding:7px 10px;font-size:10px;letter-spacing:.04em;cursor:pointer;transition:all .18s}
+.district-action:hover{border-color:var(--accent);color:var(--accent)}
+.district-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+.district-option{position:relative;display:flex;align-items:center;gap:9px;min-height:42px;padding:9px 10px;background:var(--bg);border:1px solid var(--border);color:var(--muted);font-size:12px;text-align:left;cursor:pointer;transition:background .18s,border-color .18s,color .18s;}
+.district-option:hover{border-color:#777064;color:var(--text);background:var(--surface2)}
+.district-option .district-check{display:flex;align-items:center;justify-content:center;flex:0 0 17px;width:17px;height:17px;border:1px solid #555158;color:transparent;font-size:11px;line-height:1;transition:all .18s}
+.district-option[aria-pressed="true"]{border-color:var(--accent);background:rgba(200,169,110,.11);color:var(--text)}
+.district-option[aria-pressed="true"] .district-check{background:var(--accent);border-color:var(--accent);color:#111}
+.district-help{font-size:11px;color:var(--muted);margin-top:10px;font-weight:300;line-height:1.5}
+@media(max-width:520px){.district-options{grid-template-columns:1fr}.district-option{min-height:40px}}
+
 /* Категории */
 .categories-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
 .cat-toggle{background:none;border:1px solid var(--border);color:var(--muted);padding:10px 8px;font-size:11px;font-family:'IBM Plex Mono',monospace;letter-spacing:0.08em;text-align:center;cursor:pointer;transition:all 0.2s;display:flex;flex-direction:column;align-items:center;gap:4px}
@@ -164,6 +181,15 @@ header{border-bottom:1px solid var(--border);padding:0 48px;display:flex;align-i
 /* Окно выбора мероприятия из базы */
 .db-modal{width:min(900px,100%);max-height:92vh;overflow:hidden;background:var(--surface);border:1px solid var(--accent);box-shadow:0 24px 90px rgba(0,0,0,.55);display:flex;flex-direction:column}
 .db-toolbar{padding:18px 24px;border-bottom:1px solid var(--border);display:grid;grid-template-columns:minmax(0,1fr) 150px;gap:12px}
+.db-replace-filters{display:none;padding:14px 24px 0;gap:14px;flex-direction:column;border-bottom:1px solid var(--border)}
+.db-replace-filters.visible{display:flex}
+.db-replace-tabs,.db-time-periods{display:flex;gap:8px;flex-wrap:wrap}
+.db-filter-tab,.db-period-btn{border:1px solid var(--border);background:var(--bg);color:var(--muted);padding:9px 13px;cursor:pointer;font-size:11px;transition:all .18s ease}
+.db-filter-tab.active,.db-period-btn.active{border-color:var(--accent);background:rgba(200,169,110,.13);color:var(--accent)}
+.db-filter-caption{font-size:10px;color:var(--muted);margin:0 0 8px;letter-spacing:.04em}
+.db-recommendation-note{font-size:11px;line-height:1.5;color:var(--muted);padding:0 0 12px}
+.db-event-recommendation{display:inline-block;font-size:9px;letter-spacing:.06em;text-transform:uppercase;color:var(--accent);border:1px solid rgba(200,169,110,.45);padding:3px 6px;margin-bottom:3px}
+@media(max-width:650px){.db-replace-filters{padding:12px 12px 0}.db-toolbar{padding:12px;grid-template-columns:1fr}.db-filter-tab,.db-period-btn{flex:1}}
 .db-toolbar input{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:12px;font-size:13px;outline:none}
 .db-toolbar input:focus{border-color:var(--accent)}
 .db-list{padding:16px 24px;overflow:auto;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
@@ -335,9 +361,17 @@ input[type=range]{width:100%;accent-color:var(--accent);background:transparent;m
     <!-- РАЙОН -->
     <div class="form-section">
       <div class="section-label">Локация</div>
-      <div class="field">
-        <label for="district">Предпочтительные районы</label>
-        <select id="district" multiple size="6" aria-describedby="district-help">
+      <div class="field district-field">
+        <div class="district-picker-heading">
+          <label id="district-label">Выберите районы</label>
+          <span class="district-count" id="district-count" aria-live="polite">Выбрано: 2</span>
+        </div>
+        <div class="district-actions">
+          <button type="button" class="district-action" id="district-select-all">Выбрать все</button>
+          <button type="button" class="district-action" id="district-clear">Сбросить</button>
+        </div>
+        <div class="district-options" id="district-options" role="group" aria-labelledby="district-label" aria-describedby="district-help"></div>
+        <select id="district" multiple hidden aria-hidden="true" tabindex="-1">
           <option>Адмиралтейский</option>
           <option>Василеостровский</option>
           <option>Выборгский</option>
@@ -357,7 +391,7 @@ input[type=range]{width:100%;accent-color:var(--accent);background:transparent;m
           <option>Фрунзенский</option>
           <option selected>Центральный</option>
         </select>
-        <p id="district-help" style="font-size:11px;color:var(--muted);margin-top:6px;font-weight:300">Можно выбрать несколько районов: удерживайте Ctrl (Windows) или ⌘ (Mac). Если ничего не выбрано, доступны все районы.</p>
+        <p id="district-help" class="district-help">Нажмите на карточку, чтобы выбрать или убрать район. Если ничего не выбрано, доступны все районы.</p>
       </div>
     </div>
 
@@ -444,7 +478,12 @@ input[type=range]{width:100%;accent-color:var(--accent);background:transparent;m
       <div><div class="modal-kicker">Афиша SPB · база мероприятий</div><div class="modal-title" id="db-modal-title">Добавить мероприятие</div><div class="modal-subtitle" id="db-modal-subtitle">Выберите событие для выбранного дня. Занятые интервалы будут защищены от пересечений.</div></div>
       <button type="button" class="modal-close" aria-label="Закрыть" onclick="closeDatabaseEventModal()">×</button>
     </div>
-    <div class="db-toolbar"><input id="db-event-search" type="search" placeholder="Поиск по названию, категории или месту…" oninput="renderDatabaseEventOptions()"><input id="db-event-time" type="time" value="12:00" aria-label="Время начала для события без фиксированного времени"></div>
+    <div class="db-toolbar"><input id="db-event-search" type="search" placeholder="Поиск по названию, категории или месту…" oninput="renderDatabaseEventOptions()"><input id="db-event-time" type="time" value="12:00" aria-label="Время начала для события без фиксированного времени" onchange="renderDatabaseEventOptions()"></div>
+    <div class="db-replace-filters" id="db-replace-filters">
+      <div><p class="db-filter-caption">КАКИЕ МЕРОПРИЯТИЯ ПОКАЗАТЬ</p><div class="db-replace-tabs"><button type="button" class="db-filter-tab active" data-list-mode="recommended" onclick="setReplacementListMode('recommended')">✦ Вам понравится</button><button type="button" class="db-filter-tab" data-list-mode="all" onclick="setReplacementListMode('all')">Все мероприятия</button></div></div>
+      <div><p class="db-filter-caption">ВРЕМЯ МЕРОПРИЯТИЯ</p><div class="db-time-periods"><button type="button" class="db-period-btn" data-period="morning" onclick="setReplacementTimePeriod('morning')">☀ Утро</button><button type="button" class="db-period-btn" data-period="day" onclick="setReplacementTimePeriod('day')">◷ День</button><button type="button" class="db-period-btn" data-period="evening" onclick="setReplacementTimePeriod('evening')">☾ Вечер</button><button type="button" class="db-period-btn active" data-period="any" onclick="setReplacementTimePeriod('any')">Любое время</button></div></div>
+      <div class="db-recommendation-note" id="db-recommendation-note">В приоритете мероприятия, которые выше оценивает рекомендательная система.</div>
+    </div>
     <div class="db-list" id="db-event-list"><div class="db-empty">Загрузка мероприятий…</div></div>
     <div class="modal-footer"><button type="button" class="modal-secondary" onclick="closeDatabaseEventModal()">Закрыть</button></div>
   </div>
@@ -871,6 +910,52 @@ let databaseModalDay = null;
 let databaseModalOptions = [];
 let databaseModalMode = "add";
 let databaseModalReplaceEventId = null;
+let replacementTimePeriod = 'any';
+let replacementListMode = 'recommended';
+let replacementRecommendationOrder = new Map();
+let replacementRecommendationsAvailable = false;
+
+function setReplacementTimePeriod(period) {
+    replacementTimePeriod = period;
+    const suggestedTimes = {morning:'10:00', day:'14:00', evening:'19:00'};
+    if (suggestedTimes[period]) document.getElementById('db-event-time').value = suggestedTimes[period];
+    document.querySelectorAll('.db-period-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.period === period));
+    renderDatabaseEventOptions();
+}
+function setReplacementListMode(mode) {
+    replacementListMode = mode;
+    document.querySelectorAll('.db-filter-tab').forEach(btn => btn.classList.toggle('active', btn.dataset.listMode === mode));
+    renderDatabaseEventOptions();
+}
+function eventPeriodMatches(event, period) {
+    if (period === 'any') return true;
+    const raw = String(event.start_datetime || '').replace('T', ' ');
+    const match = raw.match(/\b(\d{2}):(\d{2})/);
+    // Если время в афише не указано, используем выбранное пользователем время.
+    const chosen = match ? Number(match[1]) * 60 + Number(match[2]) : (() => { const t=(document.getElementById('db-event-time')?.value || '12:00').split(':').map(Number); return t[0]*60+t[1]; })();
+    if (period === 'morning') return chosen >= 5*60 && chosen < 12*60;
+    if (period === 'day') return chosen >= 12*60 && chosen < 18*60;
+    if (period === 'evening') return chosen >= 18*60 || chosen < 5*60;
+    return true;
+}
+
+async function loadReplacementRecommendations() {
+    replacementRecommendationOrder = new Map();
+    replacementRecommendationsAvailable = false;
+    const userId = parseInt(localStorage.getItem('user_id')) || null;
+    if (!userId) return;
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/recommendations/${userId}?n=200`);
+        if (!response.ok) return;
+        const payload = await response.json();
+        const recs = payload.recommendations || [];
+        recs.forEach((item, index) => {
+            const id = item.id ?? item.event_id;
+            if (id != null && !replacementRecommendationOrder.has(String(id))) replacementRecommendationOrder.set(String(id), index);
+        });
+        replacementRecommendationsAvailable = replacementRecommendationOrder.size > 0;
+    } catch (_) { /* рекомендации не должны блокировать ручную замену */ }
+}
 
 async function addDatabaseEventToDay(dayDate) {
     const day = currentPlan?.schedule?.find(d => d.date === dayDate);
@@ -913,6 +998,13 @@ function openReplaceEventModal(dayDate, eventId) {
         .filter(c => String(c.id) !== String(eventId) && !existing.has(String(c.id)))
         .filter(c => !c.start_datetime || String(c.start_datetime).slice(0,10) === dayDate)
         .filter(c => replacementCandidateFits(day, old, c));
+    replacementTimePeriod = 'any';
+    replacementListMode = 'recommended';
+    replacementRecommendationOrder = new Map();
+    replacementRecommendationsAvailable = false;
+    document.getElementById('db-replace-filters')?.classList.add('visible');
+    document.querySelectorAll('.db-period-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.period === 'any'));
+    document.querySelectorAll('.db-filter-tab').forEach(btn => btn.classList.toggle('active', btn.dataset.listMode === 'recommended'));
     document.getElementById('db-modal-title').textContent = 'Заменить мероприятие';
     document.getElementById('db-modal-subtitle').textContent = `Вместо «${old.title}». Показаны варианты без пересечений по времени и с учётом бюджета. Время на переезд проверяется отдельно.`;
     document.getElementById('db-event-search').value = '';
@@ -920,6 +1012,13 @@ function openReplaceEventModal(dayDate, eventId) {
     document.getElementById('database-event-modal').classList.add('open');
     document.body.style.overflow = 'hidden';
     renderDatabaseEventOptions();
+    loadReplacementRecommendations().then(() => {
+        const note = document.getElementById('db-recommendation-note');
+        if (note) note.textContent = replacementRecommendationsAvailable
+          ? 'Сначала показаны события с наивысшим приоритетом рекомендательной системы для вашего профиля.'
+          : 'Персональный профиль не найден или рекомендации недоступны. Показаны подходящие события; можно открыть весь список.';
+        renderDatabaseEventOptions();
+    });
     setTimeout(() => document.getElementById('db-event-search').focus(), 50);
 }
 
@@ -938,23 +1037,26 @@ function replacementCandidateFits(day, old, candidate) {
     const publishedDate = dateText.slice(0,10);
     const publishedTime = /^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}/.test(dateText) ? dateText.slice(11,16) : '';
     if (publishedDate && publishedDate !== day.date) return false;
-    const start = publishedTime || old.planned_start || '12:00';
+    const start = publishedTime || document.getElementById('db-event-time')?.value || old.planned_start || '12:00';
     const endMins = Number(start.slice(0,2))*60 + Number(start.slice(3,5)) + duration;
     if (endMins > 1439) return false;
-    const end = String(Math.floor(endMins/60)).padStart(2,'0') + ':' + String(endMins%60).padStart(2,'0');
-    const slotWindows = {morning:[540,780], afternoon:[780,1080], evening:[1080,1439]};
-    const slot = old.slot;
-    if (slotWindows[slot]) {
-        const mins = Number(start.slice(0,2))*60 + Number(start.slice(3,5));
-        if (mins < slotWindows[slot][0] || endMins > slotWindows[slot][1]) return false;
-    }
-    const toMin = v => { const a=String(v||'00:00').split(':').map(Number); return a[0]*60+a[1]; };
-    const others = (day.events || []).filter(e => String(e.id) !== String(old.id));
-    if (others.some(e => timeRangesOverlap(start, end, e))) return false;
-    const proposed = {...candidate, planned_start:start, planned_end:end};
-    // Проверяем именно пересечение интервалов выше. Недостаток времени на переезд
-    // отображается отдельным предупреждением в плане и не должен скрывать вариант замены.
+    if (endMins > 24 * 60) return false;
+    // В этом фильтре проверяем дату и бюджет. Пересечения проверяются отдельно
+    // с учётом выбранного пользователем времени суток.
     return true;
+}
+
+function replacementCandidateFitsAtSelectedTime(day, old, candidate) {
+    if (!replacementCandidateFits(day, old, candidate)) return false;
+    if (!eventPeriodMatches(candidate, replacementTimePeriod)) return false;
+    const raw = String(candidate.start_datetime || '').replace('T',' ');
+    const publishedTime = /^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}/.test(raw) ? raw.slice(11,16) : '';
+    const start = publishedTime || document.getElementById('db-event-time')?.value || old.planned_start || '12:00';
+    const duration = Math.max(15, Number(candidate.duration_minutes || old.duration_minutes || 120));
+    const endMins = Number(start.slice(0,2))*60 + Number(start.slice(3,5)) + duration;
+    if (endMins > 24 * 60) return false;
+    const end = String(Math.floor(endMins/60)).padStart(2,'0') + ':' + String(endMins%60).padStart(2,'0');
+    return !(day.events || []).filter(e => String(e.id) !== String(old.id)).some(e => timeRangesOverlap(start, end, e));
 }
 
 function closeDatabaseEventModal() {
@@ -963,20 +1065,33 @@ function closeDatabaseEventModal() {
     databaseModalDay = null;
     databaseModalMode = 'add';
     databaseModalReplaceEventId = null;
+    document.getElementById('db-replace-filters')?.classList.remove('visible');
 }
 
 function renderDatabaseEventOptions() {
     const list = document.getElementById('db-event-list');
     if (!list) return;
     const q = (document.getElementById('db-event-search')?.value || '').trim().toLocaleLowerCase('ru');
-    const options = databaseModalOptions.filter(e => [e.title,e.category,e.venue_title,e.venue_address]
+    let options = databaseModalOptions.filter(e => [e.title,e.category,e.venue_title,e.venue_address]
         .some(v => String(v || '').toLocaleLowerCase('ru').includes(q)));
-    if (!options.length) { list.innerHTML = '<div class="db-empty">Ничего не найдено. Попробуйте изменить запрос.</div>'; return; }
-    list.innerHTML = options.map(e => {
+    if (databaseModalMode === 'replace') {
+        const day = currentPlan?.schedule?.find(d => d.date === databaseModalDay);
+        const old = day?.events?.find(e => String(e.id) === String(databaseModalReplaceEventId));
+        options = options.filter(e => day && old && replacementCandidateFitsAtSelectedTime(day, old, e));
+        if (replacementListMode === 'recommended' && replacementRecommendationsAvailable) {
+            options.sort((a,b) => (replacementRecommendationOrder.get(String(a.id)) ?? 1e9) - (replacementRecommendationOrder.get(String(b.id)) ?? 1e9));
+        } else if (replacementListMode === 'recommended') {
+            // Если персональная модель недоступна, не скрываем подходящие варианты.
+            options.sort((a,b) => (Number(b.average_rating || 0) - Number(a.average_rating || 0)) || String(a.title||'').localeCompare(String(b.title||''), 'ru'));
+        }
+    }
+    if (!options.length) { list.innerHTML = '<div class="db-empty">Подходящих мероприятий не найдено. Выберите другое время или откройте все мероприятия.</div>'; return; }
+    list.innerHTML = options.map((e, index) => {
         const price = e.is_free ? 'Бесплатно' : (Number(e.price_per_person ?? e.price_min ?? 0) > 0 ? `от ${Number(e.price_per_person ?? e.price_min).toLocaleString('ru')} ₽` : 'Цена не указана');
         const time = String(e.start_datetime || '').slice(11,16);
+        const recommended = databaseModalMode === 'replace' && replacementListMode === 'recommended' && replacementRecommendationsAvailable && replacementRecommendationOrder.has(String(e.id));
         const image = e.image_url ? `<img src="${escapeHtml(e.image_url)}" alt="" loading="lazy">` : '<div class="db-event-placeholder">✦</div>';
-        return `<article class="db-event-card">${image}<div class="db-event-info"><div class="db-event-title">${escapeHtml(e.title || 'Без названия')}</div><div class="db-event-meta">${escapeHtml(e.category || 'Мероприятие')}<br>${escapeHtml(e.venue_title || e.venue_address || 'Место уточняется')}<br>${time ? 'Начало по афише: ' + escapeHtml(time) : 'Время можно выбрать'} · ${escapeHtml(e.age_restriction || '0+')}</div><div class="db-event-price">${price}</div><button type="button" class="db-event-add" onclick="${databaseModalMode === 'replace' ? `selectReplacementEvent('${String(e.id).replace(/'/g, '')}')` : `selectDatabaseEvent('${String(e.id).replace(/'/g, '')}')`}">${databaseModalMode === 'replace' ? 'Выбрать замену' : 'Добавить в план'}</button></div></article>`;
+        return `<article class="db-event-card">${image}<div class="db-event-info">${recommended ? '<span class="db-event-recommendation">✦ Приоритет рекомендации</span>' : ''}<div class="db-event-title">${escapeHtml(e.title || 'Без названия')}</div><div class="db-event-meta">${escapeHtml(e.category || 'Мероприятие')}<br>${escapeHtml(e.venue_title || e.venue_address || 'Место уточняется')}<br>${time ? 'Начало по афише: ' + escapeHtml(time) : 'Время можно выбрать'} · ${escapeHtml(e.age_restriction || '0+')}</div><div class="db-event-price">${price}</div><button type="button" class="db-event-add" onclick="${databaseModalMode === 'replace' ? `selectReplacementEvent('${String(e.id).replace(/'/g, '')}')` : `selectDatabaseEvent('${String(e.id).replace(/'/g, '')}')`}">${databaseModalMode === 'replace' ? 'Выбрать замену' : 'Добавить в план'}</button></div></article>`;
     }).join('');
 }
 
@@ -986,13 +1101,13 @@ function selectReplacementEvent(candidateId) {
     const old = index >= 0 ? day.events[index] : null;
     const candidate = databaseModalOptions.find(c => String(c.id) === String(candidateId));
     if (!day || !old || !candidate) return;
-    if (!replacementCandidateFits(day, old, candidate)) {
-        alert('Этот вариант больше не подходит по времени, бюджету или времени на переезд. Выберите другой.');
+    if (!replacementCandidateFitsAtSelectedTime(day, old, candidate)) {
+        alert('Этот вариант больше не подходит по выбранному времени или бюджету. Выберите другой.');
         return;
     }
     const published = String(candidate.start_datetime || '').replace('T',' ');
     const publishedTime = /^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}/.test(published) ? published.slice(11,16) : '';
-    const start = publishedTime || old.planned_start || '12:00';
+    const start = publishedTime || document.getElementById('db-event-time').value || old.planned_start || '12:00';
     const duration = Math.max(15, Number(candidate.duration_minutes || old.duration_minutes || 120));
     const endMins = Number(start.slice(0,2))*60 + Number(start.slice(3,5)) + duration;
     const end = String(Math.floor(endMins/60)).padStart(2,'0') + ':' + String(endMins%60).padStart(2,'0');
@@ -1392,6 +1507,49 @@ function mapCat(cat) {
     return cat;
 }
 
+// === ВЫБОР НЕСКОЛЬКИХ РАЙОНОВ ===
+function renderDistrictPicker() {
+    const select = document.getElementById('district');
+    const container = document.getElementById('district-options');
+    if (!select || !container) return;
+    container.innerHTML = '';
+    Array.from(select.options).forEach((option, index) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'district-option';
+        button.dataset.index = String(index);
+        button.setAttribute('aria-pressed', option.selected ? 'true' : 'false');
+        button.innerHTML = '<span class="district-check" aria-hidden="true">✓</span><span></span>';
+        button.querySelector('span:last-child').textContent = option.textContent.trim();
+        button.addEventListener('click', () => {
+            option.selected = !option.selected;
+            syncDistrictPicker();
+        });
+        container.appendChild(button);
+    });
+    syncDistrictPicker();
+}
+
+function syncDistrictPicker() {
+    const select = document.getElementById('district');
+    const container = document.getElementById('district-options');
+    const count = document.getElementById('district-count');
+    if (!select || !container) return;
+    const selectedCount = Array.from(select.options).filter(option => option.selected).length;
+    container.querySelectorAll('.district-option').forEach((button, index) => {
+        const selected = !!select.options[index]?.selected;
+        button.setAttribute('aria-pressed', selected ? 'true' : 'false');
+    });
+    if (count) count.textContent = selectedCount ? `Выбрано: ${selectedCount}` : 'Все районы';
+}
+
+function setDistrictSelection(selectAll) {
+    const select = document.getElementById('district');
+    if (!select) return;
+    Array.from(select.options).forEach(option => { option.selected = selectAll; });
+    syncDistrictPicker();
+}
+
 // === СБРОС ФОРМЫ ===
 function resetForm() {
     document.querySelectorAll('.cat-toggle').forEach(b => b.classList.remove('active'));
@@ -1401,6 +1559,7 @@ function resetForm() {
     Array.from(document.getElementById('district').options).forEach(option => {
         option.selected = ['Центральный', 'Петроградский'].includes(option.value);
     });
+    syncDistrictPicker();
     document.getElementById('age-group').value = '';
     document.getElementById('extra-wishes').value = '';
     document.getElementById('max-per-day').value = '3';
@@ -1413,6 +1572,9 @@ function resetForm() {
 }
 
 // === ИНИЦИАЛИЗАЦИЯ ===
+renderDistrictPicker();
+document.getElementById('district-select-all')?.addEventListener('click', () => setDistrictSelection(true));
+document.getElementById('district-clear')?.addEventListener('click', () => setDistrictSelection(false));
 initDates();
 initAddressSuggestions();
 toggleBudgetFields();
