@@ -298,8 +298,10 @@ class HybridRecommender:
         """Плавно повышает долю CF по мере накопления уникальных взаимодействий."""
         if self.interactions_df is None or self.interactions_df.empty:
             return 0.0
-        user_rows = self.interactions_df[self.interactions_df["user_id"] == user_id]
-        n_interactions = user_rows[["event_id", "interaction_type"]].drop_duplicates().shape[0]
+        user_rows = self.interactions_df[
+            self.interactions_df["user_id"].astype(str) == str(user_id)
+        ]
+        n_interactions = user_rows[["event_id", "interaction_type"]].astype(str).drop_duplicates().shape[0]
         if n_interactions == 0:
             return 0.0
         # Достигает около 0.6 примерно после 30 уникальных взаимодействий.
@@ -319,6 +321,11 @@ class HybridRecommender:
         # Фикс проблемы 3: новый пользователь не в матрице
         u_idx = self.user_idx.get(user_id)
         if u_idx is None:
+            u_idx = self.user_idx.get(str(user_id))
+        if u_idx is None:
+            # DB/JSON-клиенты иногда смешивают int и str в идентификаторах.
+            u_idx = next((idx for uid, idx in self.user_idx.items() if str(uid) == str(user_id)), None)
+        if u_idx is None:
             return {}
 
         scores = self.predicted_matrix[u_idx].copy()
@@ -335,7 +342,7 @@ class HybridRecommender:
         if self.tfidf_matrix is None or self.events_df is None or self.events_df.empty:
             return {}
         event_ids = self.events_df["id"].tolist()
-        event_id_to_idx = {eid: i for i, eid in enumerate(event_ids)}
+        event_id_to_idx = {str(eid): i for i, eid in enumerate(event_ids)}
         if interactions_df is None or interactions_df.empty:
             return self.get_cold_start_scores()
 
@@ -349,7 +356,7 @@ class HybridRecommender:
         profile = np.zeros(self.tfidf_matrix.shape[1], dtype=float)
         total_abs_weight = 0.0
         for _, row in temp.iterrows():
-            idx = event_id_to_idx.get(row.get("event_id"))
+            idx = event_id_to_idx.get(str(row.get("event_id")))
             weight = float(row.get("weight", 0.0) or 0.0)
             if idx is None or weight == 0:
                 continue
@@ -367,7 +374,7 @@ class HybridRecommender:
         """Контентные оценки по истории, сохранённой при последней загрузке данных."""
         if self.interactions_df is None:
             return self.get_cold_start_scores()
-        user_ints = self.interactions_df[self.interactions_df["user_id"] == user_id]
+        user_ints = self.interactions_df[self.interactions_df["user_id"].astype(str) == str(user_id)]
         return self._content_scores_from_interactions(user_ints)
 
     def get_cold_start_scores(self) -> dict:
@@ -447,6 +454,7 @@ class HybridRecommender:
         """
         if not self.is_trained:
             raise RuntimeError("Модель не обучена. Запустите train() сначала.")
+        n = max(1, min(int(n or 10), 500))
 
         # Определяем α для этого пользователя. Для нового пользователя CF не применяется.
         alpha = self.get_alpha(user_id)
@@ -464,10 +472,10 @@ class HybridRecommender:
         # НЕ просмотры — иначе при маленькой базе рекомендации кончаются
         seen_event_ids = set()
         if exclude_seen and self.interactions_df is not None and len(self.interactions_df) > 0:
-            user_rows = self.interactions_df[self.interactions_df["user_id"] == user_id]
+            user_rows = self.interactions_df[self.interactions_df["user_id"].astype(str) == str(user_id)]
             strong_ids = user_rows[user_rows["interaction_type"].isin(["favorite", "attended"])]["event_id"].tolist()
             low_rated_ids = user_rows[(user_rows["interaction_type"] == "rated") & (pd.to_numeric(user_rows["rating"], errors="coerce") <= 2)]["event_id"].tolist()
-            seen_event_ids = set(strong_ids + low_rated_ids)
+            seen_event_ids = {str(value) for value in (strong_ids + low_rated_ids)}
 
         # Вычисляем итоговые оценки
         results = []
@@ -475,7 +483,7 @@ class HybridRecommender:
             eid = event["id"]
 
             # Пропускаем только сильно взаимодействованные
-            if eid in seen_event_ids:
+            if str(eid) in seen_event_ids:
                 continue
 
             # Фильтр по категории
@@ -489,8 +497,9 @@ class HybridRecommender:
                     continue
 
             # Гибридная оценка: если нет CF (новый пользователь) — только CBF
-            cf = cf_scores.get(eid, 0.0)
-            cbf = cbf_scores.get(eid, 0.5)
+            # Нормализация ключей исключает потерю баллов при int/str ID.
+            cf = cf_scores.get(eid, cf_scores.get(str(eid), 0.0))
+            cbf = cbf_scores.get(eid, cbf_scores.get(str(eid), 0.5))
 
             if cf_scores:
                 hybrid_score = alpha * cf + (1 - alpha) * cbf
