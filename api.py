@@ -189,7 +189,7 @@ class SmartPlanRequest(BaseModel):
     group_size: int = 1
     time_slots: Optional[dict] = None
     district: Optional[str] = None
-    max_events_per_day: int = Field(3, ge=1, le=12)
+    max_events_per_day: int = Field(3, ge=1, le=5)
     age_group: Optional[str] = None
     mandatory_points: List[dict] = Field(default_factory=list)
     travel_mode: str = Field("transit", pattern="^(walk|transit|car|flexible)$")
