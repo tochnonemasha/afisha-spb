@@ -276,7 +276,7 @@ input[type=range]{width:100%;accent-color:var(--accent);background:transparent;m
       </div>
       <div class="field">
         <label>Макс. событий в день</label>
-        <input type="range" id="max-per-day" min="1" max="12" value="3"
+        <input type="range" id="max-per-day" min="1" max="5" value="3"
           oninput="document.getElementById('max-per-day-val').textContent=this.value">
         <div class="range-label">
           <span>1</span>
@@ -1098,7 +1098,8 @@ function getFormData() {
     return {
         date_from: dateFrom,
         date_to: dateTo,
-        interests: interests.length ? interests : ['concert', 'theater', 'exhibition', 'festival'],
+        // Пустой выбор означает все категории; профиль пользователя влияет на ранжирование, а не скрывает спорт.
+        interests: interests,
         budget_total: document.getElementById('budget-limited').value === 'yes' && document.getElementById('budget-total').value !== '' ? Math.max(0, parseInt(document.getElementById('budget-total').value)) : null,
         budget_per_day: document.getElementById('budget-limited').value === 'yes' && document.getElementById('budget-per-day').value !== '' ? Math.max(0, parseInt(document.getElementById('budget-per-day').value)) : null,
         group_size: parseInt(document.getElementById('group-size').value) || 1,
