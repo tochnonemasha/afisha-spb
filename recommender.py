@@ -433,6 +433,53 @@ class HybridRecommender:
         return self._content_scores_from_interactions(weighted)
 
     # ─── ГЛАВНЫЙ МЕТОД: РЕКОМЕНДАЦИИ ──────────────────────
+    def get_category_affinity_scores(self, user_id: int) -> dict:
+        """Explicit category preference from attended/favorite/high-rated events.
+
+        TF-IDF may fail to connect sports events with differently worded descriptions;
+        this category layer adds a controlled boost to semantically related categories.
+        """
+        if self.events_df is None or self.events_df.empty or self.interactions_df is None:
+            return {}
+        aliases = {
+            "sport": ("sport", "спорт", "матч", "соревнован", "футбол", "хоккей", "баскетбол",
+                      "волейбол", "теннис", "бокс", "регби", "турнир", "забег", "марафон",
+                      "гонк", "фитнес", "лыж", "конькобеж", "единоборств"),
+            "music": ("concert", "концерт", "музык", "music", "оркестр", "джаз", "опера"),
+            "theater": ("theater", "театр", "спектакл", "балет", "драматург"),
+            "exhibition": ("exhibition", "выстав", "экспозиц", "музей", "галерея"),
+            "cinema": ("cinema", "кино", "фильм", "кинопоказ"),
+            "lecture": ("lecture", "лекц", "дискусс", "семинар"),
+            "festival": ("festival", "фестивал"),
+        }
+
+        def groups_for(row):
+            text = " ".join(str(row.get(key) or "") for key in ("category", "title", "tags", "description")).casefold()
+            return {group for group, terms in aliases.items() if any(term in text for term in terms)}
+
+        event_by_id = {str(row["id"]): row for _, row in self.events_df.iterrows()}
+        positive_groups = set()
+        user_rows = self.interactions_df[self.interactions_df["user_id"].astype(str) == str(user_id)]
+        for _, interaction in user_rows.iterrows():
+            kind = str(interaction.get("interaction_type") or "").casefold()
+            positive = kind in {"attended", "favorite"}
+            if kind == "rated":
+                try:
+                    positive = float(interaction.get("rating") or 0) >= 4
+                except (TypeError, ValueError):
+                    positive = False
+            if not positive:
+                continue
+            event = event_by_id.get(str(interaction.get("event_id")))
+            if event is not None:
+                positive_groups.update(groups_for(event))
+        if not positive_groups:
+            return {}
+        return {
+            str(row["id"]): (1.0 if groups_for(row) & positive_groups else 0.0)
+            for _, row in self.events_df.iterrows()
+        }
+
     def recommend(
         self,
         user_id: int,
@@ -477,7 +524,9 @@ class HybridRecommender:
             low_rated_ids = user_rows[(user_rows["interaction_type"] == "rated") & (pd.to_numeric(user_rows["rating"], errors="coerce") <= 2)]["event_id"].tolist()
             seen_event_ids = {str(value) for value in (strong_ids + low_rated_ids)}
 
-        # Вычисляем итоговые оценки
+        # Вычисляем итоговые оценки. Категориальный профиль дополняет TF-IDF/CF:
+        # посещённые спортивные события повышают приоритет других видов спорта.
+        category_scores = self.get_category_affinity_scores(user_id)
         results = []
         for _, event in self.events_df.iterrows():
             eid = event["id"]
@@ -507,6 +556,10 @@ class HybridRecommender:
                 # Новый пользователь — только контентный компонент
                 hybrid_score = cbf
 
+            category_affinity = float(category_scores.get(str(eid), 0.0))
+            if category_scores:
+                hybrid_score = 0.65 * float(hybrid_score) + 0.35 * category_affinity
+
             results.append({
                 "event_id": eid,
                 "title": event["title"],
@@ -516,6 +569,7 @@ class HybridRecommender:
                 "price_min": int(event["price_min"]),
                 "is_free": bool(event["is_free"]),
                 "score": round(hybrid_score, 4),
+                "category_affinity_score": round(category_affinity, 4),
                 "alpha": alpha,
                 "cf_score": round(cf, 4),
                 "cbf_score": round(cbf, 4),
