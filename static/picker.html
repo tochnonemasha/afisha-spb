@@ -960,7 +960,10 @@ async function loadReplacementRecommendations() {
     const userId = parseInt(localStorage.getItem('user_id')) || null;
     if (!userId) return;
     try {
-        const response = await fetch(`${API_BASE_URL}/api/recommendations/${userId}?n=5`);
+        // Загружаем расширенную ранжированную выдачу: после фильтрации по выбранному
+        // дню, времени, району и бюджету топ-5 из всего каталога часто не содержал
+        // ни одного события, доступного для замены.
+        const response = await fetch(`${API_BASE_URL}/api/recommendations/${userId}?n=500`);
         if (!response.ok) return;
         const payload = await response.json();
         const recs = payload.recommendations || [];
@@ -1030,7 +1033,7 @@ function openReplaceEventModal(dayDate, eventId) {
     loadReplacementRecommendations().then(() => {
         const note = document.getElementById('db-recommendation-note');
         if (note) note.textContent = replacementRecommendationsAvailable
-          ? 'Показаны 5 лучших рекомендаций модели, которые подходят по времени, дате и бюджету.'
+          ? 'Показаны лучшие рекомендации модели среди мероприятий, подходящих по времени, дате и бюджету.'
           : 'Персональный профиль не найден или рекомендации недоступны. Показаны подходящие события; можно открыть весь список.';
         renderDatabaseEventOptions();
     });
@@ -1098,6 +1101,9 @@ function renderDatabaseEventOptions() {
                 // Во вкладке рекомендаций показываем только события из верхней выдачи модели.
                 options = options.filter(e => replacementRecommendationOrder.has(String(e.id)));
                 options.sort((a,b) => (replacementRecommendationOrder.get(String(a.id)) ?? 1e9) - (replacementRecommendationOrder.get(String(b.id)) ?? 1e9));
+                // Показываем несколько верхних рекомендаций, но только после применения
+                // реальных ограничений замены; иначе «Вам понравится» часто пусто.
+                options = options.slice(0, 10);
             } else {
                 options = [];
             }
