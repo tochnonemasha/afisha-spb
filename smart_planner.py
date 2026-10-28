@@ -29,7 +29,7 @@ CATEGORY_ALIASES = {
     "exhibition": ["exhibition", "выстав", "экспозиц", "музей"],
     "lecture": ["lecture", "лекц", "встреча", "дискусс"],
     "festival": ["festival", "фестивал"],
-    "sport": ["sport", "спорт", "матч", "соревнован"],
+    "sport": ["sport", "спорт", "матч", "соревнован", "футбол", "хоккей", "баскетбол", "волейбол", "теннис", "бокс", "регби", "турнир", "забег", "марафон", "гонк", "фитнес", "лыж", "конькобеж", "единоборств"],
     "stand-up": ["stand-up", "standup", "стендап", "комед"],
     "excursion": ["excursion", "экскурс", "прогулк"],
     "party": ["party", "вечерин", "клуб", "ночн"],
@@ -498,7 +498,7 @@ class SmartPlanner:
 
         candidates = self._get_candidates(
             interests=interests, district=district, districts=districts, benefits_filter=benefits_filter,
-            age_group=age_group, date_from=date_from, date_to=date_to,
+            age_group=age_group, date_from=date_from, date_to=date_to, user_id=user_id,
         )
         # Персонализация использует и онлайн-историю пользователя, и профиль категорий.
         # Одних TF-IDF-оценок недостаточно: для новых аккаунтов они могут быть слишком
@@ -957,7 +957,7 @@ class SmartPlanner:
         }
 
     def _get_candidates(self, interests, district=None, districts=None, benefits_filter=None, age_group=None,
-                        date_from=None, date_to=None):
+                        date_from=None, date_to=None, user_id=None):
         """Выбирает кандидатов с учётом дат ДО ограничения количества строк.
 
         Раньше сначала выбирались первые 500 строк БД, а даты проверялись уже
@@ -989,11 +989,41 @@ class SmartPlanner:
                 pass
 
         # Категории из UI могут быть slug-кодами (concert), а в БД — русскими словами.
-        if interests:
+        # Дополняем выбор пользователя явно выраженными интересами из истории аккаунта:
+        # посещённый спорт должен позволить включить другие спортивные события в план,
+        # даже если в форме выбраны, например, только концерты.
+        explicit_interests = bool(interests)
+        category_codes = [str(category or "").strip().casefold() for category in (interests or [])]
+        if user_id and explicit_interests:
+            try:
+                positive_interactions = self.db.query(UserInteraction, Event).join(
+                    Event, Event.id == UserInteraction.event_id
+                ).filter(
+                    UserInteraction.user_id == int(user_id),
+                    UserInteraction.interaction_type.in_(["attended", "favorite", "rated"]),
+                ).all()
+                for interaction, interacted_event in positive_interactions:
+                    kind = str(interaction.interaction_type or "").casefold()
+                    if kind == "rated":
+                        try:
+                            if float(interaction.rating or 0) < 4:
+                                continue
+                        except (TypeError, ValueError):
+                            continue
+                    text_value = " ".join(str(value or "") for value in (
+                        interacted_event.category, interacted_event.title,
+                        getattr(interacted_event, "tags", ""), getattr(interacted_event, "description", "")
+                    )).casefold()
+                    for code, aliases in CATEGORY_ALIASES.items():
+                        if any(alias.casefold() in text_value for alias in aliases if alias):
+                            category_codes.append(code)
+            except Exception:
+                # Персональные расширения не должны ломать обычный подбор.
+                pass
+        if explicit_interests and category_codes:
             from sqlalchemy import or_
             category_terms = []
-            for category in interests:
-                code = str(category or "").strip().casefold()
+            for code in category_codes:
                 category_terms.extend(CATEGORY_ALIASES.get(code, [code]))
             category_terms = list(dict.fromkeys(term for term in category_terms if term))
             if category_terms:
@@ -1002,6 +1032,10 @@ class SmartPlanner:
                     filters.append(Event.category.ilike("%" + term + "%"))
                     if hasattr(Event, "tags"):
                         filters.append(Event.tags.ilike("%" + term + "%"))
+                    if hasattr(Event, "title"):
+                        filters.append(Event.title.ilike("%" + term + "%"))
+                    if hasattr(Event, "description"):
+                        filters.append(Event.description.ilike("%" + term + "%"))
                 query = query.filter(or_(*filters))
 
         # Фильтр по льготам
