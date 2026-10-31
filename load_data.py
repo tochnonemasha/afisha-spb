@@ -9,7 +9,6 @@ from sqlalchemy import or_
 
 from database import SessionLocal, init_db, Event
 
-
 def find_latest_csv():
     csv_files = glob.glob("*.csv")
     return max(csv_files, key=os.path.getmtime) if csv_files else None
