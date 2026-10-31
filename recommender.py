@@ -293,6 +293,27 @@ class HybridRecommender:
 
         print("\n✅ Модель обучена и готова к работе!")
 
+    def refresh_interactions(self):
+        """Обновляет журнал действий из БД без переобучения SVD.
+
+        Контентный профиль, категориальные сигналы, alpha и исключения должны
+        видеть действия, совершённые после старта API.
+        """
+        db = SessionLocal()
+        try:
+            rows = db.query(UserInteraction).all()
+            self.interactions_df = pd.DataFrame([{
+                "user_id": i.user_id,
+                "event_id": i.event_id,
+                "interaction_type": i.interaction_type,
+                "rating": i.rating,
+                "timestamp": i.timestamp,
+            } for i in rows], columns=[
+                "user_id", "event_id", "interaction_type", "rating", "timestamp"
+            ])
+        finally:
+            db.close()
+
     # ─── ДИНАМИЧЕСКИЙ КОЭФФИЦИЕНТ α ───────────────────────
     def get_alpha(self, user_id: int) -> float:
         """Плавно повышает долю CF по мере накопления уникальных взаимодействий."""
@@ -473,12 +494,40 @@ class HybridRecommender:
             event = event_by_id.get(str(interaction.get("event_id")))
             if event is not None:
                 positive_groups.update(groups_for(event))
-        if not positive_groups:
-            return {}
-        return {
-            str(row["id"]): (1.0 if groups_for(row) & positive_groups else 0.0)
-            for _, row in self.events_df.iterrows()
+        # Явные интересы из регистрации (UserPreference) имеют такой же
+        # категориальный охват, как и положительная история действий.
+        db = SessionLocal()
+        try:
+            from database import UserPreference
+            preferences = db.query(UserPreference).filter(UserPreference.user_id == int(user_id)).all()
+            preferred_terms = {str(p.category).casefold().strip() for p in preferences if float(p.weight or 0) > 0}
+        finally:
+            db.close()
+
+        # Нормализуем английские машинные категории и русские варианты к одной группе.
+        category_aliases = {
+            "sport": {"sport", "спорт", "спортивные мероприятия"},
+            "music": {"music", "музыка", "концерт", "концерты"},
+            "theater": {"theater", "театр", "театры"},
+            "exhibitions": {"exhibition", "exhibitions", "выставка", "выставки"},
+            "cinema": {"cinema", "кино", "кинопоказ"},
+            "lectures": {"lecture", "lectures", "лекция", "лекции"},
+            "festivals": {"festival", "festivals", "фестиваль", "фестивали"},
         }
+        preferred_groups = set(positive_groups)
+        for group, names in category_aliases.items():
+            if preferred_terms & names:
+                preferred_groups.add(group.rstrip("s") if group != "exhibitions" else "exhibition")
+        if not preferred_groups and not preferred_terms:
+            return {}
+
+        def affinity(row):
+            groups = groups_for(row)
+            raw = " ".join(str(row.get(k) or "").casefold() for k in ("category", "tags", "title", "description"))
+            explicit = any(term and term in raw for term in preferred_terms)
+            return 1.0 if (groups & preferred_groups) or explicit else 0.0
+
+        return {str(row["id"]): affinity(row) for _, row in self.events_df.iterrows()}
 
     def recommend(
         self,
@@ -487,6 +536,7 @@ class HybridRecommender:
         exclude_seen: bool = True,
         category_filter: str = None,
         max_price: int = None,
+        age_group: str = None,
         realtime: bool = True,
     ) -> list:
         """
@@ -501,6 +551,9 @@ class HybridRecommender:
         """
         if not self.is_trained:
             raise RuntimeError("Модель не обучена. Запустите train() сначала.")
+        # История действий обновляется на каждый запрос, чтобы разные пользователи
+        # и новые действия не получали устаревший общий профиль из памяти процесса.
+        self.refresh_interactions()
         n = max(1, min(int(n or 10), 500))
 
         # Определяем α для этого пользователя. Для нового пользователя CF не применяется.
@@ -545,6 +598,10 @@ class HybridRecommender:
                 if not event["is_free"] and event["price_min"] > max_price:
                     continue
 
+            # Возрастная маркировка мероприятия — признак для ранжирования,
+            # а не жёсткий фильтр допустимости. Не исключаем 12+/16+/18+ здесь.
+            # age_group оставлен для обратной совместимости API.
+
             # Гибридная оценка: если нет CF (новый пользователь) — только CBF
             # Нормализация ключей исключает потерю баллов при int/str ID.
             cf = cf_scores.get(eid, cf_scores.get(str(eid), 0.0))
@@ -560,10 +617,20 @@ class HybridRecommender:
             if category_scores:
                 hybrid_score = 0.65 * float(hybrid_score) + 0.35 * category_affinity
 
+            category_labels = {
+                "sport": "Спорт", "sports": "Спорт", "music": "Музыка", "concert": "Музыка",
+                "theater": "Театр", "theatre": "Театр", "exhibition": "Выставки",
+                "exhibitions": "Выставки", "cinema": "Кино", "lecture": "Лекции",
+                "lectures": "Лекции", "festival": "Фестивали", "festivals": "Фестивали",
+                "other": "Другое",
+            }
+            raw_category = str(event["category"] or "other").strip()
+            category_ru = category_labels.get(raw_category.casefold(), raw_category)
             results.append({
                 "event_id": eid,
                 "title": event["title"],
-                "category": event["category"],
+                "category": category_ru,
+                "category_code": raw_category,
                 "venue": event["venue_title"],
                 "start_datetime": event["start_datetime"],
                 "price_min": int(event["price_min"]),
