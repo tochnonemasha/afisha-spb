@@ -189,13 +189,9 @@ def load_events_from_csv(csv_path: str, source_override=None):
                     price_raw=safe_str(row.get("price_raw"))[:200] or ("Бесплатно" if is_free else None),
                     is_free=is_free,
                     age_restriction=safe_str(row.get("age_restriction"), "0+") or "0+",
-                    benefits=safe_str(row.get("benefits"))[:300],
                     image_url=safe_str(row.get("image_url")) or None,
                     site_url=safe_str(row.get("site_url")) or None,
                     source=source[:50],
-                    is_private=safe_bool(row.get("is_private"), default=False),
-                    max_participants=safe_int(row.get("max_participants"), default=None, minimum=1),
-                    parsed_at=safe_str(row.get("parsed_at")) or datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S"),
                 )
                 db.add(event)
                 added += 1
