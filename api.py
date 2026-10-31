@@ -15,11 +15,23 @@ import json
 import urllib.parse
 import urllib.request
 
-from database import SessionLocal, init_db, User, UserInteraction, Event, EventReview
+from database import SessionLocal, init_db, User, UserInteraction, Event, EventReview, UserPreference
 from recommender import HybridRecommender
 
 # ─── ИНИЦИАЛИЗАЦИЯ ────────────────────────────────────────
 app = FastAPI(title="Афиша SPB — API", version="1.0")
+
+CATEGORY_RU = {
+    "sport": "Спорт", "sports": "Спорт", "music": "Музыка", "concert": "Музыка",
+    "theater": "Театр", "theatre": "Театр", "exhibition": "Выставки",
+    "exhibitions": "Выставки", "cinema": "Кино", "lecture": "Лекции",
+    "lectures": "Лекции", "festival": "Фестивали", "festivals": "Фестивали",
+    "other": "Другое", "family": "Семейные мероприятия", "quest": "Квесты",
+}
+
+def category_display(value):
+    raw = str(value or "other").strip()
+    return CATEGORY_RU.get(raw.casefold(), raw)
 
 
 class AddressRequest(BaseModel):
@@ -139,6 +151,7 @@ class RegisterRequest(BaseModel):
     email: str
     password: str
     user_type: str = "resident"  # resident или guest
+    interests: Optional[dict] = None
 
 class LoginRequest(BaseModel):
     email: str
@@ -274,6 +287,21 @@ def register(data: RegisterRequest, db=Depends(get_db)):
         user_type=data.user_type,
     )
     db.add(user)
+    db.flush()
+
+    # Сохраняем интересы, выбранные на странице регистрации.
+    # Категория и подкатегории — отдельные признаки профиля.
+    if data.interests:
+        for category, subcategories in data.interests.items():
+            category_key = str(category).strip().casefold()
+            if not category_key:
+                continue
+            db.add(UserPreference(user_id=user.id, category=category_key, weight=2.0))
+            if isinstance(subcategories, (list, tuple)):
+                for subcategory in subcategories:
+                    sub = str(subcategory).strip()
+                    if sub:
+                        db.add(UserPreference(user_id=user.id, category=sub.casefold(), weight=1.5))
     db.commit()
     db.refresh(user)
 
@@ -399,7 +427,8 @@ def get_events(
         "events": [{
             "id": e.id,
             "title": e.title,
-            "category": e.category or "Другое",
+            "category": e.category or "other",
+            "category_ru": category_display(e.category),
             "benefits": e.benefits or "",
             "start_datetime": e.start_datetime or "",
             "end_datetime": e.end_datetime or "",
@@ -437,6 +466,7 @@ def get_event(event_id: int, db=Depends(get_db)):
         "average_rating": average_rating,
         "review_count": len(review_rows),
         "category": event.category,
+        "category_ru": category_display(event.category),
         "tags": event.tags,
         "start_datetime": event.start_datetime,
         "end_datetime": event.end_datetime,
@@ -518,6 +548,7 @@ def create_event(data: EventCreateRequest, db=Depends(get_db)):
             "id": event.id,
             "title": event.title,
             "category": event.category,
+        "category_ru": category_display(event.category),
             "start_datetime": event.start_datetime or "",
             "end_datetime": event.end_datetime or "",
             "duration_minutes": event.duration_minutes,
@@ -552,6 +583,23 @@ def get_event_reviews(event_id: int, db=Depends(get_db)):
             "created_at": r.updated_at.isoformat() if r.updated_at else None,
         } for r in reviews],
     }
+
+
+@app.delete("/api/reviews/{review_id}")
+def delete_event_review(review_id: int, user_id: int, db=Depends(get_db)):
+    review = db.query(EventReview).filter(
+        EventReview.id == review_id, EventReview.user_id == user_id
+    ).first()
+    if not review:
+        raise HTTPException(status_code=404, detail="Отзыв не найден")
+    db.query(UserInteraction).filter(
+        UserInteraction.user_id == user_id,
+        UserInteraction.event_id == review.event_id,
+        UserInteraction.interaction_type == "rated",
+    ).delete(synchronize_session=False)
+    db.delete(review)
+    db.commit()
+    return {"success": True, "message": "Отзыв удалён"}
 
 
 @app.get("/api/users/{user_id}/reviews")
@@ -628,16 +676,44 @@ def add_interaction(data: InteractionRequest, db=Depends(get_db)):
     if not event:
         raise HTTPException(status_code=404, detail="Мероприятие не найдено")
 
-    interaction = UserInteraction(
-        user_id=data.user_id,
-        event_id=data.event_id,
-        interaction_type=data.interaction_type,
-        rating=data.rating,
-    )
-    db.add(interaction)
-    db.commit()
+    allowed_types = {"view", "favorite", "attended", "rated"}
+    if data.interaction_type not in allowed_types:
+        raise HTTPException(status_code=422, detail="Неизвестный тип взаимодействия")
 
+    # Просмотры храним как историю событий; остальные действия — одно актуальное
+    # состояние на пару пользователь/мероприятие/тип.
+    if data.interaction_type == "view":
+        db.add(UserInteraction(user_id=data.user_id, event_id=data.event_id,
+                               interaction_type="view", timestamp=datetime.utcnow()))
+    else:
+        interaction = db.query(UserInteraction).filter(
+            UserInteraction.user_id == data.user_id,
+            UserInteraction.event_id == data.event_id,
+            UserInteraction.interaction_type == data.interaction_type,
+        ).order_by(UserInteraction.timestamp.desc()).first()
+        if interaction:
+            interaction.rating = data.rating
+            interaction.timestamp = datetime.utcnow()
+        else:
+            db.add(UserInteraction(user_id=data.user_id, event_id=data.event_id,
+                                   interaction_type=data.interaction_type,
+                                   rating=data.rating, timestamp=datetime.utcnow()))
+    db.commit()
     return {"success": True, "message": "Взаимодействие записано"}
+
+
+@app.delete("/api/users/{user_id}/favorites/{event_id}")
+def remove_favorite(user_id: int, event_id: int, db=Depends(get_db)):
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="Пользователь не найден")
+    db.query(UserInteraction).filter(
+        UserInteraction.user_id == user_id,
+        UserInteraction.event_id == event_id,
+        UserInteraction.interaction_type == "favorite",
+    ).delete(synchronize_session=False)
+    db.commit()
+    return {"success": True, "message": "Удалено из избранного"}
 
 
 @app.get("/api/users/{user_id}/favorites")
@@ -657,6 +733,7 @@ def get_favorites(user_id: int, db=Depends(get_db)):
             "id": e.id,
             "title": e.title,
             "category": e.category,
+            "category_ru": category_display(e.category),
             "start_datetime": e.start_datetime,
             "venue_title": e.venue_title,
             "price_min": e.price_min,
@@ -681,6 +758,7 @@ def get_attended(user_id: int, db=Depends(get_db)):
         "id": e_id,
         "title": event_map[e_id].title if e_id in event_map else "",
         "category": event_map[e_id].category if e_id in event_map else "",
+        "category_ru": category_display(event_map[e_id].category if e_id in event_map else ""),
         "venue_title": event_map[e_id].venue_title if e_id in event_map else "",
         "start_datetime": event_map[e_id].start_datetime if e_id in event_map else "",
         "price_min": event_map[e_id].price_min if e_id in event_map else 0,
@@ -710,6 +788,7 @@ def get_views(user_id: int, db=Depends(get_db)):
         "id": e_id,
         "title": event_map[e_id].title,
         "category": event_map[e_id].category,
+        "category_ru": category_display(event_map[e_id].category),
         "venue_title": event_map[e_id].venue_title,
         "image_url": event_map[e_id].image_url,
         "viewed_at": latest.get(e_id, ""),
@@ -723,6 +802,7 @@ def get_recommendations(
     n: int = 10,
     category: Optional[str] = None,
     max_price: Optional[int] = None,
+    age_group: Optional[str] = None,
 ):
     """
     Главный эндпоинт рекомендаций.
@@ -740,6 +820,7 @@ def get_recommendations(
             n=n,
             category_filter=category,
             max_price=max_price,
+            age_group=age_group,
         )
         alpha = recommender.get_alpha(user_id)
 
@@ -804,7 +885,8 @@ def create_smart_plan(data: SmartPlanRequest, db=Depends(get_db)):
             if event_date and not (data.date_from <= event_date <= data.date_to):
                 continue
             options.append({
-                "id": e.id, "title": e.title, "category": e.category or "Другое",
+                "id": e.id, "title": e.title, "category": e.category or "other",
+            "category_ru": category_display(e.category),
                 "venue_title": e.venue_title or "", "venue_address": e.venue_address or "",
                 "venue_lat": e.venue_lat, "venue_lon": e.venue_lon,
                 "start_datetime": e.start_datetime or "", "duration_minutes": e.duration_minutes or 120,
