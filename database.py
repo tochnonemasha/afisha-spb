@@ -45,13 +45,9 @@ class Event(Base):
     price_raw = Column(String(200))
     is_free = Column(Boolean, nullable=False, default=False, index=True)
     age_restriction = Column(String(10), nullable=False, default="0+")
-    benefits = Column(String(300), nullable=False, default="")
     image_url = Column(Text)
     site_url = Column(Text)
     source = Column(String(50), nullable=False, default="manual", index=True)
-    is_private = Column(Boolean, nullable=False, default=False)
-    max_participants = Column(Integer, nullable=True)
-    parsed_at = Column(String(50))
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
 
     interactions = relationship("UserInteraction", back_populates="event", cascade="all, delete-orphan")
@@ -172,18 +168,28 @@ def _add_missing_columns(table_name, columns):
                 print(f"Миграция: добавлена колонка {table_name}.{column_name}")
 
 
+def _drop_legacy_event_columns():
+    """Удаляет из events устаревшие поля, не затрагивая остальные данные."""
+    inspector = inspect(engine)
+    if "events" not in inspector.get_table_names():
+        return
+    existing = {col["name"] for col in inspector.get_columns("events")}
+    legacy = {"is_private", "parsed_at", "max_participate", "max_participants", "benefits"}
+    with engine.begin() as conn:
+        for column_name in sorted(existing & legacy):
+            conn.execute(text(f'ALTER TABLE "events" DROP COLUMN "{column_name}"'))
+            print(f"Миграция: удалена колонка events.{column_name}")
+
+
 def init_db():
-    """Создаёт таблицы и добавляет новые поля в уже существующую БД."""
+    """Создаёт таблицы, обновляет схему и удаляет устаревшие поля."""
     Base.metadata.create_all(bind=engine)
     # create_all не изменяет существующие таблицы, поэтому новые поля добавляем отдельно.
-    # Типы ниже совместимы с SQLite и PostgreSQL.
     _add_missing_columns("events", {
-        "benefits": "VARCHAR(300) DEFAULT ''",
         "external_id_str": "VARCHAR(100)",
         "duration_minutes": "INTEGER",
-        "max_participants": "INTEGER",
-        "parsed_at": "VARCHAR(50)",
     })
+    _drop_legacy_event_columns()
     _add_missing_columns("smart_plans", {
         "budget_per_day": "INTEGER",
         "group_size": "INTEGER DEFAULT 1",
