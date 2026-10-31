@@ -766,7 +766,8 @@ async function registerUser(interests) {
         name: data.firstname + (data.lastname ? ' ' + data.lastname : ''),
         email: data.email,
         password: password,
-        user_type: 'resident'
+        user_type: 'resident',
+        interests: interests || {}
       })
     });
 
