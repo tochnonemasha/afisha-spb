@@ -188,11 +188,12 @@ function mapCategory(cat) {
     if (!cat) return 'Другое';
     const c = String(cat).toLowerCase().trim().replace(/[_-]+/g, ' ');
     const rules = [
-        [/concert|music|gig|концерт|музык/, 'Концерт'],
+        [/concert|gig|концерт/, 'Концерты'],
+        [/music|музык/, 'Музыка'],
         [/theater|theatre| спектакл|театр|драм/, 'Театр'],
-        [/exhibition|museum|gallery|выставк|музе|галере/, 'Выставка'],
-        [/education|lecture|talk|лекци|образован|семинар/, 'Лекция'],
-        [/festival|фестивал/, 'Фестиваль'],
+        [/exhibition|museum|gallery|выставк|музе|галере/, 'Выставки'],
+        [/education|lecture|talk|лекци|образован|семинар/, 'Лекции'],
+        [/festival|фестивал/, 'Фестивали'],
         [/sport|fitness|спорт|фитнес/, 'Спорт'],
         [/stand ?up|comedy|стендап|юмор/, 'Стендап'],
         [/excursion|tour|экскурси|прогулк/, 'Экскурсия'],
@@ -202,6 +203,9 @@ function mapCategory(cat) {
         [/kids|children|child|family|детск|детям|семейн/, 'Для детей и семьи'],
         [/dance|танц/, 'Танцы'],
         [/food|food.?tour|гастроном|еда|кулинар/, 'Еда и гастрономия'],
+        [/stock|ярмарк/, 'Ярмарки'],
+        [/entertainment|развлеч/, 'Развлечения'],
+        [/recreation|отдых/, 'Отдых'],
         [/other|другое|разное/, 'Другое']
     ];
     for (const [pattern, label] of rules) if (pattern.test(c)) return label;
