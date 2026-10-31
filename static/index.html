@@ -403,7 +403,6 @@ let allEvents = [];
 let activeFilter = 'all';
 let selectedAge = null;
 let maxPrice = 1000000;
-let selectedBenefits = [];
 let selectedDate = null;
 let isLoading = false;
 let currentLimit = 15;
@@ -414,18 +413,22 @@ const LOAD_STEP = 15;
 function mapCategory(cat) {
     if (!cat) return 'Другое';
     const c = cat.toLowerCase();
-    if (c.includes('concert') || c.includes('концерт') || c.includes('music')) return 'Концерт';
-    if (c.includes('theater') || c.includes('театр') || c.includes('спектакл')) return 'Театр';
-    if (c.includes('exhibition') || c.includes('выставк')) return 'Выставка';
-    if (c.includes('education') || c.includes('лекци') || c.includes('семинар')) return 'Лекция';
-    if (c.includes('festival') || c.includes('фестивал')) return 'Фестиваль';
+    if (c.includes('concert') || c.includes('концерт')) return 'Концерты';
+    if (c.includes('music') || c.includes('музык')) return 'Музыка';
+    if (c.includes('theater') || c.includes('theatre') || c.includes('театр') || c.includes('спектакл')) return 'Театр';
+    if (c.includes('exhibition') || c.includes('выставк')) return 'Выставки';
+    if (c.includes('education') || c.includes('lecture') || c.includes('лекци') || c.includes('семинар')) return 'Лекции';
+    if (c.includes('festival') || c.includes('фестивал')) return 'Фестивали';
     if (c.includes('sport') || c.includes('спорт')) return 'Спорт';
     if (c.includes('stand') || c.includes('стендап')) return 'Стендап';
     if (c.includes('excursion') || c.includes('экскурси')) return 'Экскурсия';
     if (c.includes('party') || c.includes('вечеринк')) return 'Вечеринка';
     if (c.includes('master') || c.includes('мастер')) return 'Мастер-класс';
-    if (c.includes('cinema') || c.includes('кино')) return 'Кино';
+    if (c.includes('cinema') || c.includes('movie') || c.includes('film') || c.includes('кино') || c.includes('фильм')) return 'Кино';
     if (c.includes('kid') || c.includes('child') || c.includes('дет')) return 'Для детей';
+    if (c.includes('stock')) return 'Ярмарки';
+    if (c.includes('entertainment')) return 'Развлечения';
+    if (c.includes('recreation')) return 'Отдых';
     if (c.includes('private') || c.includes('частн')) return 'Частное';
     return cat;
 }
@@ -498,10 +501,8 @@ async function loadEventsFromAPI() {
     rawDate: e.start_datetime || '',
     price: e.price_min || 0,
     age: e.age_restriction || '0+',
-    benefits: e.benefits || '',
     tags: e.tags ? e.tags.split(/[,;|]/).map(mapTag).filter(Boolean) : [],
     img: e.image_url || '',
-    private: e.is_private || false,
     is_free: e.is_free || e.price_min === 0,
     venue_address: e.venue_address || '',
     district: e.venue_address || '',
@@ -667,7 +668,6 @@ function renderCards() {
                 <div class="card-badges">
                     <div class="badges-left">
                         <span class="badge-cat">${e.cat || 'Другое'}</span>
-                        ${e.private ? '<span class="badge-private">Частное</span>' : ''}
                     </div>
                     <div style="display:flex;flex-direction:column;align-items:flex-end;gap:5px">
                         <span class="badge-age">${e.age || '0+'}</span>
@@ -680,8 +680,6 @@ function renderCards() {
                 <div class="card-title">${e.title}</div>
                 <div class="card-venue">${e.venue}</div>
                 ${e.venue_address ? `<div style="font-size:10px;color:var(--muted);margin-bottom:8px">${e.venue_address}</div>` : ''}
-                ${e.benefits && e.benefits.length ? 
-                    `<div class="benefit-tags">${e.benefits.map(b => `<span class="benefit-tag">${b}</span>`).join('')}</div>` : ''}
                 <div class="card-footer">
                     <div class="card-price ${priceClass}">${priceDisplay}</div>
                     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
