@@ -11,6 +11,7 @@ import threading
 import schedule
 import time
 import os
+import re
 import json
 import urllib.parse
 import urllib.request
@@ -22,16 +23,38 @@ from recommender import HybridRecommender
 app = FastAPI(title="Афиша SPB — API", version="1.0")
 
 CATEGORY_RU = {
-    "sport": "Спорт", "sports": "Спорт", "music": "Музыка", "concert": "Музыка",
-    "theater": "Театр", "theatre": "Театр", "exhibition": "Выставки",
-    "exhibitions": "Выставки", "cinema": "Кино", "lecture": "Лекции",
-    "lectures": "Лекции", "festival": "Фестивали", "festivals": "Фестивали",
-    "other": "Другое", "family": "Семейные мероприятия", "quest": "Квесты",
+    "sport": "Спорт", "sports": "Спорт", "music": "Музыка", "concert": "Концерты",
+    "concerts": "Концерты", "theater": "Театр", "theatre": "Театр",
+    "exhibition": "Выставки", "exhibitions": "Выставки", "museum": "Музеи",
+    "museums": "Музеи", "cinema": "Кино", "movie": "Кино", "movies": "Кино",
+    "film": "Кино", "films": "Кино", "lecture": "Лекции", "lectures": "Лекции",
+    "education": "Образование", "festival": "Фестивали", "festivals": "Фестивали",
+    "other": "Другое", "family": "Семейные мероприятия", "family friendly": "Для всей семьи",
+    "quest": "Квесты", "quests": "Квесты", "excursion": "Экскурсии",
+    "excursions": "Экскурсии", "tour": "Экскурсии", "tours": "Экскурсии",
+    "party": "Вечеринки", "parties": "Вечеринки", "standup": "Стендап",
+    "stand up": "Стендап", "comedy": "Юмор", "dance": "Танцы", "dancing": "Танцы",
+    "workshop": "Мастер-классы", "master class": "Мастер-классы",
+    "kids": "Для детей", "children": "Для детей", "child": "Для детей",
+    "food": "Еда и гастрономия", "business": "Бизнес", "art": "Искусство",
+    "online": "Онлайн", "entertainment": "Развлечения",
+    "recreation": "Отдых", "stock": "Ярмарки",
 }
 
 def category_display(value):
     raw = str(value or "other").strip()
-    return CATEGORY_RU.get(raw.casefold(), raw)
+    # В источнике иногда несколько категорий хранятся через запятую.
+    parts = [part.strip() for part in raw.split(",") if part.strip()]
+    labels = []
+    for part in parts or ["other"]:
+        key = part.casefold().replace("_", " ").replace("-", " ")
+        label = CATEGORY_RU.get(key)
+        if not label:
+            # Если в БД уже лежит русское название, возвращаем его без изменений.
+            label = part if re.search(r"[а-яё]", part, re.IGNORECASE) else part[:1].upper() + part[1:]
+        if label not in labels:
+            labels.append(label)
+    return ", ".join(labels)
 
 
 class AddressRequest(BaseModel):
@@ -186,11 +209,8 @@ class EventCreateRequest(BaseModel):
     price_raw: Optional[str] = None
     is_free: bool = False
     age_restriction: str = "0+"
-    benefits: Optional[str] = None
     image_url: Optional[str] = None
     site_url: Optional[str] = None
-    is_private: bool = False
-    max_participants: Optional[int] = Field(None, ge=1)
 
 class SmartPlanRequest(BaseModel):
     user_id: Optional[int] = None
@@ -399,7 +419,6 @@ def update_user(user_id: int, data: dict, db=Depends(get_db)):
 def get_events(
     category: Optional[str] = None,
     max_price: Optional[int] = None,
-    benefits: Optional[str] = None,
     limit: int = Query(100, ge=1, le=2000),
     offset: int = Query(0, ge=0),
     db=Depends(get_db)
@@ -412,8 +431,6 @@ def get_events(
         query = query.filter(
             (Event.is_free == True) | (Event.price_min <= max_price)
         )
-    if benefits:
-        query = query.filter(Event.benefits.contains(benefits))
     total = query.count()
     events = query.offset(offset).limit(limit).all()
     event_ids = [e.id for e in events]
@@ -429,7 +446,6 @@ def get_events(
             "title": e.title,
             "category": e.category or "other",
             "category_ru": category_display(e.category),
-            "benefits": e.benefits or "",
             "start_datetime": e.start_datetime or "",
             "end_datetime": e.end_datetime or "",
             "duration_minutes": e.duration_minutes,
@@ -441,7 +457,6 @@ def get_events(
             "is_free": bool(e.is_free),
             "age_restriction": e.age_restriction or "0+",
             "image_url": e.image_url or "",
-            "is_private": bool(e.is_private),
             "source": e.source or "kudago",
             "tags": e.tags or "",
             "average_rating": round(sum(ratings_by_event.get(e.id, [])) / len(ratings_by_event[e.id]), 1) if ratings_by_event.get(e.id) else None,
@@ -481,7 +496,6 @@ def get_event(event_id: int, db=Depends(get_db)):
         "age_restriction": event.age_restriction,
         "image_url": event.image_url,
         "site_url": event.site_url,
-        "is_private": event.is_private,
     }
 
 
@@ -532,12 +546,9 @@ def create_event(data: EventCreateRequest, db=Depends(get_db)):
         price_raw=("Бесплатно" if is_free and not data.price_raw else data.price_raw),
         is_free=is_free,
         age_restriction=data.age_restriction or "0+",
-        benefits=data.benefits or "",
         image_url=data.image_url,
         site_url=data.site_url,
         source="manual",
-        is_private=data.is_private,
-        max_participants=data.max_participants,
     )
     db.add(event)
     db.commit()
