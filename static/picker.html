@@ -1521,20 +1521,32 @@ async function initDayMaps(schedule, requestedMode) {
 
 function mapCat(cat) {
     if (!cat) return 'Событие';
-    const c = cat.toLowerCase();
-    if (c.includes('concert')) return 'Концерт';
-    if (c.includes('theater') || c.includes('spektakl')) return 'Театр';
-    if (c.includes('exhibition')) return 'Выставка';
-    if (c.includes('lecture') || c.includes('education')) return 'Лекция';
-    if (c.includes('master')) return 'Мастер-класс';
-    if (c.includes('festival')) return 'Фестиваль';
-    if (c.includes('sport')) return 'Спорт';
-    if (c.includes('stand')) return 'Стендап';
-    if (c.includes('excursion')) return 'Экскурсия';
-    if (c.includes('party')) return 'Вечеринка';
-    if (c.includes('cinema')) return 'Кино';
-    if (c.includes('kids')) return 'Детям';
-    return cat;
+    const c = String(cat).toLowerCase().trim().replace(/[_-]+/g, ' ');
+    const rules = [
+        [/concert|концерт/, 'Концерты'],
+        [/music|музык/, 'Музыка'],
+        [/theater|theatre|театр|спектакл/, 'Театр'],
+        [/exhibition|выставк/, 'Выставки'],
+        [/museum|музе/, 'Музеи'],
+        [/lecture|education|лекци|семинар/, 'Лекции'],
+        [/cinema|movie|film|кино|фильм/, 'Кино'],
+        [/master ?class|workshop|мастер.?класс/, 'Мастер-классы'],
+        [/festival|фестивал/, 'Фестивали'],
+        [/sport|спорт/, 'Спорт'],
+        [/stand ?up|comedy|стендап|юмор/, 'Стендап'],
+        [/excursion|tour|экскурси|прогулк/, 'Экскурсии'],
+        [/party|вечеринк|nightlife/, 'Вечеринки'],
+        [/kids|children|child|family|детск|детям|семейн/, 'Для детей и семьи'],
+        [/dance|танц/, 'Танцы'],
+        [/food|гастроном|еда|кулинар/, 'Еда и гастрономия'],
+        [/quest|квест/, 'Квесты'],
+        [/stock|ярмарк/, 'Ярмарки'],
+        [/entertainment|развлеч/, 'Развлечения'],
+        [/recreation|отдых/, 'Отдых'],
+        [/other|другое|разное/, 'Другое']
+    ];
+    for (const [pattern, label] of rules) if (pattern.test(c)) return label;
+    return /[а-яё]/i.test(cat) ? cat : cat.charAt(0).toLocaleUpperCase('ru-RU') + cat.slice(1);
 }
 
 // === ВЫБОР НЕСКОЛЬКИХ РАЙОНОВ ===
