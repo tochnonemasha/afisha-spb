@@ -467,7 +467,6 @@ class SmartPlanner:
         group_size: int = 1,
         user_id: int = None,
         max_events_per_day: int = 3,
-        benefits_filter: str = None,
         age_group: str = None,
         mandatory_points: list = None,
         travel_mode: str = "transit",
@@ -497,7 +496,7 @@ class SmartPlanner:
         travel_buffer_minutes = max(0, min(60, int(travel_buffer_minutes or 0)))
 
         candidates = self._get_candidates(
-            interests=interests, district=district, districts=districts, benefits_filter=benefits_filter,
+            interests=interests, district=district, districts=districts,
             age_group=age_group, date_from=date_from, date_to=date_to, user_id=user_id,
         )
         # Персонализация использует и онлайн-историю пользователя, и профиль категорий.
@@ -734,7 +733,7 @@ class SmartPlanner:
                 "price_per_person": price_pp, "price_total": cost,
                 "is_free": cost == 0, "image_url": point.get("image_url") or "",
                 "age_restriction": point.get("age_restriction") or "0+",
-                "benefits": "", "score": 1.0, "mandatory": True,
+                "score": 1.0, "mandatory": True,
                 "url": point.get("url") or "", "custom": not bool(point.get("event_id")),
             }
             day_by_date[day]["events"].append(entry)
@@ -865,7 +864,7 @@ class SmartPlanner:
                         "price_per_person": candidate.get("price_min") or 0, "price_total": event_cost,
                         "is_free": bool(candidate.get("is_free")), "image_url": candidate.get("image_url") or "",
                         "age_restriction": candidate.get("age_restriction") or "0+",
-                        "benefits": candidate.get("benefits") or "", "score": round(candidate["score"], 3),
+                        "score": round(candidate["score"], 3),
                         "mandatory": False, "custom": False, "url": "",
                     }
                     day_plan["events"].append(entry)
@@ -956,7 +955,7 @@ class SmartPlanner:
             "schedule": schedule,
         }
 
-    def _get_candidates(self, interests, district=None, districts=None, benefits_filter=None, age_group=None,
+    def _get_candidates(self, interests, district=None, districts=None, age_group=None,
                         date_from=None, date_to=None, user_id=None):
         """Выбирает кандидатов с учётом дат ДО ограничения количества строк.
 
@@ -1038,10 +1037,6 @@ class SmartPlanner:
                         filters.append(Event.description.ilike("%" + term + "%"))
                 query = query.filter(or_(*filters))
 
-        # Фильтр по льготам
-        if benefits_filter:
-            query = query.filter(Event.benefits.ilike("%" + benefits_filter + "%"))
-
         # После фильтрации по датам получаем весь релевантный набор. Лимит в 500
         # строк здесь приводил к пустым планам: нужные даты могли находиться
         # за пределами первых 500 записей в базе.
@@ -1098,7 +1093,6 @@ class SmartPlanner:
                 "is_free": bool(e.is_free),
                 "age_restriction": e.age_restriction or "0+",
                 "image_url": e.image_url or "",
-                "benefits": e.benefits or "",
                 "source": e.source or "",
                 "tags": getattr(e, "tags", "") or "",
                 "description": getattr(e, "description", "") or "",
