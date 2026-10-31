@@ -193,7 +193,6 @@ def init_db():
     })
     print("База данных готова")
 
-
 def get_db():
     db = SessionLocal()
     try:
