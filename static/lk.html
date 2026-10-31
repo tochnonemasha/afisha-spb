@@ -1000,15 +1000,20 @@ async function recordInteraction(eventId, type, rating = null) {
 function mapCat(cat) {
   if (!cat) return 'Событие';
   const c = cat.toLowerCase();
-  if (c.includes('concert') || c.includes('музык')) return 'Концерт';
+  if (c.includes('concert') || c.includes('концерт')) return 'Концерты';
+  if (c.includes('music') || c.includes('музык')) return 'Музыка';
   if (c.includes('theater') || c.includes('спектакл')) return 'Театр';
-  if (c.includes('exhibition') || c.includes('выставк')) return 'Выставка';
-  if (c.includes('education') || c.includes('лекци') || c.includes('master')) return 'Лекция';
-  if (c.includes('festival')) return 'Фестиваль';
-  if (c.includes('sport')) return 'Спорт';
-  if (c.includes('stand')) return 'Стендап';
-  if (c.includes('excursion')) return 'Экскурсия';
-  if (c.includes('party')) return 'Вечеринка';
+  if (c.includes('exhibition') || c.includes('выставк')) return 'Выставки';
+  if (c.includes('education') || c.includes('lecture') || c.includes('лекци') || c.includes('семинар')) return 'Лекции';
+  if (c.includes('cinema') || c.includes('movie') || c.includes('film') || c.includes('кино')) return 'Кино';
+  if (c.includes('festival') || c.includes('фестивал')) return 'Фестивали';
+  if (c.includes('sport') || c.includes('спорт')) return 'Спорт';
+  if (c.includes('stand') || c.includes('comedy')) return 'Стендап';
+  if (c.includes('excursion') || c.includes('tour')) return 'Экскурсии';
+  if (c.includes('party')) return 'Вечеринки';
+  if (c.includes('stock')) return 'Ярмарки';
+  if (c.includes('entertainment')) return 'Развлечения';
+  if (c.includes('recreation')) return 'Отдых';
   return cat;
 }
 
