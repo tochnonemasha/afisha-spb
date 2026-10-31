@@ -486,8 +486,14 @@ function toggleFav() {
     const userId = localStorage.getItem('user_id');
     const eventId = getEventId();
     if (userId && eventId) {
-        const type = btn.classList.contains('active') ? 'favorite' : 'view';
-        recordInteraction(userId, eventId, type);
+        if (btn.classList.contains('active')) {
+            recordInteraction(userId, eventId, 'favorite');
+        } else {
+            fetch(`${API_BASE_URL}/api/interactions/favorite/${encodeURIComponent(userId)}/${encodeURIComponent(eventId)}`, {
+                method: 'DELETE'
+            }).then(r => { if (!r.ok) console.warn('Не удалось удалить из избранного'); })
+              .catch(err => console.warn('Ошибка удаления из избранного:', err));
+        }
     }
 
     btn.textContent = btn.classList.contains('active') ? '⚑ В избранном' : '⚑ В избранное';
