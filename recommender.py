@@ -618,14 +618,22 @@ class HybridRecommender:
                 hybrid_score = 0.65 * float(hybrid_score) + 0.35 * category_affinity
 
             category_labels = {
-                "sport": "Спорт", "sports": "Спорт", "music": "Музыка", "concert": "Музыка",
-                "theater": "Театр", "theatre": "Театр", "exhibition": "Выставки",
-                "exhibitions": "Выставки", "cinema": "Кино", "lecture": "Лекции",
-                "lectures": "Лекции", "festival": "Фестивали", "festivals": "Фестивали",
+                "sport": "Спорт", "sports": "Спорт", "music": "Музыка",
+                "exhibition": "Выставки", "exhibitions": "Выставки",
+                "cinema": "Кино", "movie": "Кино", "film": "Кино",
+                "education": "Лекции", "lecture": "Лекции", "lectures": "Лекции",
+                "festival": "Фестивали", "festivals": "Фестивали",
+                "concert": "Концерты", "concerts": "Концерты",
+                "theater": "Театр", "theatre": "Театр",
+                "entertainment": "Развлечения", "recreation": "Отдых",
+                "stock": "Ярмарки",
                 "other": "Другое",
             }
             raw_category = str(event["category"] or "other").strip()
-            category_ru = category_labels.get(raw_category.casefold(), raw_category)
+            category_parts = [part.strip() for part in raw_category.split(",") if part.strip()]
+            category_ru = ", ".join(dict.fromkeys(
+                category_labels.get(part.casefold(), part) for part in (category_parts or ["other"])
+            ))
             results.append({
                 "event_id": eid,
                 "title": event["title"],
