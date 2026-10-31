@@ -583,9 +583,14 @@ async function addVisited(event) {
     showToast('Уже в посещённых');
     return;
   }
+  // Сначала подтверждаем запись на сервере: localStorage — только кэш интерфейса.
+  const saved = await recordInteraction(event.id, 'attended');
+  if (!saved) {
+    showToast('Не удалось сохранить посещение. Проверьте соединение и повторите.');
+    return;
+  }
   allVisited.unshift(event);
   localStorage.setItem('user_visited_' + userId, JSON.stringify(allVisited));
-  await recordInteraction(event.id, 'attended');
 
   document.getElementById('stat-history-count').textContent = allVisited.length;
   document.getElementById('history-count-display').textContent = allVisited.length;
@@ -978,7 +983,7 @@ function logout() {
 // ─── ВСПОМОГАТЕЛЬНЫЕ ──────────────────────────────────────
 async function recordInteraction(eventId, type, rating = null) {
   try {
-    await fetch(API_BASE_URL + '/api/interactions', {
+    const response = await fetch(API_BASE_URL + '/api/interactions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -988,7 +993,8 @@ async function recordInteraction(eventId, type, rating = null) {
         rating: rating
       })
     });
-  } catch(e) {}
+    return response.ok;
+  } catch(e) { return false; }
 }
 
 function mapCat(cat) {
